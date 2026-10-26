@@ -215,6 +215,33 @@
   }
   #toast.on { opacity: 1; transform: translate(-50%, 0); }
 
+
+  /* ------------------------------------------------ Big Picture theme */
+  body.theme-steam {
+    --bg: #0e141b; --bg2: #171d25; --panel: #1b2838; --panel2: #2a475e; --line: #2f3d4d;
+    --text: #e6eef5; --dim: #8f98a0; --faint: #5b6670; --cyan: #66c0f4; --violet: #417a9b;
+    background: linear-gradient(180deg, #1b2838 0%, #0e141b 55%);
+  }
+  body.theme-steam #splash { background: radial-gradient(60% 60% at 50% 45%, #2a475e 0%, #0e141b 70%); }
+  body.theme-steam .brand span, body.theme-steam .tab, body.theme-steam .shelf h3 { font-family: "Arial", "Helvetica", sans-serif; }
+  body.theme-steam .tab { text-transform: uppercase; letter-spacing: .12rem; font-size: 1.05rem; border-radius: .3rem; }
+  body.theme-steam .tab.active { background: transparent; color: var(--text); border-bottom: .2rem solid var(--cyan); border-radius: 0; }
+  body.theme-steam .tab.focused { background: var(--cyan); color: #0e141b; border-radius: .3rem; }
+  body.theme-steam .hero, body.theme-steam .card, body.theme-steam .btn, body.theme-steam #setup .box { border-radius: .4rem; }
+  body.theme-steam .tile { border-radius: .3rem; }
+  body.theme-steam .tile .bgc { opacity: .55; }
+  body.theme-steam .tile.focused::after, body.theme-steam .card.focused::after, body.theme-steam .btn.focused::after {
+    border: .2rem solid var(--cyan); border-radius: .3rem;
+  }
+  body.theme-steam .tile.focused { transform: scale(1.06); }
+  body.theme-steam .hero .hint { background: linear-gradient(90deg, #75b022, #588a1b); color: #fff; border-radius: .25rem; text-transform: uppercase; letter-spacing: .1rem; }
+  body.theme-steam .hero .hint i { border-color: #fff; }
+  body.theme-steam .hero .kicker { color: var(--cyan); }
+  body.theme-steam .card.focused .act { background: linear-gradient(90deg, #75b022, #588a1b); color: #fff; }
+  body.theme-steam .card .act { border-radius: .25rem; }
+  body.theme-steam .brand span b { color: var(--cyan); }
+  body.theme-steam #toast { background: #2a475e; color: #e6eef5; border-radius: .3rem; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
@@ -295,6 +322,8 @@
   function save(k, v) { try { localStorage.setItem("reaper." + k, JSON.stringify(v)); } catch (e) {} }
 
   var favs = load("favs", []);
+  var theme = load("theme", "reaper");
+  document.body.classList.toggle("theme-steam", theme === "steam");
   var showSystem = load("showSystem", false);
 
   // ---------------------------------------------------------------- catalog
@@ -801,7 +830,9 @@
       art = artFor(t, s.glyph);
     }
     hero.querySelector(".wash").style.background =
-      "radial-gradient(80% 140% at 85% 50%," + color + " 0%, rgba(26,16,48,0) 70%), linear-gradient(90deg, #1A1030 35%, rgba(26,16,48,.4))";
+      (theme === "steam"
+        ? "radial-gradient(80% 140% at 85% 50%," + color + " 0%, rgba(27,40,56,0) 70%), linear-gradient(90deg, #1b2838 35%, rgba(27,40,56,.4))"
+        : "radial-gradient(80% 140% at 85% 50%," + color + " 0%, rgba(26,16,48,0) 70%), linear-gradient(90deg, #1A1030 35%, rgba(26,16,48,.4))");
     hero.querySelector(".art").innerHTML = art;
     hero.querySelector(".kicker").textContent = kicker;
     hero.querySelector("h2").textContent = title;
@@ -1201,6 +1232,13 @@
       refreshApps();
     });
     tr.appendChild(sys);
+    var th = button("Theme: " + (theme === "steam" ? "Big Picture" : "ReaperOS"), "Switch between the purple reaper look and a Steam Big Picture style", function () {
+      theme = theme === "steam" ? "reaper" : "steam"; save("theme", theme);
+      document.body.classList.toggle("theme-steam", theme === "steam");
+      th.querySelector("b").textContent = "Theme: " + (theme === "steam" ? "Big Picture" : "ReaperOS");
+      toast(theme === "steam" ? "Big Picture theme on" : "ReaperOS theme on");
+    });
+    tr.appendChild(th);
     var mus = button("Load screen music: " + (musicOn ? "On" : "Off"), "The spooky jingle when ReaperOS opens", function () {
       musicOn = !musicOn; save("music", musicOn);
       mus.querySelector("b").textContent = "Load screen music: " + (musicOn ? "On" : "Off");
