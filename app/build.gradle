@@ -1,0 +1,53 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Each cloud build bumps the version so ReaperOS installs over itself as an update.
+def buildNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+
+android {
+    namespace 'com.reaperos.launcher'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.reaperos.launcher'
+        minSdk 22          // Fire OS 5 and newer
+        targetSdk 34
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+    }
+
+    // A fixed key, so every new build installs as an update instead of a conflict.
+    signingConfigs {
+        reaper {
+            storeFile file('reaperos.keystore')
+            storePassword 'reaperos'
+            keyAlias 'reaperos'
+            keyPassword 'reaperos'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.reaper
+        }
+        debug {
+            signingConfig signingConfigs.reaper
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.12.0'
+}

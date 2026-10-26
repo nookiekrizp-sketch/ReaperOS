@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- tile -->
+    <path android:fillColor="#2A1450"
+        android:pathData="M22,0 H78 A22,22 0 0 1 100,22 V78 A22,22 0 0 1 78,100 H22 A22,22 0 0 1 0,78 V22 A22,22 0 0 1 22,0 Z" />
+    <!-- glow -->
+    <path android:fillColor="#4A2A85"
+        android:pathData="M50,8 C72,8 90,26 90,48 C90,70 72,86 50,86 C28,86 10,70 10,48 C10,26 28,8 50,8 Z" />
+    <!-- scythe handle -->
+    <path android:fillColor="#B9A6E0"
+        android:pathData="M76.5,93 L80,92 L68.5,12 L65,12.8 Z" />
+    <!-- scythe blade -->
+    <path android:fillColor="#EDE8FA"
+        android:pathData="M67,12 C53,2 30,4 16,19 C31,13 48,13 63.5,21.5 Z" />
+    <!-- cloak -->
+    <path android:fillColor="#0A0612"
+        android:pathData="M50,17 C34,17 26,31 26,47 C26,61 22,75 15,90 L85,90 C78,75 74,61 74,47 C74,31 66,17 50,17 Z" />
+    <!-- hood shadow -->
+    <path android:fillColor="#000000"
+        android:pathData="M50,30 C41,30 36,38 36,48 C36,58 42,65 50,65 C58,65 64,58 64,48 C64,38 59,30 50,30 Z" />
+    <!-- eyes -->
+    <path android:fillColor="#22E3FF"
+        android:pathData="M41.4,47.5 a2.8,2.8 0 1,0 5.6,0 a2.8,2.8 0 1,0 -5.6,0 Z" />
+    <path android:fillColor="#22E3FF"
+        android:pathData="M53,47.5 a2.8,2.8 0 1,0 5.6,0 a2.8,2.8 0 1,0 -5.6,0 Z" />
+</vector>

@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>ReaperOS</title>
+<style>
+  /* 1rem = 1/96 of the screen width, so the layout scales to any TV. */
+  :root {
+    --bg: #0B0714;
+    --bg2: #140C26;
+    --panel: #1A1030;
+    --panel2: #24173F;
+    --line: #2F2150;
+    --text: #F2EEFB;
+    --dim: #A99CC7;
+    --faint: #6E6290;
+    --cyan: #22E3FF;
+    --violet: #8B5CF6;
+    --red: #FF4D6D;
+    --green: #3EE08F;
+  }
+  html { font-size: calc(100vw / 96); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: "Roboto", "Segoe UI", system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none;
+    overscroll-behavior: none;
+  }
+  body { background: radial-gradient(120% 90% at 85% -10%, #2A1450 0%, var(--bg) 55%); }
+  img { display: block; }
+
+  /* ------------------------------------------------ load screen */
+  #splash {
+    position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 50;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(60% 60% at 50% 45%, #2A1450 0%, var(--bg) 70%);
+    transition: opacity .45s ease;
+  }
+  #splash.gone { opacity: 0; pointer-events: none; }
+  #splash .reaper { width: 20rem; height: 20rem; overflow: visible; }
+  #splash .scythe { transform-origin: 72px 92px; animation: swing 2.4s ease-in-out infinite; }
+  #splash .eye { animation: glow 1.6s ease-in-out infinite; }
+  #splash .aura { animation: breathe 2.4s ease-in-out infinite; transform-origin: 50px 48px; }
+  #splash h1 {
+    margin-top: 2.2rem; font-size: 3rem; font-weight: 800; letter-spacing: .9rem;
+    padding-left: .9rem;
+  }
+  #splash h1 b { color: var(--cyan); font-weight: 800; }
+  #splash .tag { margin-top: .8rem; font-size: 1.1rem; color: var(--dim); letter-spacing: .25rem; text-transform: uppercase; }
+  #splash .bar { margin-top: 2.4rem; width: 18rem; height: .35rem; border-radius: 1rem; background: var(--panel2); overflow: hidden; }
+  #splash .bar i { display: block; width: 35%; height: 100%; border-radius: 1rem; background: var(--cyan); animation: slide 1.1s ease-in-out infinite; }
+  @keyframes swing { 0%,100% { transform: rotate(-7deg); } 50% { transform: rotate(5deg); } }
+  @keyframes glow { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+  @keyframes breathe { 0%,100% { transform: scale(.94); opacity: .7; } 50% { transform: scale(1.04); opacity: 1; } }
+  @keyframes slide { 0% { transform: translateX(-110%); } 100% { transform: translateX(300%); } }
+
+  /* ------------------------------------------------ top bar */
+  #top {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10; height: 6rem;
+    display: flex; align-items: center; padding: 0 4rem;
+    background: linear-gradient(var(--bg) 78%, rgba(11,7,20,0));
+  }
+  .brand { display: flex; align-items: center; margin-right: 3rem; }
+  .brand svg { margin-right: .9rem; }
+  .tab { margin-right: 1rem; }
+  .brand svg { width: 3rem; height: 3rem; }
+  .brand span { font-size: 1.7rem; font-weight: 800; letter-spacing: .35rem; }
+  .brand span b { color: var(--cyan); font-weight: 800; }
+  .tab {
+    font-size: 1.25rem; font-weight: 600; color: var(--dim);
+    padding: .55rem 1.4rem; border-radius: 2rem; border: .15rem solid transparent;
+  }
+  .tab.active { color: var(--text); background: var(--panel2); }
+  .tab.focused { color: var(--bg); background: var(--cyan); border-color: var(--cyan); }
+  .spacer { flex: 1; }
+  .clock { text-align: right; line-height: 1.15; }
+  .clock .t { font-size: 1.9rem; font-weight: 700; }
+  .clock .d { font-size: .9rem; color: var(--dim); letter-spacing: .15rem; text-transform: uppercase; }
+  .net { width: .8rem; height: .8rem; border-radius: 50%; background: var(--green); margin-right: .6rem; }
+  .net.off { background: var(--red); }
+
+  /* ------------------------------------------------ pages */
+  .page { position: fixed; top: 0; right: 0; bottom: 0; left: 0; display: none; }
+  .page.on { display: block; }
+  .scroller { padding-top: 6rem; padding-bottom: 6rem; transition: transform .2s ease; will-change: transform; }
+
+  /* hero */
+  .hero {
+    position: relative; margin: .5rem 4rem 1.5rem; height: 21rem; border-radius: 1.6rem; overflow: hidden;
+    background: var(--panel);
+  }
+  .hero .wash { position: absolute; top: 0; right: 0; bottom: 0; left: 0; transition: opacity .25s ease; }
+  .hero .art {
+    position: absolute; right: 4rem; top: 50%; transform: translateY(-50%);
+    width: 15rem; height: 15rem; display: flex; align-items: center; justify-content: center;
+  }
+  .hero .art img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 1.4rem; }
+  .hero .art img.wide { width: 28rem; max-width: none; height: auto; }
+  .hero .copy { position: absolute; left: 3.5rem; top: 50%; transform: translateY(-50%); max-width: 46rem; }
+  .hero .kicker { font-size: 1rem; font-weight: 700; letter-spacing: .25rem; text-transform: uppercase; color: var(--cyan); }
+  .hero h2 { font-size: 3.6rem; font-weight: 800; line-height: 1.05; margin: .6rem 0 .8rem; }
+  .hero p { font-size: 1.3rem; color: var(--dim); line-height: 1.4; }
+  .hero .hint { margin-top: 1.4rem; display: inline-flex; align-items: center; font-size: 1.1rem; font-weight: 600;
+    background: var(--text); color: var(--bg); padding: .6rem 1.4rem; border-radius: 2rem; }
+  .hero .hint i { margin-right: .7rem;  width: 1.2rem; height: 1.2rem; border-radius: 50%; border: .2rem solid var(--bg); }
+
+  /* shelves */
+  .shelf { margin: 0 0 1.6rem; }
+  .shelf h3 {
+    margin: 0 4rem .8rem; font-size: 1.05rem; font-weight: 700; letter-spacing: .25rem;
+    text-transform: uppercase; color: var(--dim); display: flex; justify-content: space-between;
+  }
+  .shelf h3 small { font-size: .9rem; color: var(--faint); letter-spacing: .15rem; }
+  .viewport { overflow: hidden; padding: .9rem 0; }
+  .track { display: flex; padding: 0 4rem; transition: transform .2s ease; }
+  .track > * + * { margin-left: 1.4rem; }
+  .cards > * + * { margin-left: 1.6rem; }
+  .empty { margin: 0 4rem; font-size: 1.1rem; color: var(--faint); }
+
+  .tile {
+    position: relative; flex: 0 0 auto; width: 15rem; height: 9.5rem; border-radius: 1.1rem;
+    background: var(--panel); overflow: hidden;
+    transition: transform .16s ease;
+  }
+  .tile .bgc { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
+  .tile .ic { position: absolute; left: 50%; top: 42%; transform: translate(-50%,-50%); width: 4.4rem; height: 4.4rem; object-fit: contain; }
+  .tile .ic.glyph { display: flex; align-items: center; justify-content: center; border-radius: 1rem; font-size: 2rem; font-weight: 800; color: #fff; }
+  .tile .ban { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+  .tile .name {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: .55rem .8rem;
+    font-size: 1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    background: linear-gradient(rgba(11,7,20,0), rgba(11,7,20,.85));
+  }
+  .tile.hasban .name { opacity: 0; }
+  .tile .pin { position: absolute; top: .5rem; right: .6rem; font-size: .9rem; color: var(--cyan); }
+  .tile.focused { transform: scale(1.09); z-index: 2; will-change: transform; }
+  .tile.focused::after, .card.focused::after, .btn.focused::after {
+    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: inherit;
+    border: .25rem solid var(--cyan); pointer-events: none;
+  }
+  .tile.focused .name { opacity: 1; }
+
+  /* store + settings */
+  .pagehead { margin: .5rem 4rem 2rem; }
+  .pagehead h2 { font-size: 3rem; font-weight: 800; }
+  .pagehead p { font-size: 1.2rem; color: var(--dim); margin-top: .4rem; max-width: 70rem; line-height: 1.4; }
+  .cards { display: flex; padding: 0 4rem; transition: transform .2s ease; }
+  .card {
+    position: relative; flex: 0 0 auto; width: 25rem; min-height: 17rem; border-radius: 1.3rem;
+    background: var(--panel); padding: 1.8rem; transition: transform .16s ease;
+    display: flex; flex-direction: column;
+  }
+  .card.focused { transform: scale(1.05); z-index: 2; background: var(--panel2); }
+  .card .head { display: flex; align-items: center; }
+  .card .logo { margin-right: 1.2rem; }
+  .card .logo { width: 4.6rem; height: 4.6rem; border-radius: 1.1rem; display: flex; align-items: center; justify-content: center; font-size: 2.1rem; font-weight: 800; color: #fff; flex: 0 0 auto; }
+  .card h4 { font-size: 1.6rem; font-weight: 700; }
+  .card .src { font-size: .9rem; color: var(--faint); letter-spacing: .1rem; text-transform: uppercase; margin-top: .2rem; }
+  .card p { font-size: 1.1rem; color: var(--dim); line-height: 1.4; margin: 1.1rem 0; flex: 1; }
+  .card .meta { font-size: .95rem; color: var(--faint); margin-bottom: .9rem; min-height: 1.2rem; }
+  .card .act {
+    align-self: flex-start; font-size: 1.1rem; font-weight: 700; padding: .55rem 1.4rem; border-radius: 2rem;
+    background: var(--panel2); color: var(--text);
+  }
+  .card.focused .act { background: var(--cyan); color: var(--bg); }
+  .card .act.warn { background: transparent; color: var(--red); padding-left: 0; }
+  .card .prog { height: .35rem; border-radius: 1rem; background: var(--line); overflow: hidden; margin-bottom: .9rem; display: none; }
+  .card .prog i { display: block; height: 100%; width: 0; background: var(--cyan); transition: width .2s linear; }
+  .card.busy .prog { display: block; }
+
+  .btn {
+    position: relative; flex: 0 0 auto; min-width: 20rem; border-radius: 1.2rem; background: var(--panel);
+    padding: 1.5rem 1.8rem; transition: transform .16s ease;
+  }
+  .btn.focused { transform: scale(1.05); background: var(--panel2); z-index: 2; }
+  .btn b { display: block; font-size: 1.35rem; }
+  .btn span { display: block; margin-top: .4rem; font-size: 1rem; color: var(--dim); }
+  .about { margin: 0 4rem; font-size: 1.05rem; color: var(--dim); line-height: 1.8; }
+  .about b { color: var(--text); }
+
+  /* help strip + toast */
+  #help {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; height: 3.6rem; padding: 0 4rem;
+    display: flex; align-items: center; font-size: .95rem; color: var(--faint);
+    background: linear-gradient(rgba(11,7,20,0), var(--bg) 60%);
+  }
+  #help span { margin-right: 2.6rem; }
+  #help b { color: var(--dim); font-weight: 600; margin-right: .4rem; }
+  #toast {
+    position: fixed; left: 50%; bottom: 5rem; z-index: 40; transform: translate(-50%, 2rem);
+    background: var(--text); color: var(--bg); font-size: 1.2rem; font-weight: 600;
+    padding: .9rem 1.8rem; border-radius: 2rem; opacity: 0; transition: opacity .2s ease, transform .2s ease;
+    max-width: 70rem; text-align: center;
+  }
+  #toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Reaper load screen -->
+<div id="splash">
+  <svg class="reaper" viewBox="0 0 100 100" aria-hidden="true">
+    <defs>
+      <radialGradient id="aura" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#7B4BD6" stop-opacity=".85"/>
+        <stop offset="100%" stop-color="#2A1450" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle class="aura" cx="50" cy="48" r="46" fill="url(#aura)"/>
+    <g class="scythe">
+      <path fill="#B9A6E0" d="M76.5,93 L80,92 L68.5,12 L65,12.8 Z"/>
+      <path fill="#EDE8FA" d="M67,12 C53,2 30,4 16,19 C31,13 48,13 63.5,21.5 Z"/>
+    </g>
+    <path fill="#0A0612" d="M50,17 C34,17 26,31 26,47 C26,61 22,75 15,90 L85,90 C78,75 74,61 74,47 C74,31 66,17 50,17 Z"/>
+    <path fill="#000" d="M50,30 C41,30 36,38 36,48 C36,58 42,65 50,65 C58,65 64,58 64,48 C64,38 59,30 50,30 Z"/>
+    <circle class="eye" cx="44.2" cy="47.5" r="2.8" fill="#22E3FF"/>
+    <circle class="eye" cx="55.8" cy="47.5" r="2.8" fill="#22E3FF"/>
+  </svg>
+  <h1>REAPER<b>OS</b></h1>
+  <div class="tag">Gathering your apps</div>
+  <div class="bar"><i></i></div>
+</div>
+
+<!-- Top bar -->
+<div id="top">
+  <div class="brand">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <path fill="#B9A6E0" d="M76.5,93 L80,92 L68.5,12 L65,12.8 Z"/>
+      <path fill="#EDE8FA" d="M67,12 C53,2 30,4 16,19 C31,13 48,13 63.5,21.5 Z"/>
+      <path fill="#2E1B55" d="M50,17 C34,17 26,31 26,47 C26,61 22,75 15,90 L85,90 C78,75 74,61 74,47 C74,31 66,17 50,17 Z"/>
+      <path fill="#000" d="M50,30 C41,30 36,38 36,48 C36,58 42,65 50,65 C58,65 64,58 64,48 C64,38 59,30 50,30 Z"/>
+      <circle cx="44.2" cy="47.5" r="2.8" fill="#22E3FF"/>
+      <circle cx="55.8" cy="47.5" r="2.8" fill="#22E3FF"/>
+    </svg>
+    <span>REAPER<b>OS</b></span>
+  </div>
+  <div class="tab f" data-tab="home">Home</div>
+  <div class="tab f" data-tab="store">Homebrew Store</div>
+  <div class="tab f" data-tab="settings">Settings</div>
+  <div class="spacer"></div>
+  <div class="net" id="net"></div>
+  <div class="clock"><div class="t" id="clockT">--:--</div><div class="d" id="clockD"></div></div>
+</div>
+
+<div class="page" id="page-home"><div class="scroller"></div></div>
+<div class="page" id="page-store"><div class="scroller"></div></div>
+<div class="page" id="page-settings"><div class="scroller"></div></div>
+
+<div id="help"></div>
+<div id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var NATIVE = !!window.Reaper;
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+  // ---------------------------------------------------------------- storage
+  function load(k, d) { try { var v = localStorage.getItem("reaper." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem("reaper." + k, JSON.stringify(v)); } catch (e) {} }
+
+  var favs = load("favs", []);
+  var showSystem = load("showSystem", false);
+
+  // ---------------------------------------------------------------- catalog
+  var CLOUD = [
+    { id: "xcloud", name: "Xbox Cloud Gaming", glyph: "X", color: "#107C10", url: "https://www.xbox.com/play",
+      kicker: "Cloud gaming", desc: "Stream your Game Pass library straight to the TV. Pair a controller first." },
+    { id: "gfn", name: "GeForce NOW", glyph: "G", color: "#5E9E00", url: "https://play.geforcenow.com", pkg: "com.nvidia.geforcenow",
+      kicker: "Cloud gaming", desc: "Play your Steam and Epic games on NVIDIA's cloud rigs." },
+    { id: "luna", name: "Amazon Luna", glyph: "L", color: "#7B2FF7", url: "https://luna.amazon.com",
+      kicker: "Cloud gaming", desc: "Amazon's game streaming, including the Prime Gaming lineup." },
+    { id: "boost", name: "Boosteroid", glyph: "B", color: "#2D6BFF", url: "https://cloud.boosteroid.com",
+      kicker: "Cloud gaming", desc: "Cloud PC gaming with a huge supported-games list." }
+  ];
+
+  var STORE = [
+    { id: "moonlight", name: "Moonlight", glyph: "M", color: "#2F6FE0", pkg: "com.limelight",
+      source: { type: "fdroid", pkg: "com.limelight" }, from: "F-Droid",
+      desc: "Stream games from your own gaming PC at up to 4K using Sunshine or GeForce Experience." },
+    { id: "gamenative", name: "GameNative", glyph: "G", color: "#E8590C", pkg: ["app.gamenative", "com.gamenative", "app.gamenative.android"],
+      source: { type: "github", repo: "utkarshdalal/GameNative" }, from: "GitHub", needs64: true,
+      desc: "Run the PC games you own from Steam, Epic and GOG directly on the device. Large download." },
+    { id: "smarttube", name: "SmartTube", glyph: "S", color: "#E5322D", pkg: "app.smarttube.fdroid",
+      source: { type: "fdroid", pkg: "app.smarttube.fdroid" }, from: "F-Droid",
+      desc: "Ad-free YouTube built for TV remotes, with SponsorBlock and 4K/HDR playback." },
+    { id: "jellyfin", name: "Jellyfin", glyph: "J", color: "#00A4DC", pkg: "org.jellyfin.androidtv",
+      source: { type: "fdroid", pkg: "org.jellyfin.androidtv" }, from: "F-Droid",
+      desc: "Stream movies and shows from your own Jellyfin media server." }
+  ];
+
+  var DEMO_APPS = [
+    { pkg: "demo.netflix", label: "Netflix", tv: true, color: "#B20710" },
+    { pkg: "demo.youtube", label: "YouTube", tv: true, color: "#CC0000" },
+    { pkg: "demo.prime", label: "Prime Video", tv: true, color: "#00A8E1" },
+    { pkg: "demo.crunchyroll", label: "Crunchyroll", tv: true, color: "#F47521" },
+    { pkg: "demo.downloader", label: "Downloader", tv: true, color: "#F29C1F" },
+    { pkg: "demo.kodi", label: "Kodi", tv: true, color: "#17B2E7" },
+    { pkg: "demo.settings", label: "Settings", tv: true, system: true, color: "#5B5A6E" }
+  ];
+
+  var apps = [];          // installed apps from the device
+  var icons = {};         // pkg -> {src, banner, color}
+  var device = { abis: [] };
+  if (NATIVE) { try { device = JSON.parse(Reaper.deviceInfo()) || device; } catch (e) {} }
+  var is64 = (device.abis || []).indexOf("arm64-v8a") >= 0 || (device.abis || []).indexOf("x86_64") >= 0;
+
+  // ---------------------------------------------------------------- native callbacks
+  var pendingFetch = {};
+  var seq = 0;
+  function nativeFetch(url) {
+    return new Promise(function (resolve, reject) {
+      if (!NATIVE) {
+        fetch(url).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+          .then(resolve, reject);
+        return;
+      }
+      var id = "f" + (++seq);
+      pendingFetch[id] = { resolve: resolve, reject: reject };
+      Reaper.fetch(id, url);
+    });
+  }
+  window.reaperFetched = function (id, ok, body) {
+    var p = pendingFetch[id]; if (!p) return;
+    delete pendingFetch[id];
+    ok ? p.resolve(body) : p.reject(new Error(body));
+  };
+  window.reaperIcon = function (pkg, data) {
+    if (!data || !data.src) return;
+    icons[pkg] = data;
+    sampleColor(data.src, function (c) { data.color = c; paintIcon(pkg); });
+  };
+  window.reaperToast = toast;
+  window.reaperResume = function () { refreshApps(); refreshStore(); };
+  window.reaperProgress = function (id, pct, bytes) {
+    var st = storeState[id]; if (!st) return;
+    st.busy = pct < 100;
+    st.pct = pct; st.bytes = bytes;
+    if (pct >= 100) { st.busy = false; toast("Download finished. Confirm the install on screen."); }
+    updateCard(id);
+  };
+  window.reaperInstallError = function (id, msg) {
+    var st = storeState[id]; if (!st) return;
+    st.busy = false; st.error = "Download failed: " + msg;
+    updateCard(id); toast(st.error);
+  };
+
+  // Average colour of an icon, used to tint its tile and the hero.
+  function sampleColor(src, cb) {
+    var img = new Image();
+    img.onload = function () {
+      try {
+        var c = document.createElement("canvas"); c.width = c.height = 12;
+        var x = c.getContext("2d"); x.drawImage(img, 0, 0, 12, 12);
+        var d = x.getImageData(0, 0, 12, 12).data, r = 0, g = 0, b = 0, n = 0;
+        for (var i = 0; i < d.length; i += 4) {
+          if (d[i + 3] < 120) continue;
+          var mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+          var w = 1 + (mx - mn) / 40;   // favour saturated pixels over white/black
+          r += d[i] * w; g += d[i + 1] * w; b += d[i + 2] * w; n += w;
+        }
+        if (!n) return cb(null);
+        cb("rgb(" + Math.round(r / n) + "," + Math.round(g / n) + "," + Math.round(b / n) + ")");
+      } catch (e) { cb(null); }
+    };
+    img.onerror = function () { cb(null); };
+    img.src = src;
+  }
+
+  // ---------------------------------------------------------------- toast + clock
+  var toastTimer;
+  function toast(msg) {
+    var t = $("#toast"); t.textContent = msg; t.classList.add("on");
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("on"); }, 3200);
+  }
+  function tick() {
+    var d = new Date(), h = d.getHours(), m = d.getMinutes();
+    $("#clockT").textContent = ((h % 12) || 12) + ":" + (m < 10 ? "0" : "") + m + (h < 12 ? " AM" : " PM");
+    $("#clockD").textContent = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    $("#net").classList.toggle("off", navigator.onLine === false);
+  }
+  tick(); setInterval(tick, 15000);
+  window.addEventListener("online", tick); window.addEventListener("offline", tick);
+
+  // ---------------------------------------------------------------- helpers
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function pkgList(p) { return Array.isArray(p) ? p : (p ? [p] : []); }
+  function installedVersion(item) {
+    if (!NATIVE) return "";
+    var list = pkgList(item.pkg);
+    for (var i = 0; i < list.length; i++) {
+      var v = Reaper.installedVersion(list[i]);
+      if (v) { item._pkg = list[i]; return v; }
+    }
+    return "";
+  }
+  function fmtBytes(b) {
+    if (!b) return "";
+    return b > 1e9 ? (b / 1e9).toFixed(1) + " GB" : b > 1e6 ? Math.round(b / 1e6) + " MB" : Math.round(b / 1e3) + " KB";
+  }
+  function normVer(v) { return String(v || "").replace(/^v/i, "").split(/[\s-+(]/)[0]; }
+
+  // ---------------------------------------------------------------- apps
+  function refreshApps() {
+    var list;
+    if (NATIVE) { try { list = JSON.parse(Reaper.getApps()); } catch (e) { list = []; } }
+    else list = DEMO_APPS;
+    apps = list.filter(function (a) { return showSystem || !a.system || a.tv; });
+    apps.sort(function (a, b) { return (b.tv ? 1 : 0) - (a.tv ? 1 : 0) || a.label.localeCompare(b.label); });
+    favs = favs.filter(function (p) { return list.some(function (a) { return a.pkg === p; }); });
+    if (state.page === "home") renderHome(true);
+  }
+  function launchApp(a) {
+    if (!NATIVE) { toast("Opening " + a.label + " (works on your Fire TV)"); return; }
+    if (!Reaper.launch(a.pkg)) toast("Couldn't open " + a.label + ".");
+  }
+  function toggleFav(a) {
+    var i = favs.indexOf(a.pkg);
+    if (i >= 0) { favs.splice(i, 1); toast(a.label + " removed from Favorites"); }
+    else { favs.unshift(a.pkg); toast(a.label + " pinned to Favorites"); }
+    save("favs", favs);
+    renderHome(true);
+  }
+
+  function appTile(a) {
+    var t = el("div", "tile f");
+    t._item = { kind: "app", app: a };
+    t.dataset.pkg = a.pkg;
+    t.innerHTML = '<div class="bgc"></div><div class="name">' + esc(a.label) + '</div>' +
+      (favs.indexOf(a.pkg) >= 0 ? '<div class="pin">&#9733;</div>' : "");
+    t._act = function () { launchApp(a); };
+    t._menu = function () { toggleFav(a); };
+    if (icons[a.pkg]) paintTile(t, a.pkg);
+    else if (NATIVE) Reaper.requestIcon(a.pkg);
+    else paintDemo(t, a);
+    return t;
+  }
+  function paintDemo(t, a) {
+    t.querySelector(".bgc").style.background = "linear-gradient(135deg," + a.color + ", #120A22)";
+    var g = el("div", "ic glyph", esc(a.label.charAt(0))); g.style.background = "rgba(0,0,0,.25)";
+    t.appendChild(g);
+  }
+  function paintTile(t, pkg) {
+    var ic = icons[pkg]; if (!ic) return;
+    var old = t.querySelector(".ic, .ban"); if (old) old.remove();
+    var bg = t.querySelector(".bgc");
+    if (ic.banner) {
+      t.classList.add("hasban");
+      var b = el("img", "ban"); b.src = ic.src; b.decoding = "async"; t.insertBefore(b, bg.nextSibling);
+    } else {
+      bg.style.background = "linear-gradient(135deg," + (ic.color || "#3B2470") + ", #120A22 85%)";
+      var i = el("img", "ic"); i.src = ic.src; i.decoding = "async"; t.insertBefore(i, bg.nextSibling);
+    }
+  }
+  function paintIcon(pkg) {
+    $$('.tile[data-pkg="' + pkg + '"]').forEach(function (t) { paintTile(t, pkg); });
+    var f = focusedEl();
+    if (f && f.dataset.pkg === pkg) updateHero(f);
+  }
+
+  function linkTile(c) {
+    var t = el("div", "tile f");
+    t._item = { kind: "cloud", cloud: c };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + c.color + ',#120A22 90%)"></div>' +
+      '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(c.glyph) + '</div><div class="name">' + esc(c.name) + '</div>';
+    t._act = function () {
+      if (c.pkg && NATIVE && Reaper.installedVersion(c.pkg)) { Reaper.launch(c.pkg); return; }
+      if (NATIVE) Reaper.openUrl(c.url); else toast("Opens " + c.url + " in the browser");
+    };
+    return t;
+  }
+  function storeTile(s) {
+    var t = el("div", "tile f");
+    t._item = { kind: "store", store: s };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + s.color + ',#120A22 90%)"></div>' +
+      '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(s.glyph) + '</div><div class="name">' + esc(s.name) + '</div>';
+    t._act = function () {
+      if (installedVersion(s)) Reaper.launch(s._pkg);
+      else { go("store"); focusCard(s.id); }
+    };
+    return t;
+  }
+
+  // ---------------------------------------------------------------- home
+  function shelf(title, count, tiles, emptyText) {
+    var sec = el("section", "shelf");
+    sec.innerHTML = "<h3><span>" + esc(title) + "</span><small>" + (count != null ? count + (count === 1 ? " title" : " titles") : "") + "</small></h3>";
+    if (!tiles.length) { sec.appendChild(el("div", "empty", esc(emptyText || "Nothing here yet."))); return sec; }
+    var vp = el("div", "viewport"), tr = el("div", "track");
+    tr.dataset.row = "1";
+    tiles.forEach(function (t) { tr.appendChild(t); });
+    vp.appendChild(tr); sec.appendChild(vp);
+    return sec;
+  }
+
+  function renderHome(keepFocus) {
+    var keep = keepFocus ? focusKey() : null;
+    var sc = $("#page-home .scroller"); sc.innerHTML = "";
+    var hero = el("div", "hero");
+    hero.innerHTML = '<div class="wash"></div><div class="art"></div><div class="copy"><div class="kicker"></div><h2></h2><p></p><div class="hint"><i></i><span>Launch</span></div></div>';
+    sc.appendChild(hero);
+
+    var favApps = favs.map(function (p) { return apps.filter(function (a) { return a.pkg === p; })[0]; }).filter(Boolean);
+    if (favApps.length) sc.appendChild(shelf("Favorites", favApps.length, favApps.map(appTile)));
+    sc.appendChild(shelf("Your apps", apps.length, apps.map(appTile), "No apps found."));
+    sc.appendChild(shelf("Cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
+    sc.appendChild(shelf("Homebrew", STORE.length, STORE.map(storeTile)));
+
+    if (state.page === "home") {
+      if (keep && restoreFocus(keep)) return;
+      setFocus(1, 0);
+    }
+  }
+
+  function updateHero(t) {
+    var hero = $("#page-home .hero"); if (!hero || !t || !t._item) return;
+    var it = t._item, kicker, title, desc, color, art = "", act = "Launch";
+    if (it.kind === "app") {
+      var a = it.app, ic = icons[a.pkg];
+      kicker = a.tv ? "Installed app" : "Installed app · phone layout";
+      title = a.label;
+      desc = favs.indexOf(a.pkg) >= 0 ? "Pinned to Favorites. Press Menu to unpin." : "Press Menu on the remote to pin this to Favorites.";
+      color = (ic && ic.color) || a.color || "#3B2470";
+      if (ic) art = '<img class="' + (ic.banner ? "wide" : "") + '" src="' + ic.src + '">';
+    } else if (it.kind === "cloud") {
+      var c = it.cloud; kicker = c.kicker; title = c.name; desc = c.desc; color = c.color; act = "Play";
+      art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(c.glyph) + "</div>";
+    } else {
+      var s = it.store, inst = installedVersion(s);
+      kicker = "Homebrew · " + s.from; title = s.name; desc = s.desc; color = s.color;
+      act = inst ? "Open" : "Get it in the store";
+      art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(s.glyph) + "</div>";
+    }
+    hero.querySelector(".wash").style.background =
+      "radial-gradient(80% 140% at 85% 50%," + color + " 0%, rgba(26,16,48,0) 70%), linear-gradient(90deg, #1A1030 35%, rgba(26,16,48,.4))";
+    hero.querySelector(".art").innerHTML = art;
+    hero.querySelector(".kicker").textContent = kicker;
+    hero.querySelector("h2").textContent = title;
+    hero.querySelector("p").textContent = desc;
+    hero.querySelector(".hint span").textContent = act;
+  }
+
+  // ---------------------------------------------------------------- store
+  var storeState = {};
+  STORE.forEach(function (s) { storeState[s.id] = { remote: null, busy: false, pct: 0 }; });
+
+  function resolveRelease(s) {
+    var src = s.source;
+    if (src.type === "fdroid") {
+      return nativeFetch("https://f-droid.org/api/v1/packages/" + src.pkg).then(function (txt) {
+        var j = JSON.parse(txt), code = j.suggestedVersionCode, name = "";
+        (j.packages || []).forEach(function (p) { if (p.versionCode === code) name = p.versionName; });
+        if (!code && j.packages && j.packages[0]) { code = j.packages[0].versionCode; name = j.packages[0].versionName; }
+        return { version: name, url: "https://f-droid.org/repo/" + src.pkg + "_" + code + ".apk", size: 0 };
+      });
+    }
+    return nativeFetch("https://api.github.com/repos/" + src.repo + "/releases/latest").then(function (txt) {
+      var j = JSON.parse(txt);
+      var apks = (j.assets || []).filter(function (a) { return /\.apk$/i.test(a.name); });
+      if (!apks.length) throw new Error("No APK in the latest release");
+      var abis = device.abis && device.abis.length ? device.abis : ["armeabi-v7a"];
+      var pick = null;
+      abis.some(function (abi) {
+        pick = apks.filter(function (a) { return a.name.toLowerCase().indexOf(abi.toLowerCase()) >= 0; })[0];
+        return !!pick;
+      });
+      if (!pick) pick = apks.filter(function (a) { return /universal/i.test(a.name); })[0];
+      if (!pick) pick = apks.filter(function (a) { return !/(arm64|armeabi|x86)/i.test(a.name); })[0];
+      if (!pick) pick = apks[0];
+      return { version: j.tag_name || "", url: pick.browser_download_url, size: pick.size || 0 };
+    });
+  }
+
+  function refreshStore() {
+    STORE.forEach(function (s) {
+      var st = storeState[s.id];
+      st.installed = installedVersion(s);
+      updateCard(s.id);
+      if (st.remote || st.loading) return;
+      st.loading = true;
+      resolveRelease(s).then(function (r) { st.remote = r; st.error = ""; })
+        .catch(function (e) { st.error = "Couldn't reach " + s.from + " (" + e.message + ")"; })
+        .then(function () { st.loading = false; updateCard(s.id); });
+    });
+  }
+
+  function cardState(s) {
+    var st = storeState[s.id];
+    if (s.needs64 && NATIVE && !is64) return { label: "Needs a 64-bit Fire TV", warn: true, action: null };
+    if (st.busy) return { label: st.pct >= 0 ? "Downloading " + st.pct + "%" : "Downloading " + fmtBytes(st.bytes), action: null };
+    if (st.installed) {
+      var newer = st.remote && st.remote.version && normVer(st.remote.version) !== normVer(st.installed);
+      return newer ? { label: "Update", action: "install" } : { label: "Open", action: "open" };
+    }
+    if (st.loading) return { label: "Checking…", action: null };
+    if (!st.remote) return { label: st.error ? "Retry" : "Install", action: st.error ? "retry" : null };
+    return { label: "Install", action: "install" };
+  }
+
+  function updateCard(id) {
+    var card = $('.card[data-id="' + id + '"]'); if (!card) return;
+    var s = STORE.filter(function (x) { return x.id === id; })[0], st = storeState[id], cs = cardState(s);
+    var meta = [];
+    if (st.installed) meta.push("Installed " + st.installed);
+    if (st.remote && st.remote.version) meta.push("Latest " + st.remote.version);
+    if (st.remote && st.remote.size) meta.push(fmtBytes(st.remote.size));
+    if (st.error && !st.busy) meta = [st.error];
+    card.querySelector(".meta").textContent = meta.join(" · ");
+    var act = card.querySelector(".act"); act.textContent = cs.label; act.classList.toggle("warn", !!cs.warn);
+    card.classList.toggle("busy", !!st.busy);
+    card.querySelector(".prog i").style.width = Math.max(0, st.pct || 0) + "%";
+  }
+
+  function cardAction(s) {
+    var st = storeState[s.id], cs = cardState(s);
+    if (!NATIVE) { toast("Installing works on your Fire TV."); return; }
+    if (cs.action === "open") { Reaper.launch(s._pkg); return; }
+    if (cs.action === "retry") { st.error = ""; st.remote = null; refreshStore(); return; }
+    if (cs.action !== "install") return;
+    if (!Reaper.canInstall()) toast("First, allow ReaperOS to install apps. Opening that setting…");
+    st.busy = true; st.pct = 0; st.error = "";
+    updateCard(s.id);
+    Reaper.install(s.id, st.remote.url);
+  }
+
+  function renderStore() {
+    var sc = $("#page-store .scroller"); sc.innerHTML = "";
+    sc.appendChild(el("div", "pagehead",
+      "<h2>Homebrew Store</h2><p>Open-source apps that aren't in the Amazon Appstore. ReaperOS downloads the latest release and hands it to Fire OS to install. Press Menu on an installed app to uninstall it.</p>"));
+    var row = el("div", "viewport"), tr = el("div", "cards"); tr.dataset.row = "1";
+    STORE.forEach(function (s) {
+      var c = el("div", "card f"); c.dataset.id = s.id;
+      c.innerHTML = '<div class="head"><div class="logo" style="background:' + s.color + '">' + esc(s.glyph) + '</div>' +
+        '<div><h4>' + esc(s.name) + '</h4><div class="src">From ' + esc(s.from) + (s.needs64 ? " · 64-bit only" : "") + '</div></div></div>' +
+        '<p>' + esc(s.desc) + '</p><div class="prog"><i></i></div><div class="meta"></div><div class="act">Install</div>';
+      c._act = function () { cardAction(s); };
+      c._menu = function () {
+        if (storeState[s.id].installed && NATIVE) Reaper.uninstall(s._pkg);
+      };
+      tr.appendChild(c);
+    });
+    row.appendChild(tr); sc.appendChild(row);
+
+    var setup = el("section", "shelf");
+    setup.style.marginTop = "2.4rem";
+    setup.innerHTML = "<h3><span>Before your first install</span></h3>";
+    var vp = el("div", "viewport"), tr2 = el("div", "track"); tr2.dataset.row = "1";
+    var b1 = button("Allow app installs", "Lets ReaperOS hand APKs to the Fire OS installer", function () { NATIVE ? Reaper.openSettings("unknown") : toast("Opens the Fire TV permission screen"); });
+    var b2 = button("Check for updates", "Re-checks every app's latest version", function () {
+      STORE.forEach(function (s) { storeState[s.id].remote = null; storeState[s.id].error = ""; });
+      refreshStore(); toast("Checking for updates…");
+    });
+    tr2.appendChild(b1); tr2.appendChild(b2); vp.appendChild(tr2); setup.appendChild(vp);
+    sc.appendChild(setup);
+    refreshStore();
+  }
+  function focusCard(id) {
+    var rows = getRows();
+    for (var r = 0; r < rows.length; r++) {
+      var items = items$(rows[r]);
+      for (var c = 0; c < items.length; c++) if (items[c].dataset.id === id) { setFocus(r, c); return; }
+    }
+  }
+
+  // ---------------------------------------------------------------- settings
+  function button(title, sub, fn) {
+    var b = el("div", "btn f", "<b>" + esc(title) + "</b><span>" + esc(sub) + "</span>");
+    b._act = fn; return b;
+  }
+  function renderSettings() {
+    var sc = $("#page-settings .scroller"); sc.innerHTML = "";
+    sc.appendChild(el("div", "pagehead", "<h2>Settings</h2><p>ReaperOS keeps your favorites and choices on this device.</p>"));
+    var sec = el("section", "shelf"), vp = el("div", "viewport"), tr = el("div", "track"); tr.dataset.row = "1";
+    tr.appendChild(button("Fire TV settings", "Network, display, controllers, accounts", function () { NATIVE ? Reaper.openSettings("system") : toast("Opens Fire TV settings"); }));
+    tr.appendChild(button("Allow app installs", "Needed for the Homebrew Store", function () { NATIVE ? Reaper.openSettings("unknown") : toast("Opens the install permission"); }));
+    var sys = button("System apps: " + (showSystem ? "Shown" : "Hidden"), "Show Fire OS helper apps in Your apps", function () {
+      showSystem = !showSystem; save("showSystem", showSystem);
+      sys.querySelector("b").textContent = "System apps: " + (showSystem ? "Shown" : "Hidden");
+      refreshApps();
+    });
+    tr.appendChild(sys);
+    var mus = button("Load screen music: " + (musicOn ? "On" : "Off"), "The spooky jingle when ReaperOS opens", function () {
+      musicOn = !musicOn; save("music", musicOn);
+      mus.querySelector("b").textContent = "Load screen music: " + (musicOn ? "On" : "Off");
+      if (musicOn) synthJingle();
+    });
+    tr.appendChild(mus);
+    tr.appendChild(button("Reset favorites", "Unpin everything from the Favorites row", function () {
+      favs = []; save("favs", favs); toast("Favorites cleared"); refreshApps();
+    }));
+    vp.appendChild(tr); sec.appendChild(vp); sc.appendChild(sec);
+
+    var about = el("div", "about");
+    about.innerHTML = "<b>ReaperOS</b> " + esc(device.version || "preview") +
+      "<br>Device: <b>" + esc(device.model || "Browser preview") + "</b>" +
+      (device.sdk ? " · Android API " + device.sdk : "") +
+      "<br>Processor support: <b>" + esc((device.abis || []).join(", ") || "unknown") + "</b>" +
+      (NATIVE ? (is64 ? " (64-bit apps OK)" : " (32-bit only, so 64-bit-only apps won't run)") : "");
+    sc.appendChild(about);
+  }
+
+  // ---------------------------------------------------------------- focus engine
+  var state = { page: "home", row: 1, col: 0, lastCol: {} };
+
+  function pageEl() { return $("#page-" + state.page); }
+  function getRows() {
+    var rows = [$("#top")];
+    $$("[data-row]", pageEl()).forEach(function (r) { if (items$(r).length) rows.push(r); });
+    return rows;
+  }
+  function items$(row) { return $$(".f", row); }
+  function focusedEl() { return $(".focused"); }
+  function focusKey() {
+    var f = focusedEl(); if (!f) return null;
+    return { pkg: f.dataset.pkg, id: f.dataset.id, row: state.row, col: state.col, inFav: !!(f.closest(".shelf") && /Favorites/.test(f.closest(".shelf").textContent.slice(0, 20))) };
+  }
+  function restoreFocus(k) {
+    var rows = getRows();
+    if (k.row < rows.length) {
+      var items = items$(rows[k.row]);
+      for (var c = 0; c < items.length; c++) {
+        if ((k.pkg && items[c].dataset.pkg === k.pkg) || (k.id && items[c].dataset.id === k.id)) { setFocus(k.row, c, true); return true; }
+      }
+      if (items.length) { setFocus(k.row, Math.min(k.col, items.length - 1), true); return true; }
+    }
+    return false;
+  }
+
+  function setFocus(r, c, instant) {
+    var rows = getRows();
+    if (!rows.length) return;
+    r = Math.max(0, Math.min(r, rows.length - 1));
+    var items = items$(rows[r]);
+    if (!items.length) return;
+    c = Math.max(0, Math.min(c, items.length - 1));
+    var prev = focusedEl(); if (prev) prev.classList.remove("focused");
+    var t = items[c]; t.classList.add("focused");
+    state.row = r; state.col = c; state.lastCol[r] = c;
+    scrollRow(rows[r], t);
+    scrollPage(rows[r], r);
+    if (state.page === "home" && r > 0) updateHero(t);
+    updateHelp(t);
+  }
+
+  function scrollRow(row, t) {
+    if (row.id === "top") return;
+    var vpW = row.parentNode.clientWidth;
+    var pad = parseFloat(getComputedStyle(document.documentElement).fontSize) * 4;
+    var left = t.offsetLeft, right = left + t.offsetWidth;
+    var cur = row._x || 0;
+    if (right - cur > vpW - pad) cur = right - (vpW - pad);
+    if (left - cur < pad) cur = left - pad;
+    var max = Math.max(0, row.scrollWidth - vpW);
+    cur = Math.max(0, Math.min(cur, max));
+    row._x = cur;
+    row.style.transform = "translateX(" + (-cur) + "px)";
+  }
+
+  function scrollPage(row, r) {
+    var sc = $(".scroller", pageEl());
+    if (r <= 1) { sc.style.transform = "translateY(0)"; sc._y = 0; return; }
+    var vh = window.innerHeight, rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    var box = row.closest(".shelf") || row.parentNode;
+    var top = box.offsetTop, bottom = top + box.offsetHeight;
+    var y = sc._y || 0;
+    if (bottom - y > vh - rem * 4) y = bottom - (vh - rem * 4);
+    if (top - y < rem * 7) y = top - rem * 7;
+    y = Math.max(0, y);
+    sc._y = y;
+    sc.style.transform = "translateY(" + (-y) + "px)";
+  }
+
+  function move(dr, dc) {
+    var rows = getRows();
+    if (dr) {
+      var nr = state.row + dr;
+      if (nr < 0 || nr >= rows.length) return;
+      var target = rows[nr].id === "top"
+        ? Math.max(0, $$(".tab", $("#top")).map(function (t) { return t.dataset.tab; }).indexOf(state.page))
+        : (state.lastCol[nr] != null ? state.lastCol[nr] : 0);
+      setFocus(nr, target);
+    } else {
+      setFocus(state.row, state.col + dc);
+    }
+  }
+
+  function go(page) {
+    if (state.page === page) return;
+    state.page = page; state.lastCol = {};
+    $$(".page").forEach(function (p) { p.classList.toggle("on", p.id === "page-" + page); });
+    $$(".tab").forEach(function (t) { t.classList.toggle("active", t.dataset.tab === page); });
+    if (page === "home") renderHome(false);
+    if (page === "store") renderStore();
+    if (page === "settings") renderSettings();
+    var sc = $(".scroller", pageEl()); sc.style.transform = ""; sc._y = 0;
+    setFocus(getRows().length > 1 ? 1 : 0, 0, true);
+  }
+
+  $$(".tab").forEach(function (t) { t._act = function () { go(t.dataset.tab); }; });
+
+  function updateHelp(t) {
+    var parts = ['<span><b>OK</b>' + (t && t.classList.contains("tab") ? "Open" : "Select") + "</span>"];
+    if (t && t._item && t._item.kind === "app") parts.push("<span><b>MENU</b>" + (favs.indexOf(t._item.app.pkg) >= 0 ? "Unpin" : "Pin to Favorites") + "</span>");
+    if (t && t.classList.contains("card")) parts.push("<span><b>MENU</b>Uninstall</span>");
+    parts.push("<span><b>BACK</b>" + (state.page === "home" ? "Top of the page" : "Home") + "</span>");
+    $("#help").innerHTML = parts.join("");
+  }
+
+  // ---------------------------------------------------------------- input
+  var lastMove = 0;
+  window.reaperKey = function (key, repeat) {
+    if (!$("#splash").classList.contains("gone")) return key !== "Back" ? true : false;
+    var now = Date.now();
+    if (/^Arrow/.test(key)) {
+      if (repeat && now - lastMove < 90) return true;   // smooth held-button scrolling
+      lastMove = now;
+    }
+    var f = focusedEl();
+    switch (key) {
+      case "ArrowUp": move(-1, 0); return true;
+      case "ArrowDown": move(1, 0); return true;
+      case "ArrowLeft": move(0, -1); return true;
+      case "ArrowRight": move(0, 1); return true;
+      case "PageLeft": setFocus(state.row, 0); return true;
+      case "PageRight": setFocus(state.row, 999); return true;
+      case "Enter": if (f && f._act && !repeat) f._act(); return true;
+      case "Menu": if (f && f._menu && !repeat) f._menu(); return true;
+      case "Back":
+        if (state.page !== "home") { go("home"); return true; }
+        if (state.row > 1) { setFocus(1, state.lastCol[1] || 0); return true; }
+        return false;  // already at the top of Home: hand back to Fire TV
+    }
+    return false;
+  };
+
+  // Keyboard support for previewing in a normal browser.
+  if (!NATIVE) {
+    document.addEventListener("keydown", function (e) {
+      var map = { ArrowUp: "ArrowUp", ArrowDown: "ArrowDown", ArrowLeft: "ArrowLeft", ArrowRight: "ArrowRight",
+        Enter: "Enter", " ": "Enter", Escape: "Back", Backspace: "Back", m: "Menu", M: "Menu" };
+      var k = map[e.key]; if (!k) return;
+      e.preventDefault(); window.reaperKey(k, e.repeat);
+    });
+    document.addEventListener("click", function (e) {
+      var t = e.target.closest(".f"); if (!t) return;
+      var rows = getRows();
+      for (var r = 0; r < rows.length; r++) { var i = items$(rows[r]).indexOf(t); if (i >= 0) { setFocus(r, i); break; } }
+      if (t._act) t._act();
+    });
+  }
+
+
+  // ---------------------------------------------------------------- load-screen music
+  // An original creepy-carnival jingle synthesized live (no audio files needed).
+  // If the project includes assets/splash.mp3, that plays instead.
+  var musicOn = load("music", true);
+  function playJingle() {
+    if (!musicOn) return;
+    var custom = new Audio("splash.mp3");
+    custom.volume = 0.8;
+    custom.onerror = function () { synthJingle(); };
+    var p = custom.play();
+    if (p && p.catch) p.catch(function () { synthJingle(); });
+  }
+  function synthJingle() {
+    var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    var ctx = new AC(); if (ctx.resume) ctx.resume();
+    var master = ctx.createGain(); master.gain.value = 0.22; master.connect(ctx.destination);
+    var t0 = ctx.currentTime + 0.05, beat = 0.17;
+    function hz(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+    function note(n, at, len, type, vol) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.value = hz(n);
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(vol, at + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+      o.connect(g); g.connect(master); o.start(at); o.stop(at + len + 0.05);
+    }
+    // Plucky minor-key waltz melody (MIDI note, beats).
+    var mel = [[62,1],[65,1],[69,1],[68,1],[69,2],[74,1],[72,1],[69,1],[70,1],[69,1],[67,1],[65,1],[64,1],[61,1],[62,3]];
+    var t = t0;
+    mel.forEach(function (m) { note(m[0], t, beat * m[1] * 1.6, "square", 0.35); t += beat * m[1]; });
+    // Oom-pah bass underneath.
+    for (var i = 0, b = t0; b < t - beat; i++, b += beat * 3) {
+      note(i % 2 ? 45 : 38, b, beat * 1.4, "triangle", 0.6);
+      note(57, b + beat, beat * 0.8, "triangle", 0.25); note(57, b + beat * 2, beat * 0.8, "triangle", 0.25);
+    }
+    // Low organ swell to close it out.
+    note(38, t, 1.6, "sawtooth", 0.18); note(50, t, 1.6, "triangle", 0.3);
+    setTimeout(function () { try { ctx.close(); } catch (e) {} }, (t - ctx.currentTime + 2.2) * 1000);
+  }
+
+  // ---------------------------------------------------------------- start
+  var started = Date.now();
+  playJingle();
+  refreshApps();
+  $("#page-home").classList.add("on");
+  $$(".tab")[0].classList.add("active");
+  renderHome(false);
+  setFocus(1, 0, true);
+  var wait = Math.max(0, 2600 - (Date.now() - started));   // let the reaper have its moment
+  setTimeout(function () { $("#splash").classList.add("gone"); }, wait);
+  setTimeout(function () { refreshStore(); }, wait + 600); // warm the store quietly
+})();
+</script>
+</body>
+</html>
