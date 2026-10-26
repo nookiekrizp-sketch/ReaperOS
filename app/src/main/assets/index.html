@@ -97,8 +97,8 @@
     position: absolute; right: 4rem; top: 50%; transform: translateY(-50%);
     width: 15rem; height: 15rem; display: flex; align-items: center; justify-content: center;
   }
-  .hero .art img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 1.4rem; }
-  .hero .art img.wide { width: 28rem; max-width: none; height: auto; }
+  .hero .art img { width: 13rem; height: 13rem; object-fit: contain; border-radius: 2.4rem; }
+  .hero .art img.wide { width: 28rem; height: auto; border-radius: 1.4rem; }
   .hero .copy { position: absolute; left: 3.5rem; top: 50%; transform: translateY(-50%); max-width: 46rem; }
   .hero .kicker { font-size: 1rem; font-weight: 700; letter-spacing: .25rem; text-transform: uppercase; color: var(--cyan); }
   .hero h2 { font-size: 3.6rem; font-weight: 800; line-height: 1.05; margin: .6rem 0 .8rem; }
@@ -273,28 +273,32 @@
 
   // ---------------------------------------------------------------- catalog
   var CLOUD = [
-    { id: "xcloud", name: "Xbox Cloud Gaming", glyph: "X", color: "#107C10", url: "https://www.xbox.com/play",
+    { id: "xcloud", name: "Xbox Cloud Gaming", glyph: "X", color: "#107C10", url: "https://www.xbox.com/play", icons: ["https://www.google.com/s2/favicons?domain=xbox.com&sz=256"],
       kicker: "Cloud gaming", desc: "Stream your Game Pass library straight to the TV. Pair a controller first." },
-    { id: "gfn", name: "GeForce NOW", glyph: "G", color: "#5E9E00", url: "https://play.geforcenow.com", pkg: "com.nvidia.geforcenow",
+    { id: "gfn", name: "GeForce NOW", glyph: "G", color: "#5E9E00", url: "https://play.geforcenow.com", pkg: "com.nvidia.geforcenow", icons: ["https://www.google.com/s2/favicons?domain=play.geforcenow.com&sz=256", "https://www.google.com/s2/favicons?domain=nvidia.com&sz=256"],
       kicker: "Cloud gaming", desc: "Play your Steam and Epic games on NVIDIA's cloud rigs." },
-    { id: "luna", name: "Amazon Luna", glyph: "L", color: "#7B2FF7", url: "https://luna.amazon.com",
+    { id: "luna", name: "Amazon Luna", glyph: "L", color: "#7B2FF7", url: "https://luna.amazon.com", icons: ["https://www.google.com/s2/favicons?domain=luna.amazon.com&sz=256"],
       kicker: "Cloud gaming", desc: "Amazon's game streaming, including the Prime Gaming lineup." },
-    { id: "boost", name: "Boosteroid", glyph: "B", color: "#2D6BFF", url: "https://cloud.boosteroid.com",
+    { id: "boost", name: "Boosteroid", glyph: "B", color: "#2D6BFF", url: "https://cloud.boosteroid.com", icons: ["https://www.google.com/s2/favicons?domain=cloud.boosteroid.com&sz=256", "https://www.google.com/s2/favicons?domain=boosteroid.com&sz=256"],
       kicker: "Cloud gaming", desc: "Cloud PC gaming with a huge supported-games list." }
   ];
 
   var STORE = [
     { id: "moonlight", name: "Moonlight", glyph: "M", color: "#2F6FE0", pkg: "com.limelight",
-      source: { type: "fdroid", pkg: "com.limelight" }, from: "F-Droid",
+      source: { type: "fdroid", pkg: "com.limelight" }, from: "F-Droid", icons: ["https://f-droid.org/repo/com.limelight/en-US/icon.png"],
       desc: "Stream games from your own gaming PC at up to 4K using Sunshine or GeForce Experience." },
     { id: "gamenative", name: "GameNative", glyph: "G", color: "#E8590C", pkg: ["app.gamenative", "com.gamenative", "app.gamenative.android"],
       source: { type: "github", repo: "utkarshdalal/GameNative" }, from: "GitHub", needs64: true,
+      icons: ["https://raw.githubusercontent.com/utkarshdalal/GameNative/master/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+              "https://raw.githubusercontent.com/utkarshdalal/GameNative/master/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp",
+              "https://raw.githubusercontent.com/utkarshdalal/GameNative/main/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+              "https://raw.githubusercontent.com/utkarshdalal/GameNative/main/app/src/main/ic_launcher-playstore.png"],
       desc: "Run the PC games you own from Steam, Epic and GOG directly on the device. Large download." },
     { id: "smarttube", name: "SmartTube", glyph: "S", color: "#E5322D", pkg: "app.smarttube.fdroid",
-      source: { type: "fdroid", pkg: "app.smarttube.fdroid" }, from: "F-Droid",
+      source: { type: "fdroid", pkg: "app.smarttube.fdroid" }, from: "F-Droid", icons: ["https://f-droid.org/repo/app.smarttube.fdroid/en-US/icon.png"],
       desc: "Ad-free YouTube built for TV remotes, with SponsorBlock and 4K/HDR playback." },
     { id: "jellyfin", name: "Jellyfin", glyph: "J", color: "#00A4DC", pkg: "org.jellyfin.androidtv",
-      source: { type: "fdroid", pkg: "org.jellyfin.androidtv" }, from: "F-Droid",
+      source: { type: "fdroid", pkg: "org.jellyfin.androidtv" }, from: "F-Droid", icons: ["https://f-droid.org/repo/org.jellyfin.androidtv/en-US/icon.png"],
       desc: "Stream movies and shows from your own Jellyfin media server." }
   ];
 
@@ -410,6 +414,55 @@
   }
   function normVer(v) { return String(v || "").replace(/^v/i, "").split(/[\s-+(]/)[0]; }
 
+
+  // ---------------------------------------------------------------- remote icons
+  // Real artwork for tiles that aren't installed apps (cloud services, store apps).
+  var remote = {};      // key -> loaded url
+  var remoteBusy = {};
+  var remoteTried = {};
+  function remoteIcon(key, urls) {
+    if (remote[key] || remoteBusy[key] || !urls || !urls.length) return;
+    var tried = remoteTried[key] || (remoteTried[key] = {});
+    var queue = urls.filter(function (u) { return !tried[u]; });
+    if (!queue.length) return;
+    remoteBusy[key] = true;
+    (function next() {
+      var u = queue.shift();
+      if (!u) { remoteBusy[key] = false; return; }
+      tried[u] = true;
+      var img = new Image();
+      img.onload = function () {
+        if (img.naturalWidth < 24) return next();   // skip placeholder favicons
+        remoteBusy[key] = false; remote[key] = u; paintRemote(key);
+      };
+      img.onerror = next;
+      img.src = u;
+    })();
+  }
+  function hasNative(node) { return node.dataset.pkg && icons[node.dataset.pkg]; }
+  function applyRemote(node) {
+    var u = remote[node.dataset.ikey]; if (!u || hasNative(node)) return;
+    if (node.classList.contains("card")) { setLogo(node, u); return; }
+    var old = node.querySelector(".ic"); if (old) old.remove();
+    var i = el("img", "ic"); i.src = u; i.decoding = "async"; i.style.borderRadius = ".9rem";
+    node.insertBefore(i, node.querySelector(".bgc").nextSibling);
+  }
+  function setLogo(card, src) {
+    var lg = card.querySelector(".logo");
+    lg.innerHTML = '<img src="' + src + '" style="width:100%;height:100%;object-fit:contain;border-radius:1.1rem">';
+    lg.style.background = "transparent";
+  }
+  function paintRemote(key) {
+    $$('[data-ikey="' + key + '"]').forEach(applyRemote);
+    var f = focusedEl(); if (f && f.dataset.ikey === key) updateHero(f);
+  }
+  function artFor(node, glyph) {
+    var pkg = node.dataset.pkg, ic = pkg && icons[pkg];
+    var src = ic ? ic.src : remote[node.dataset.ikey];
+    if (src) return '<img class="' + (ic && ic.banner ? "wide" : "") + '" src="' + src + '">';
+    return '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(glyph) + "</div>";
+  }
+
   // ---------------------------------------------------------------- apps
   function refreshApps() {
     var list;
@@ -464,6 +517,7 @@
   }
   function paintIcon(pkg) {
     $$('.tile[data-pkg="' + pkg + '"]').forEach(function (t) { paintTile(t, pkg); });
+    $$('.card[data-pkg="' + pkg + '"]').forEach(function (c) { setLogo(c, icons[pkg].src); });
     var f = focusedEl();
     if (f && f.dataset.pkg === pkg) updateHero(f);
   }
@@ -471,24 +525,35 @@
   function linkTile(c) {
     var t = el("div", "tile f");
     t._item = { kind: "cloud", cloud: c };
+    t.dataset.ikey = "cloud:" + c.id;
+    if (c.pkg && NATIVE && Reaper.installedVersion(c.pkg)) { t.dataset.pkg = c.pkg; if (!icons[c.pkg]) Reaper.requestIcon(c.pkg); }
     t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + c.color + ',#120A22 90%)"></div>' +
       '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(c.glyph) + '</div><div class="name">' + esc(c.name) + '</div>';
     t._act = function () {
       if (c.pkg && NATIVE && Reaper.installedVersion(c.pkg)) { Reaper.launch(c.pkg); return; }
       if (NATIVE) Reaper.openUrl(c.url); else toast("Opens " + c.url + " in the browser");
     };
+    finishArt(t, c.icons);
     return t;
   }
   function storeTile(s) {
     var t = el("div", "tile f");
     t._item = { kind: "store", store: s };
+    t.dataset.ikey = "store:" + s.id;
+    if (installedVersion(s)) { t.dataset.pkg = s._pkg; if (!icons[s._pkg]) Reaper.requestIcon(s._pkg); }
     t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + s.color + ',#120A22 90%)"></div>' +
       '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(s.glyph) + '</div><div class="name">' + esc(s.name) + '</div>';
     t._act = function () {
       if (installedVersion(s)) Reaper.launch(s._pkg);
       else { go("store"); focusCard(s.id); }
     };
+    finishArt(t, s.icons);
     return t;
+  }
+
+  function finishArt(node, urls) {
+    if (hasNative(node)) { if (node.classList.contains("tile")) paintTile(node, node.dataset.pkg); else setLogo(node, icons[node.dataset.pkg].src); return; }
+    if (remote[node.dataset.ikey]) applyRemote(node); else remoteIcon(node.dataset.ikey, urls);
   }
 
   // ---------------------------------------------------------------- home
@@ -534,12 +599,12 @@
       if (ic) art = '<img class="' + (ic.banner ? "wide" : "") + '" src="' + ic.src + '">';
     } else if (it.kind === "cloud") {
       var c = it.cloud; kicker = c.kicker; title = c.name; desc = c.desc; color = c.color; act = "Play";
-      art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(c.glyph) + "</div>";
+      art = artFor(t, c.glyph);
     } else {
       var s = it.store, inst = installedVersion(s);
       kicker = "Homebrew · " + s.from; title = s.name; desc = s.desc; color = s.color;
       act = inst ? "Open" : "Get it in the store";
-      art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(s.glyph) + "</div>";
+      art = artFor(t, s.glyph);
     }
     hero.querySelector(".wash").style.background =
       "radial-gradient(80% 140% at 85% 50%," + color + " 0%, rgba(26,16,48,0) 70%), linear-gradient(90deg, #1A1030 35%, rgba(26,16,48,.4))";
@@ -561,6 +626,7 @@
         var j = JSON.parse(txt), code = j.suggestedVersionCode, name = "";
         (j.packages || []).forEach(function (p) { if (p.versionCode === code) name = p.versionName; });
         if (!code && j.packages && j.packages[0]) { code = j.packages[0].versionCode; name = j.packages[0].versionName; }
+        remoteIcon("store:" + s.id, ["https://f-droid.org/repo/icons-640/" + src.pkg + "." + code + ".png"]);
         return { version: name, url: "https://f-droid.org/repo/" + src.pkg + "_" + code + ".apk", size: 0 };
       });
     }
@@ -639,7 +705,8 @@
       "<h2>Homebrew Store</h2><p>Open-source apps that aren't in the Amazon Appstore. ReaperOS downloads the latest release and hands it to Fire OS to install. Press Menu on an installed app to uninstall it.</p>"));
     var row = el("div", "viewport"), tr = el("div", "cards"); tr.dataset.row = "1";
     STORE.forEach(function (s) {
-      var c = el("div", "card f"); c.dataset.id = s.id;
+      var c = el("div", "card f"); c.dataset.id = s.id; c.dataset.ikey = "store:" + s.id;
+      if (installedVersion(s)) { c.dataset.pkg = s._pkg; if (!icons[s._pkg]) Reaper.requestIcon(s._pkg); }
       c.innerHTML = '<div class="head"><div class="logo" style="background:' + s.color + '">' + esc(s.glyph) + '</div>' +
         '<div><h4>' + esc(s.name) + '</h4><div class="src">From ' + esc(s.from) + (s.needs64 ? " · 64-bit only" : "") + '</div></div></div>' +
         '<p>' + esc(s.desc) + '</p><div class="prog"><i></i></div><div class="meta"></div><div class="act">Install</div>';
@@ -648,6 +715,7 @@
         if (storeState[s.id].installed && NATIVE) Reaper.uninstall(s._pkg);
       };
       tr.appendChild(c);
+      finishArt(c, s.icons);
     });
     row.appendChild(tr); sc.appendChild(row);
 
