@@ -9,3 +9,4 @@ windows/node_modules/
 windows/dist/
 windows/ui/
 windows/package-lock.json
+!windows/build/
