@@ -316,6 +316,8 @@ public class MainActivity extends Activity {
         HttpURLConnection c = null;
         OutputStream os = null;
         String shownPath = "Downloads/ReaperOS/" + folder + "/" + name;
+        String absPath = new File(android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS), "ReaperOS/" + folder + "/" + name).getAbsolutePath();
         try {
             c = open(url);
             int code = c.getResponseCode();
@@ -355,7 +357,7 @@ public class MainActivity extends Activity {
             in.close();
             os.close();
             os = null;
-            js("window.reaperGameSaved && reaperGameSaved(" + q(id) + "," + q(shownPath) + ")");
+            js("window.reaperGameSaved && reaperGameSaved(" + q(id) + "," + q(shownPath) + "," + q(absPath) + ")");
         } catch (Exception ex) {
             js("window.reaperGameError && reaperGameError(" + q(id) + "," + q(String.valueOf(ex.getMessage())) + ")");
         } finally {
@@ -572,6 +574,42 @@ public class MainActivity extends Activity {
                 return;
             }
             io.execute(() -> saveGameNow(id, url, folder, name));
+        }
+
+        /**
+         * Starts a game directly in RetroArch with the given libretro core
+         * (the same launch extras RetroArch's own Android frontend and other launchers use).
+         * Returns "" on success, "not_installed", or "fallback" if only the app could be opened.
+         */
+        @JavascriptInterface
+        public String playInRetroArch(String romPath, String core) {
+            PackageManager pm = getPackageManager();
+            ApplicationInfo ai;
+            try {
+                ai = pm.getApplicationInfo("com.retroarch", 0);
+            } catch (PackageManager.NameNotFoundException ex) {
+                return "not_installed";
+            }
+            String sd = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
+            Intent i = new Intent(Intent.ACTION_MAIN);
+            i.setComponent(new android.content.ComponentName("com.retroarch",
+                    "com.retroarch.browser.retroactivity.RetroActivityFuture"));
+            i.putExtra("ROM", romPath);
+            i.putExtra("LIBRETRO", ai.dataDir + "/cores/" + core + "_libretro_android.so");
+            i.putExtra("CONFIGFILE", sd + "/Android/data/com.retroarch/files/retroarch.cfg");
+            i.putExtra("IME", Settings.Secure.getString(getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD));
+            i.putExtra("DATADIR", ai.dataDir);
+            i.putExtra("APK", ai.sourceDir);
+            i.putExtra("SDCARD", sd);
+            i.putExtra("EXTERNAL", sd + "/Android/data/com.retroarch/files");
+            i.putExtra("QUITFOCUS", "");
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            try {
+                startActivity(i);
+                return "";
+            } catch (Exception ex) {
+                return launch("com.retroarch") ? "fallback" : "not_installed";
+            }
         }
 
         @JavascriptInterface

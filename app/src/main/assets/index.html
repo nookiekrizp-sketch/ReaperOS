@@ -309,6 +309,9 @@
     { id: "luna", name: "Amazon Luna", glyph: "L", color: "#7B2FF7", match: /\bluna\b/i, query: "Amazon Luna",
       icons: ["https://www.google.com/s2/favicons?domain=luna.amazon.com&sz=256"], kicker: "Cloud gaming app",
       desc: "Amazon's game streaming, including the Prime Gaming lineup." },
+    { id: "steamlink", name: "Steam Big Picture", glyph: "S", color: "#1B2838", match: /steam ?link/i, pkg: "com.valvesoftware.steamlink",
+      query: "Steam Link", preferPlay: true, icons: ["https://www.google.com/s2/favicons?domain=store.steampowered.com&sz=256"], kicker: "Steam Link \u00b7 from your PC",
+      desc: "Valve's Steam Link streams Steam Big Picture from your gaming PC to the TV. Opens in Aurora Store if it isn't installed yet." },
     { id: "boost", name: "Boosteroid", glyph: "B", color: "#2D6BFF", match: /boosteroid/i, pkg: "com.boosteroidtv.streaming", query: "Boosteroid",
       icons: ["https://www.google.com/s2/favicons?domain=boosteroid.com&sz=256"], kicker: "Cloud gaming app",
       desc: "Cloud PC gaming with a huge supported-games list." }
@@ -422,7 +425,7 @@
     // Alternate app stores
     { id: "obtainium", cat: "stores", featured: true, name: "Obtainium", glyph: "O", color: "#4A5BD6", pkg: "dev.imranr.obtainium.fdroid",
       source: FD("dev.imranr.obtainium.fdroid"), desc: "Install and auto-update apps straight from any GitHub, GitLab or F-Droid release page." },
-    { id: "aurora", cat: "stores", name: "Aurora Store", glyph: "A", color: "#2D9CDB", pkg: "com.aurora.store",
+    { id: "aurora", cat: "stores", featured: true, name: "Aurora Store", glyph: "A", color: "#2D9CDB", pkg: "com.aurora.store",
       source: FD("com.aurora.store"), desc: "Download Google Play apps without Google services, anonymously or with your account." },
     { id: "fdroid", cat: "stores", name: "F-Droid", glyph: "F", color: "#1976D2", pkg: "org.fdroid.fdroid",
       source: FD("org.fdroid.fdroid"), allowBeta: true, desc: "The full open-source app catalog, thousands of free apps with automatic updates." },
@@ -687,6 +690,16 @@
     if (f && f.dataset.pkg === pkg) updateHero(f);
   }
 
+  function romTile(r) {
+    var t = el("div", "tile f");
+    t._item = { kind: "rom", rom: r };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + r.color + ',#120A22 90%)"></div>' +
+      '<div class="ic glyph" style="background:rgba(0,0,0,.28);font-size:1.3rem">' + esc(r.sys === "NES" ? "NES" : "GB") + '</div>' +
+      '<div class="name">' + esc(r.name) + "</div>";
+    t._act = function () { playRom(r); };
+    return t;
+  }
+
   function linkTile(c) {
     var t = el("div", "tile f");
     var inst = cloudApp(c);
@@ -751,7 +764,9 @@
     var favApps = favs.map(function (p) { return apps.filter(function (a) { return a.pkg === p; })[0]; }).filter(Boolean);
     if (favApps.length) sc.appendChild(shelf("Favorites", favApps.length, favApps.map(appTile)));
     sc.appendChild(shelf("Your apps", apps.length, apps.map(appTile), "No apps found."));
-    sc.appendChild(shelf("Cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
+    var myGames = ROMS.filter(function (r) { return romSaved[r.id]; });
+    if (myGames.length) sc.appendChild(shelf("Your games", myGames.length, myGames.map(romTile)));
+    sc.appendChild(shelf("PC & cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
     var hb = STORE.filter(function (s) { return s.featured || installedVersion(s); });
     sc.appendChild(shelf("Homebrew", hb.length, hb.map(storeTile)));
 
@@ -771,6 +786,9 @@
       desc = favs.indexOf(a.pkg) >= 0 ? "Pinned to Favorites. Press Menu to unpin." : "Press Menu on the remote to pin this to Favorites.";
       color = (ic && ic.color) || a.color || "#3B2470";
       if (ic) art = '<img class="' + (ic.banner ? "wide" : "") + '" src="' + ic.src + '">';
+    } else if (it.kind === "rom") {
+      var rr = it.rom; kicker = rr.sys + " \u00b7 free homebrew"; title = rr.name; desc = rr.desc; color = rr.color; act = "Play in RetroArch";
+      art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:3.6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(rr.sys === "NES" ? "NES" : "GB") + "</div>";
     } else if (it.kind === "cloud") {
       var c = it.cloud, ca = cloudApp(c); kicker = c.kicker; title = c.name; color = c.color;
       desc = ca ? c.desc : "Not installed yet. Press OK to get the app.";
@@ -1067,23 +1085,25 @@
   // ---------------------------------------------------------------- free homebrew games
   // Freely distributed homebrew made for retro consoles, saved where emulators can find them.
   var ROMS = [
-    { id: "nova", name: "Nova the Squirrel", sys: "NES", folder: "ROMs/NES", file: "nova.nes", color: "#E67E22",
+    { id: "nova", name: "Nova the Squirrel", sys: "NES", core: "fceumm", folder: "ROMs/NES", file: "nova.nes", color: "#E67E22",
       url: "https://github.com/NovaSquirrel/NovaTheSquirrel/releases/download/v1.0.6a/nova.nes",
       desc: "A full-length platformer about a squirrel who can copy enemy abilities." },
-    { id: "thwaite", name: "Thwaite", sys: "NES", folder: "ROMs/NES", file: "thwaite.nes", color: "#C0392B",
+    { id: "thwaite", name: "Thwaite", sys: "NES", core: "fceumm", folder: "ROMs/NES", file: "thwaite.nes", color: "#C0392B",
       url: "https://github.com/pinobatch/thwaite-nes/releases/download/v0.04/thwaite.nes",
       desc: "Missile Command-style defense of a medieval village. One or two players." },
-    { id: "croom", name: "Concentration Room", sys: "NES", folder: "ROMs/NES", file: "croom.nes", color: "#16A085",
+    { id: "croom", name: "Concentration Room", sys: "NES", core: "fceumm", folder: "ROMs/NES", file: "croom.nes", color: "#16A085",
       url: "https://github.com/pinobatch/croom-nes/releases/download/v0.02a/croom.nes",
       desc: "A memory card-matching game with a spooky lab twist." },
-    { id: "libbet", name: "Libbet and the Magic Floor", sys: "Game Boy", folder: "ROMs/GB", file: "libbet.gb", color: "#7F8C3A",
+    { id: "libbet", name: "Libbet and the Magic Floor", sys: "Game Boy", core: "gambatte", folder: "ROMs/GB", file: "libbet.gb", color: "#7F8C3A",
       url: "https://github.com/pinobatch/libbet/releases/download/v0.08/libbet.gb",
       desc: "Puzzle game: roll across every tile of a basement floor to restore it." },
-    { id: "ucity", name: "µCity", sys: "Game Boy Color", folder: "ROMs/GBC", file: "ucity.gbc", color: "#2980B9",
+    { id: "ucity", name: "µCity", sys: "Game Boy Color", core: "gambatte", folder: "ROMs/GBC", file: "ucity.gbc", color: "#2980B9",
       url: "https://github.com/AntonioND/ucity/releases/download/v1.3/ucity.gbc",
       desc: "A full city-building simulator, SimCity-style, on a Game Boy Color." }
   ];
   var romSaved = load("romSaved", {});
+  var romFile = load("romFile", {});     // id -> absolute path on the Fire TV
+  var CORE_NAMES = { fceumm: "Nintendo - NES / Famicom (FCEUmm)", gambatte: "Nintendo - Game Boy / Color (Gambatte)" };
   var romState = {};
   ROMS.forEach(function (r) { romState[r.id] = { busy: false, pct: 0, error: "" }; });
 
@@ -1091,13 +1111,13 @@
     var st = romState[r.id];
     if (st.busy) return st.pct >= 0 ? "Downloading " + st.pct + "%" : "Downloading…";
     if (st.error) return "Retry";
-    return romSaved[r.id] ? "Saved ✓" : "Download";
+    return romSaved[r.id] ? "Play in RetroArch" : "Download";
   }
   function updateRom(id) {
     var c = $('.card[data-rom="' + id + '"]'); if (!c) return;
     var r = ROMS.filter(function (x) { return x.id === id; })[0], st = romState[id];
     c.querySelector(".act").textContent = romLabel(r);
-    c.querySelector(".meta").textContent = st.error ? st.error : (romSaved[id] ? "In " + romSaved[id] : r.sys + " · plays in RetroArch or Lemuroid");
+    c.querySelector(".meta").textContent = st.error ? st.error : (romSaved[id] ? "Saved in " + romSaved[id] + " · Menu re-downloads" : r.sys + " · plays in RetroArch");
     c.classList.toggle("busy", !!st.busy);
     c.querySelector(".prog i").style.width = Math.max(0, st.pct || 0) + "%";
   }
@@ -1105,19 +1125,42 @@
     var st = romState[r.id];
     if (st.busy) return;
     if (!NATIVE) { toast("Game downloads work on your Fire TV."); return; }
-    if (romSaved[r.id] && !st.error) {
-      toast(r.name + " is in Downloads/ReaperOS. Open it from RetroArch or Lemuroid.");
-      return;
-    }
+    if (romSaved[r.id] && !st.error) { playRom(r); return; }
     st.busy = true; st.pct = 0; st.error = ""; updateRom(r.id);
     Reaper.saveGame(r.id, r.url, r.folder, r.file);
   }
+  // Opens a downloaded game straight in RetroArch with the right core.
+  function playRom(r) {
+    if (!NATIVE) { toast("Opens " + r.name + " in RetroArch on your Fire TV."); return; }
+    var path = romFile[r.id];
+    if (!path) { toast("Download " + r.name + " again so ReaperOS knows where it is."); return; }
+    var res = Reaper.playInRetroArch(path, r.core);
+    if (res === "not_installed") {
+      var ra = STORE.filter(function (x) { return x.id === "retroarch"; })[0];
+      if (ra && cardState(ra).action === "install") { cardAction(ra); toast("Installing RetroArch first. Press Play again once it's installed."); }
+      else { go("store"); focusCard("retroarch"); toast("Install RetroArch to play this."); }
+      return;
+    }
+    var hinted = load("coreHint", {});
+    if (!hinted[r.core]) {
+      hinted[r.core] = true; save("coreHint", hinted);
+      toast("First time? In RetroArch: Main Menu \u2192 Online Updater \u2192 Core Downloader \u2192 " + CORE_NAMES[r.core] + ".");
+    }
+  }
+  function redownloadRom(r) {
+    if (!NATIVE) return;
+    delete romSaved[r.id]; delete romFile[r.id]; save("romSaved", romSaved); save("romFile", romFile);
+    downloadRom(r);
+  }
+
   window.reaperGameProgress = function (id, pct) { var st = romState[id]; if (!st) return; st.pct = pct; updateRom(id); };
-  window.reaperGameSaved = function (id, path) {
+  window.reaperGameSaved = function (id, path, abs) {
     var st = romState[id]; if (!st) return;
     st.busy = false; st.pct = 100; romSaved[id] = path.replace(/\/[^\/]+$/, ""); save("romSaved", romSaved);
+    if (abs) { romFile[id] = abs; save("romFile", romFile); }
     var r = ROMS.filter(function (x) { return x.id === id; })[0];
-    updateRom(id); toast(r.name + " saved. Find it in " + romSaved[id] + " from RetroArch or Lemuroid.");
+    updateRom(id); toast(r.name + " saved. Press OK again to play it in RetroArch.");
+    if (state.page === "home") renderHome(true);
   };
   window.reaperGameError = function (id, msg) {
     var st = romState[id]; if (!st) return;
@@ -1133,6 +1176,7 @@
         '<div><h4>' + esc(r.name) + '</h4><div class="src">' + esc(r.sys) + ' homebrew · free</div></div></div>' +
         '<p>' + esc(r.desc) + '</p><div class="prog"><i></i></div><div class="meta"></div><div class="act">Download</div>';
       c._act = function () { downloadRom(r); };
+      c._menu = function () { redownloadRom(r); };
       tr.appendChild(c);
     });
     vp.appendChild(tr); sec.appendChild(vp);
@@ -1279,7 +1323,7 @@
   function updateHelp(t) {
     var parts = ['<span><b>OK</b>' + (t && t.classList.contains("tab") ? "Open" : "Select") + "</span>"];
     if (t && t._item && t._item.kind === "app") parts.push("<span><b>MENU</b>" + (favs.indexOf(t._item.app.pkg) >= 0 ? "Unpin" : "Pin to Favorites") + "</span>");
-    if (t && t.classList.contains("card")) parts.push("<span><b>MENU</b>Uninstall</span>");
+    if (t && t.classList.contains("card")) parts.push("<span><b>MENU</b>" + (t.dataset.rom ? "Re-download" : "Uninstall") + "</span>");
     parts.push("<span><b>BACK</b>" + (state.page === "home" ? "Top of the page" : "Home") + "</span>");
     $("#help").innerHTML = parts.join("");
   }

@@ -5,9 +5,9 @@ A Bazzite-style TV launcher for Amazon Fire TV, with a reaper load screen, your 
 ## What it does
 - **Home:** a hero banner that follows your selection, Favorites (press **Menu** on any app to pin it), all your installed apps with their real icons, Cloud Gaming shortcuts, and Homebrew quick links.
 - **First launch:** ReaperOS automatically installs its core apps (SmartTube, Stremio, Kodi, Moonlight, RetroArch, Obtainium, plus GameNative on 64-bit Fire TVs). Fire OS asks you to press Install for each one. You can rerun this anytime from Homebrew Store → Install starter pack.
-- **Cloud gaming:** Xbox, GeForce NOW, Amazon Luna and Boosteroid tiles open the real apps. If one isn't installed, the tile opens its Amazon Appstore page (GeForce NOW opens in Aurora Store, since Amazon doesn't carry it).
+- **PC & cloud gaming:** Xbox, GeForce NOW, Amazon Luna, Boosteroid and Steam Big Picture (via Valve's Steam Link) tiles open the real apps. If one isn't installed, the tile opens its Amazon Appstore page (GeForce NOW and Steam Link open in Aurora Store, since Amazon doesn't carry them).
 - **Homebrew Store:** 48 open-source apps in six rows (streaming & media, game streaming & PC games, 18 emulators, 12 free games, alternate app stores, tools & Fire TV tweaks), from F-Droid, GitHub and Stremio.com. ReaperOS picks the build that matches your Fire TV's chip and Fire OS version, and checks each download before installing so 64-bit-only apps never fail halfway. For anything not listed, install Obtainium and add any GitHub project.
-- **Free homebrew games:** downloads freely distributed NES and Game Boy homebrew into `Downloads/ReaperOS/ROMs/<system>` for RetroArch or Lemuroid to open.
+- **Free homebrew games:** downloads freely distributed NES and Game Boy homebrew into `Downloads/ReaperOS/ROMs/<system>` and adds a Your games row on Home that launches each game straight into RetroArch.
 - **Settings:** shortcuts to Fire TV settings and the install permission, a toggle for system apps, a toggle for load-screen music, and device info.
 - **Load screen:** an animated reaper with an original spooky jingle. To use your own audio instead, add `app/src/main/assets/splash.mp3`.
 
