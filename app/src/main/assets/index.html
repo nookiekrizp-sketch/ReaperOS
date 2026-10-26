@@ -571,6 +571,42 @@
   });
 
 
+  // Movies, TV and anime: official apps, opened directly or from the platform's app store.
+  var MOVIES = [
+    { id: "netflix", name: "Netflix", glyph: "N", color: "#E50914", match: /^netflix/i, query: "Netflix", icons: ["https://www.google.com/s2/favicons?domain=netflix.com&sz=256"], kicker: "Movies & TV",
+      desc: "Movies, series and Netflix originals, including a big anime catalog." },
+    { id: "prime", name: "Prime Video", glyph: "P", color: "#00A8E1", match: /prime video/i, query: "Prime Video", icons: ["https://www.google.com/s2/favicons?domain=primevideo.com&sz=256"], kicker: "Movies & TV",
+      desc: "Amazon's movies and shows, included with Prime." },
+    { id: "disney", name: "Disney+", glyph: "D", color: "#113CCF", match: /disney/i, query: "Disney Plus", icons: ["https://www.google.com/s2/favicons?domain=disneyplus.com&sz=256"], kicker: "Movies & TV",
+      desc: "Disney, Pixar, Marvel, Star Wars and National Geographic." },
+    { id: "hbomax", name: "HBO Max", glyph: "H", color: "#002BE7", match: /hbo|^max$/i, query: "HBO Max", icons: ["https://www.google.com/s2/favicons?domain=max.com&sz=256"], kicker: "Movies & TV",
+      desc: "HBO series, Warner Bros. movies and more." },
+    { id: "hulu", name: "Hulu", glyph: "H", color: "#1CE783", match: /hulu/i, query: "Hulu", icons: ["https://www.google.com/s2/favicons?domain=hulu.com&sz=256"], kicker: "Movies & TV",
+      desc: "Current TV episodes, originals and movies." },
+    { id: "peacock", name: "Peacock", glyph: "P", color: "#3D3D3D", match: /peacock/i, query: "Peacock", icons: ["https://www.google.com/s2/favicons?domain=peacocktv.com&sz=256"], kicker: "Movies & TV",
+      desc: "NBCUniversal shows, movies, sports and news." },
+    { id: "paramount", name: "Paramount+", glyph: "P", color: "#0064FF", match: /paramount/i, query: "Paramount Plus", icons: ["https://www.google.com/s2/favicons?domain=paramountplus.com&sz=256"], kicker: "Movies & TV",
+      desc: "Paramount movies, CBS shows and live sports." },
+    { id: "appletv", name: "Apple TV", glyph: "A", color: "#1C1C1E", match: /apple ?tv/i, query: "Apple TV", icons: ["https://www.google.com/s2/favicons?domain=tv.apple.com&sz=256"], kicker: "Movies & TV",
+      desc: "Apple originals plus movies to rent or buy." },
+    { id: "youtube", name: "YouTube", glyph: "Y", color: "#FF0000", match: /^youtube$/i, query: "YouTube", icons: ["https://www.google.com/s2/favicons?domain=youtube.com&sz=256"], kicker: "Movies & TV",
+      desc: "Videos, creators and free movies with ads." },
+    { id: "tubi", name: "Tubi", glyph: "T", color: "#FA541C", match: /tubi/i, query: "Tubi", icons: ["https://www.google.com/s2/favicons?domain=tubitv.com&sz=256"], kicker: "Free movies & TV",
+      desc: "Thousands of free movies and shows, ad-supported, including anime." },
+    { id: "pluto", name: "Pluto TV", glyph: "P", color: "#2B2B2B", match: /pluto/i, query: "Pluto TV", icons: ["https://www.google.com/s2/favicons?domain=pluto.tv&sz=256"], kicker: "Free live TV",
+      desc: "Free live channels and on-demand movies." },
+    { id: "plex", name: "Plex", glyph: "P", color: "#E5A00D", match: /^plex/i, query: "Plex", icons: ["https://www.google.com/s2/favicons?domain=plex.tv&sz=256"], kicker: "Free movies & your media",
+      desc: "Free movies and live TV, plus your own media server." },
+  ];
+  var ANIME = [
+    { id: "crunchyroll", name: "Crunchyroll", glyph: "C", color: "#F47521", match: /crunchyroll/i, query: "Crunchyroll", icons: ["https://www.google.com/s2/favicons?domain=crunchyroll.com&sz=256"], kicker: "Anime",
+      desc: "The biggest anime library, with simulcasts an hour after Japan." },
+    { id: "hidive", name: "HIDIVE", glyph: "H", color: "#00AEEF", match: /hidive/i, query: "HIDIVE", icons: ["https://www.google.com/s2/favicons?domain=hidive.com&sz=256"], kicker: "Anime",
+      desc: "Anime simulcasts, dubs and classics." },
+    { id: "retrocrush", name: "RetroCrush", glyph: "R", color: "#E8344E", match: /retrocrush/i, query: "RetroCrush", icons: ["https://www.google.com/s2/favicons?domain=retrocrush.tv&sz=256"], kicker: "Free anime",
+      desc: "Free classic and retro anime, ad-supported." },
+  ];
+
   // ---------------------------------------------------------------- Windows catalog
   // On Windows everything installs through winget, Windows' built-in package manager.
   function WG(id) { return { type: "winget", id: id }; }
@@ -987,6 +1023,8 @@
     sc.appendChild(shelf("Your apps", apps.length, apps.map(appTile), "No apps found."));
     var myGames = ROMS.filter(function (r) { return romSaved[r.id]; });
     if (myGames.length) sc.appendChild(shelf("Your games", myGames.length, myGames.map(romTile)));
+    sc.appendChild(shelf("Movies & TV", MOVIES.length, MOVIES.map(linkTile)));
+    sc.appendChild(shelf("Anime", ANIME.length, ANIME.map(linkTile)));
     sc.appendChild(shelf("PC & cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
     var hb = STORE.filter(function (s) { return s.featured || installedVersion(s); });
     sc.appendChild(shelf("Homebrew", hb.length, hb.map(storeTile)));
@@ -1013,7 +1051,7 @@
     } else if (it.kind === "cloud") {
       var c = it.cloud, ca = cloudApp(c); kicker = c.kicker; title = c.name; color = c.color;
       desc = ca ? c.desc : "Not installed yet. Press OK to get the app.";
-      act = ca ? "Play" : "Get app";
+      act = ca ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : "Play") : "Get app";
       art = artFor(t, c.glyph);
     } else {
       var s = it.store, inst = installedVersion(s);
