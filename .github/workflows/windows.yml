@@ -1,0 +1,57 @@
+name: Build ReaperOS for Windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Set version from build number
+        run: npm version "1.0.${{ github.run_number }}" --no-git-tag-version --allow-same-version
+
+      - name: Build installer
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run dist
+
+      - name: Collect files
+        run: |
+          ls -la dist
+          cp dist/ReaperOS-Setup-*.exe dist/ReaperOS-Setup.exe
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: ReaperOS-Windows
+          path: windows/dist/ReaperOS-Setup.exe
+
+      # Fixed "windows-latest" release: the installer link never changes, and the app's
+      # built-in updater reads latest.yml from here.
+      - name: Publish to the "windows-latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete windows-latest --yes --cleanup-tag || true
+          gh release create windows-latest \
+            dist/ReaperOS-Setup.exe dist/ReaperOS-Setup-*.exe dist/ReaperOS-Setup-*.exe.blockmap dist/latest.yml \
+            --title "ReaperOS for Windows build ${{ github.run_number }}" \
+            --notes "Download ReaperOS-Setup.exe and run it. Windows may say it protected your PC: choose More info, then Run anyway." \
+            --prerelease

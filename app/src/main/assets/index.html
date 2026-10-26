@@ -40,8 +40,32 @@
     transition: opacity .45s ease;
   }
   #splash.gone { opacity: 0; pointer-events: none; }
-  #splash .reaper { width: 20rem; height: 20rem; overflow: visible; }
-  #splash .scythe { transform-origin: 72px 92px; animation: swing 2.4s ease-in-out infinite; }
+  #splash .reaper { width: 40rem; height: 20rem; overflow: visible; }
+  #splash .soul { animation: bob 1.1s ease-in-out infinite; }
+  #splash .soul-top { transform-origin: 150px 45px; animation: splitTop .5s cubic-bezier(.2,.9,.3,1) .42s forwards; }
+  #splash .soul-bot { transform-origin: 150px 45px; animation: splitBot .5s cubic-bezier(.2,.9,.3,1) .42s forwards; }
+  #splash .ram { animation: scatter .75s cubic-bezier(.3,0,.8,.6) 1.0s forwards; }
+  #splash .soulglow { animation: fadeGlow 1.2s ease-out .42s forwards; }
+  #splash .eye.soul-eye { animation: glow .3s ease-in-out 3, fadeGlow .35s ease-out 1.05s forwards; }
+  #splash .sparks path { stroke: #FFE9A8; stroke-width: 1.3; stroke-linecap: round; }
+  #splash .sparks { transform-origin: 150px 46px; opacity: 0; transform: scale(.2); }
+  #splash .sp1 { animation: spark .35s ease-out .42s 1 forwards; }
+  #splash .sp2 { animation: spark .4s ease-out 1.0s 1 forwards; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2.5px); } }
+  @keyframes splitTop { to { transform: translate(-5px,-7px) rotate(-9deg); } }
+  @keyframes splitBot { to { transform: translate(6px,7px) rotate(8deg); } }
+  @keyframes scatter { to { transform: translate(var(--x), var(--y)) rotate(var(--r)); opacity: 0; } }
+  @keyframes fadeGlow { to { opacity: 0; } }
+  @keyframes spark { 0% { opacity: 1; transform: scale(.2); } 100% { opacity: 0; transform: scale(1.6); } }
+  #splash .scythe { transform-origin: 72px 92px; animation: slash 1.5s cubic-bezier(.2,.8,.2,1) 1, swing 2.4s ease-in-out 1.5s infinite; }
+  #splash .streak { fill: none; stroke: #EDE8FA; stroke-width: 1.8; stroke-linecap: round; stroke-dasharray: 130; stroke-dashoffset: 130; opacity: 0; }
+  #splash .streak.s1 { animation: streak .45s ease-out .28s 1 forwards; }
+  #splash .streak.s2 { animation: streak .4s ease-out .9s 1 forwards; }
+  @keyframes slash {
+    0% { transform: rotate(-38deg); } 18% { transform: rotate(-44deg); } 32% { transform: rotate(48deg); }
+    50% { transform: rotate(30deg); } 60% { transform: rotate(-30deg); } 72% { transform: rotate(42deg); } 100% { transform: rotate(0deg); }
+  }
+  @keyframes streak { 0% { stroke-dashoffset: 130; opacity: .95; } 60% { stroke-dashoffset: 0; opacity: .9; } 100% { stroke-dashoffset: 0; opacity: 0; } }
   #splash .eye { animation: glow 1.6s ease-in-out infinite; }
   #splash .aura { animation: breathe 2.4s ease-in-out infinite; transform-origin: 50px 48px; }
   #splash h1 {
@@ -56,6 +80,41 @@
   @keyframes glow { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
   @keyframes breathe { 0%,100% { transform: scale(.94); opacity: .7; } 50% { transform: scale(1.04); opacity: 1; } }
   @keyframes slide { 0% { transform: translateX(-110%); } 100% { transform: translateX(300%); } }
+
+
+  /* ------------------------------------------------ Windows: XP-style custom boot screen */
+  #splash .bar i + i, #splash .xp-corner { display: none; }
+  body.platform-win #splash { background: #000; }
+  body.platform-win #splash .reaper { width: 30rem; height: 15rem; }
+  body.platform-win #splash .aura { opacity: .55; }
+  body.platform-win #splash h1 {
+    margin-top: 1.6rem; padding-left: 0; letter-spacing: 0; text-transform: none;
+    font-family: "Franklin Gothic Medium", "Franklin Gothic", "Trebuchet MS", Arial, sans-serif;
+    font-style: italic; font-weight: 700; font-size: 4.2rem; color: #fff;
+  }
+  body.platform-win #splash h1 b {
+    color: #F0861D; font-size: .5em; vertical-align: super; margin-left: .25rem; font-style: italic;
+  }
+  body.platform-win #splash .tag { display: none; }
+  body.platform-win #splash .bar {
+    margin-top: 4.2rem; width: 13rem; height: 1.6rem; padding: .25rem; border-radius: .55rem;
+    background: #000; border: .16rem solid #B2B2B2; overflow: hidden; position: relative;
+  }
+  body.platform-win #splash .bar i {
+    display: block; position: absolute; top: .25rem; width: 1rem; height: .85rem; border-radius: .18rem;
+    background: linear-gradient(#2838C7, #8EA4F4 45%, #8EA4F4 55%, #2838C7);
+    animation: xpbar 2s linear infinite; left: -3.6rem;
+  }
+  body.platform-win #splash .bar i:nth-child(2) { animation-delay: .12s; }
+  body.platform-win #splash .bar i:nth-child(3) { animation-delay: .24s; }
+  @keyframes xpbar { 0% { transform: translateX(0); } 100% { transform: translateX(17rem); } }
+  body.platform-win #splash .xp-corner {
+    display: block; position: absolute; bottom: 2.4rem; font-size: 1.05rem; color: #fff;
+    font-family: "Trebuchet MS", Arial, sans-serif;
+  }
+  body.platform-win #splash .xp-left { left: 3rem; }
+  body.platform-win #splash .xp-right { right: 3rem; font-style: italic; font-weight: 700; font-size: 1.4rem; }
+  body.platform-win #splash .xp-right b { color: #F0861D; font-size: .6em; vertical-align: super; }
 
   /* ------------------------------------------------ top bar */
   #top {
@@ -251,14 +310,32 @@
 
 <!-- Reaper load screen -->
 <div id="splash">
-  <svg class="reaper" viewBox="0 0 100 100" aria-hidden="true">
+  <svg class="reaper" viewBox="0 0 200 100" aria-hidden="true">
     <defs>
       <radialGradient id="aura" cx="50%" cy="50%" r="50%">
         <stop offset="0%" stop-color="#7B4BD6" stop-opacity=".85"/>
         <stop offset="100%" stop-color="#2A1450" stop-opacity="0"/>
       </radialGradient>
+      <radialGradient id="soulglow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#22E3FF" stop-opacity=".45"/>
+        <stop offset="100%" stop-color="#22E3FF" stop-opacity="0"/>
+      </radialGradient>
     </defs>
     <circle class="aura" cx="50" cy="48" r="46" fill="url(#aura)"/>
+    <!-- the soul, made of RAM sticks -->
+    <g class="soul">
+      <ellipse class="soulglow" cx="150" cy="46" rx="34" ry="40" fill="url(#soulglow)"/>
+      <g class="soul-top"><g class="ram" style="--x:22px;--y:-5px;--r:-58deg"><rect x="140.0" y="13.0" width="20.0" height="7" rx="1" fill="#1E8C47"/><rect x="140.0" y="13.0" width="20.0" height="7" rx="1" fill="none" stroke="#38C46A" stroke-width=".5"/><rect x="143.6" y="14.0" width="5.6" height="3" rx=".4" fill="#141414"/><rect x="150.6" y="14.0" width="5.6" height="3" rx=".4" fill="#141414"/><line x1="141.5" y1="19.1" x2="158.5" y2="19.1" stroke="#E8C24A" stroke-width="1.6" stroke-dasharray=".7 .55"/></g><g class="ram" style="--x:-44px;--y:4px;--r:-46deg"><rect x="135.0" y="22.0" width="30.0" height="7" rx="1" fill="#1E8C47"/><rect x="135.0" y="22.0" width="30.0" height="7" rx="1" fill="none" stroke="#38C46A" stroke-width=".5"/><rect x="138.6" y="23.0" width="6.6" height="3" rx=".4" fill="#141414"/><rect x="146.6" y="23.0" width="6.6" height="3" rx=".4" fill="#141414"/><rect x="154.6" y="23.0" width="6.6" height="3" rx=".4" fill="#141414"/><line x1="136.5" y1="28.1" x2="163.5" y2="28.1" stroke="#E8C24A" stroke-width="1.6" stroke-dasharray=".7 .55"/></g><g class="ram" style="--x:36px;--y:-27px;--r:59deg"><rect x="132.0" y="31.0" width="36.0" height="7" rx="1" fill="#1E8C47"/><rect x="132.0" y="31.0" width="36.0" height="7" rx="1" fill="none" stroke="#38C46A" stroke-width=".5"/><rect x="135.6" y="32.0" width="6.1" height="3" rx=".4" fill="#141414"/><rect x="143.1" y="32.0" width="6.1" height="3" rx=".4" fill="#141414"/><rect x="150.6" y="32.0" width="6.1" height="3" rx=".4" fill="#141414"/><rect x="158.1" y="32.0" width="6.1" height="3" rx=".4" fill="#141414"/><line x1="133.5" y1="37.1" x2="166.5" y2="37.1" stroke="#E8C24A" stroke-width="1.6" stroke-dasharray=".7 .55"/></g><g class="ram" style="--x:-19px;--y:-25px;--r:41deg"><rect x="130.0" y="40.0" width="40.0" height="7" rx="1" fill="#1E8C47"/><rect x="130.0" y="40.0" width="40.0" height="7" rx="1" fill="none" stroke="#38C46A" stroke-width=".5"/><rect x="133.6" y="41.0" width="7.1" height="3" rx=".4" fill="#141414"/><rect x="142.1" y="41.0" width="7.1" height="3" rx=".4" fill="#141414"/><rect x="150.6" y="41.0" width="7.1" height="3" rx=".4" fill="#141414"/><rect x="159.1" y="41.0" width="7.1" height="3" rx=".4" fill="#141414"/><line x1="131.5" y1="46.1" x2="168.5" y2="46.1" stroke="#E8C24A" stroke-width="1.6" stroke-dasharray=".7 .55"/></g>
+        <circle class="eye soul-eye" cx="144" cy="27.5" r="2.4" fill="#22E3FF"/>
+        <circle class="eye soul-eye" cx="156" cy="27.5" r="2.4" fill="#22E3FF"/>
+      </g>
+      <g class="soul-bot"><g class="ram" style="--x:20px;--y:-15px;--r:-47deg"><rect x="130.0" y="49.0" width="40.0" height="7" rx="1" fill="#1E8C47"/><rect x="130.0" y="49.0" width="40.0" height="7" rx="1" fill="none" stroke="#38C46A" stroke-width=".5"/><rect x="133.6" y="50.0" width="7.1" height="3" rx=".4" fill="#141414"/><rect x="142.1" y="50.0" width="7.1" height="3" rx=".4" fill="#141414"/><rect x="150.6" y="50.0" width="7.1" height="3" rx=".4" fill="#141414"/><rect x="159.1" y="50.0" width="7.1" height="3" rx=".4" fill="#141414"/><line x1="131.5" y1="55.1" x2="168.5" y2="55.1" stroke="#E8C24A" stroke-width="1.6" stroke-dasharray=".7 .55"/></g><g class="ram" style="--x:19px;--y:22px;--r:-39deg"><rect x="131.5" y="58.0" width="37.0" height="7" rx="1" fill="#1E8C47"/><rect x="131.5" y="58.0" width="37.0" height="7" rx="1" fill="none" stroke="#38C46A" stroke-width=".5"/><rect x="135.1" y="59.0" width="6.3" height="3" rx=".4" fill="#141414"/><rect x="142.8" y="59.0" width="6.3" height="3" rx=".4" fill="#141414"/><rect x="150.6" y="59.0" width="6.3" height="3" rx=".4" fill="#141414"/><rect x="158.3" y="59.0" width="6.3" height="3" rx=".4" fill="#141414"/><line x1="133.0" y1="64.1" x2="167.0" y2="64.1" stroke="#E8C24A" stroke-width="1.6" stroke-dasharray=".7 .55"/></g><g class="ram" style="--x:-38px;--y:10px;--r:-55deg"><rect x="134.0" y="67.0" width="32.0" height="7" rx="1" fill="#1E8C47"/><rect x="134.0" y="67.0" width="32.0" height="7" rx="1" fill="none" stroke="#38C46A" stroke-width=".5"/><rect x="137.6" y="68.0" width="7.3" height="3" rx=".4" fill="#141414"/><rect x="146.3" y="68.0" width="7.3" height="3" rx=".4" fill="#141414"/><rect x="154.9" y="68.0" width="7.3" height="3" rx=".4" fill="#141414"/><line x1="135.5" y1="73.1" x2="164.5" y2="73.1" stroke="#E8C24A" stroke-width="1.6" stroke-dasharray=".7 .55"/></g><g transform="rotate(-18 138 80)"><g class="ram" style="--x:-40px;--y:30px;--r:-60deg"><rect x="130.0" y="76.0" width="15.0" height="7" rx="1" fill="#1E8C47"/><rect x="130.0" y="76.0" width="15.0" height="7" rx="1" fill="none" stroke="#38C46A" stroke-width=".5"/><rect x="133.6" y="77.0" width="3.1" height="3" rx=".4" fill="#141414"/><rect x="138.1" y="77.0" width="3.1" height="3" rx=".4" fill="#141414"/><line x1="131.5" y1="82.1" x2="143.5" y2="82.1" stroke="#E8C24A" stroke-width="1.6" stroke-dasharray=".7 .55"/></g></g><g transform="rotate(16 162 80)"><g class="ram" style="--x:38px;--y:32px;--r:55deg"><rect x="155.0" y="76.0" width="15.0" height="7" rx="1" fill="#1E8C47"/><rect x="155.0" y="76.0" width="15.0" height="7" rx="1" fill="none" stroke="#38C46A" stroke-width=".5"/><rect x="158.6" y="77.0" width="3.1" height="3" rx=".4" fill="#141414"/><rect x="163.1" y="77.0" width="3.1" height="3" rx=".4" fill="#141414"/><line x1="156.5" y1="82.1" x2="168.5" y2="82.1" stroke="#E8C24A" stroke-width="1.6" stroke-dasharray=".7 .55"/></g></g></g>
+    </g>
+    <g class="sparks sp1"><path d="M150,46 l-9,-6 M150,46 l10,-5 M150,46 l-8,7 M150,46 l9,8 M150,46 l0,-11 M150,46 l1,11"/></g>
+    <g class="sparks sp2"><path d="M150,46 l-11,-2 M150,46 l11,2 M150,46 l-6,-9 M150,46 l6,9 M150,46 l7,-8 M150,46 l-7,8"/></g>
+    <path class="streak s1" d="M110,18 Q150,50 194,64"/>
+    <path class="streak s2" d="M110,70 Q150,36 194,26"/>
+    <!-- the reaper -->
     <g class="scythe">
       <path fill="#B9A6E0" d="M76.5,93 L80,92 L68.5,12 L65,12.8 Z"/>
       <path fill="#EDE8FA" d="M67,12 C53,2 30,4 16,19 C31,13 48,13 63.5,21.5 Z"/>
@@ -269,8 +346,10 @@
     <circle class="eye" cx="55.8" cy="47.5" r="2.8" fill="#22E3FF"/>
   </svg>
   <h1>REAPER<b>OS</b></h1>
-  <div class="tag">Gathering your apps</div>
-  <div class="bar"><i></i></div>
+  <div class="tag">Harvesting your memory</div>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="xp-corner xp-left">Copyright &copy; 2026 ReaperOS</div>
+  <div class="xp-corner xp-right">Reaper<b>OS</b></div>
 </div>
 
 <!-- Top bar -->
@@ -314,6 +393,16 @@
   "use strict";
 
   var NATIVE = !!window.Reaper;
+  // "android" on Fire TV, "windows" in the Windows app, "web" in a plain browser preview.
+  var PLATFORM = (function () {
+    if (!NATIVE) return "web";
+    try { return JSON.parse(Reaper.deviceInfo()).platform || "android"; } catch (e) { return "android"; }
+  })();
+  var WIN = PLATFORM === "windows";
+  if (WIN) {
+    document.body.classList.add("platform-win");
+    var h1 = document.querySelector("#splash h1"); if (h1) h1.innerHTML = "Reaper<b>OS</b>";
+  }
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
@@ -481,6 +570,76 @@
     if (!s.icons) s.icons = s.source.type === "fdroid" ? ["https://f-droid.org/repo/" + s.source.pkg + "/en-US/icon.png"] : [];
   });
 
+
+  // ---------------------------------------------------------------- Windows catalog
+  // On Windows everything installs through winget, Windows' built-in package manager.
+  function WG(id) { return { type: "winget", id: id }; }
+  if (WIN) {
+    CLOUD = [
+      { id: "bigpicture", name: "Steam Big Picture", glyph: "S", color: "#1B2838", match: /^steam$/i, launchUrl: "steam://open/bigpicture",
+        winget: "Valve.Steam", icons: ["https://www.google.com/s2/favicons?domain=store.steampowered.com&sz=256"], kicker: "Steam",
+        desc: "Opens Steam straight into Big Picture mode, Valve's controller-first interface." },
+      { id: "xcloud", name: "Xbox", glyph: "X", color: "#107C10", match: /^xbox$/i, winget: "msstore:9MV0B5HZVK9Z",
+        icons: ["https://www.google.com/s2/favicons?domain=xbox.com&sz=256"], kicker: "PC & cloud gaming",
+        desc: "Your PC Game Pass library and Xbox Cloud Gaming." },
+      { id: "gfn", name: "GeForce NOW", glyph: "G", color: "#5E9E00", match: /geforce ?now/i, winget: "Nvidia.GeForceNow",
+        icons: ["https://www.google.com/s2/favicons?domain=nvidia.com&sz=256"], kicker: "Cloud gaming",
+        desc: "Play your Steam and Epic games on NVIDIA's cloud rigs." },
+      { id: "steamlink", name: "Steam Link", glyph: "S", color: "#2A475E", match: /steam ?link/i, winget: "Valve.SteamLink",
+        icons: ["https://www.google.com/s2/favicons?domain=steampowered.com&sz=256"], kicker: "Streaming",
+        desc: "Stream games from another PC running Steam." },
+      { id: "moonlightpc", name: "Moonlight", glyph: "M", color: "#2F6FE0", match: /^moonlight/i, winget: "MoonlightGameStreamingProject.Moonlight",
+        icons: ["https://www.google.com/s2/favicons?domain=moonlight-stream.org&sz=256"], kicker: "Streaming",
+        desc: "Stream from a gaming PC running Sunshine, at up to 4K and 120 fps." }
+    ];
+    CATEGORIES = [
+      { id: "launchers", title: "Game launchers & stores" },
+      { id: "emus", title: "Emulators" },
+      { id: "media", title: "Streaming & media" },
+      { id: "freegames", title: "Free games" },
+      { id: "tools", title: "Tools" }
+    ];
+    STORE = [
+      { id: "steam", cat: "launchers", featured: true, name: "Steam", glyph: "S", color: "#1B2838", pkg: "Valve.Steam", source: WG("Valve.Steam"), match: /^steam$/i,
+        desc: "Valve's PC game store and library, with Big Picture mode." },
+      { id: "epic", cat: "launchers", name: "Epic Games", glyph: "E", color: "#2A2A2A", pkg: "EpicGames.EpicGamesLauncher", source: WG("EpicGames.EpicGamesLauncher"), match: /epic games/i,
+        desc: "Epic's store, with free games every week." },
+      { id: "gog", cat: "launchers", name: "GOG Galaxy", glyph: "G", color: "#86328A", pkg: "GOG.Galaxy", source: WG("GOG.Galaxy"), match: /gog galaxy/i,
+        desc: "DRM-free games, plus one library across your other stores." },
+      { id: "heroic", cat: "launchers", name: "Heroic", glyph: "H", color: "#0B5CAD", pkg: "HeroicGamesLauncher.HeroicGamesLauncher", source: WG("HeroicGamesLauncher.HeroicGamesLauncher"), match: /heroic/i,
+        desc: "Open-source launcher for your Epic, GOG and Amazon games." },
+      { id: "playnite", cat: "launchers", name: "Playnite", glyph: "P", color: "#3B4A63", pkg: "Playnite.Playnite", source: WG("Playnite.Playnite"), match: /playnite/i,
+        desc: "One library for every launcher and emulator, with a full-screen mode." },
+      { id: "sunshine", cat: "launchers", name: "Sunshine", glyph: "S", color: "#E8A33D", pkg: "LizardByte.Sunshine", source: WG("LizardByte.Sunshine"), match: /sunshine/i,
+        desc: "Turns this PC into a game-streaming host for Moonlight on your Fire TV, phone or tablet." },
+
+      { id: "retroarch", cat: "emus", featured: true, name: "RetroArch", glyph: "R", color: "#3A3A3A", pkg: "Libretro.RetroArch", source: WG("Libretro.RetroArch"), match: /retroarch/i,
+        desc: "All-in-one retro emulator frontend. Plays the free homebrew games below." },
+      { id: "ppsspp", cat: "emus", name: "PPSSPP", glyph: "P", color: "#2A6FB0", pkg: "PPSSPPTeam.PPSSPP", source: WG("PPSSPPTeam.PPSSPP"), match: /ppsspp/i, desc: "PlayStation Portable." },
+      { id: "duckstation", cat: "emus", name: "DuckStation", glyph: "D", color: "#C8A400", pkg: "Stenzek.DuckStation", source: WG("Stenzek.DuckStation"), match: /duckstation/i, desc: "PlayStation 1, fast and accurate." },
+      { id: "pcsx2", cat: "emus", name: "PCSX2", glyph: "P", color: "#1E4FA0", pkg: "PCSX2Team.PCSX2", source: WG("PCSX2Team.PCSX2"), match: /pcsx2/i, desc: "PlayStation 2." },
+      { id: "dolphin", cat: "emus", name: "Dolphin", glyph: "D", color: "#2E7DFF", pkg: "DolphinEmulator.Dolphin", source: WG("DolphinEmulator.Dolphin"), match: /dolphin/i, desc: "GameCube and Wii." },
+      { id: "cemu", cat: "emus", name: "Cemu", glyph: "C", color: "#3A8FD6", pkg: "Cemu.Cemu", source: WG("Cemu.Cemu"), match: /^cemu/i, desc: "Wii U." },
+      { id: "xemu", cat: "emus", name: "xemu", glyph: "X", color: "#4CAF50", pkg: "xemu-project.xemu", source: WG("xemu-project.xemu"), match: /^xemu/i, desc: "Original Xbox." },
+      { id: "scummvm", cat: "emus", name: "ScummVM", glyph: "S", color: "#2E7D32", pkg: "ScummVM.ScummVM", source: WG("ScummVM.ScummVM"), match: /scummvm/i, desc: "Classic point-and-click adventure games." },
+
+      { id: "stremio", cat: "media", featured: true, name: "Stremio", glyph: "S", color: "#7B5BF5", pkg: "Stremio.Stremio", source: WG("Stremio.Stremio"), match: /stremio/i,
+        desc: "Movies, shows and live TV in one library, with add-ons." },
+      { id: "kodi", cat: "media", name: "Kodi", glyph: "K", color: "#17B2E7", pkg: "XBMCFoundation.Kodi", source: WG("XBMCFoundation.Kodi"), match: /^kodi/i, desc: "The classic home-theater media center." },
+      { id: "jellyfin", cat: "media", name: "Jellyfin Media Player", glyph: "J", color: "#00A4DC", pkg: "Jellyfin.JellyfinMediaPlayer", source: WG("Jellyfin.JellyfinMediaPlayer"), match: /jellyfin/i, desc: "Watch your own Jellyfin media server." },
+      { id: "vlc", cat: "media", name: "VLC", glyph: "V", color: "#FF8800", pkg: "VideoLAN.VLC", source: WG("VideoLAN.VLC"), match: /^vlc/i, desc: "Plays nearly any video or audio file." },
+
+      { id: "stk", cat: "freegames", featured: true, name: "SuperTuxKart", glyph: "S", color: "#2E86DE", pkg: "SuperTuxKart.SuperTuxKart", source: WG("SuperTuxKart.SuperTuxKart"), match: /supertuxkart/i,
+        desc: "3D kart racing with dozens of tracks and online play." },
+
+      { id: "localsend", cat: "tools", name: "LocalSend", glyph: "L", color: "#13A89E", pkg: "LocalSend.LocalSend", source: WG("LocalSend.LocalSend"), match: /localsend/i,
+        desc: "Send files between this PC, your iPhone and your Fire TV over Wi-Fi." },
+      { id: "unigetui", cat: "tools", name: "UniGetUI", glyph: "U", color: "#0067C0", pkg: "MartiCliment.UniGetUI", source: WG("MartiCliment.UniGetUI"), match: /unigetui|wingetui/i,
+        desc: "A full app store for everything winget, Scoop and Chocolatey can install." }
+    ];
+    STORE.forEach(function (s) { s.from = "winget"; s.icons = []; });
+  }
+
   var DEMO_APPS = [
     { pkg: "demo.netflix", label: "Netflix", tv: true, color: "#B20710" },
     { pkg: "demo.youtube", label: "YouTube", tv: true, color: "#CC0000" },
@@ -525,6 +684,7 @@
   };
   window.reaperToast = toast;
   window.reaperResume = function () {
+    if (WIN) steamCache = null;
     refreshApps(); refreshStore();
     // Back from the Fire OS installer: anything downloaded but still missing was cancelled.
     STORE.forEach(function (x) { var st = storeState[x.id]; if (st.pct >= 100 && !st.busy && !st.installed) st.declined = true; });
@@ -670,12 +830,18 @@
     allApps = list;
     apps = list.filter(function (a) { return showSystem || !a.system || a.tv; });
     apps.sort(function (a, b) { return (b.tv ? 1 : 0) - (a.tv ? 1 : 0) || a.label.localeCompare(b.label); });
-    favs = favs.filter(function (p) { return list.some(function (a) { return a.pkg === p; }); });
+    favs = favs.filter(function (p) { return p.indexOf("steam:") === 0 || list.some(function (a) { return a.pkg === p; }); });
     if (state.page === "home") renderHome(true);
   }
   function cloudApp(c) {
+    if (WIN) return allApps.filter(function (a) { return c.match.test(a.label); })[0] || null;
     if (c.pkg && NATIVE && Reaper.installedVersion(c.pkg)) return { pkg: c.pkg, label: c.name };
     return allApps.filter(function (a) { return c.match.test(a.label); })[0] || null;
+  }
+  function launchStore(s) {
+    if (!WIN) { Reaper.launch(s._pkg); return; }
+    var a = allApps.filter(function (x) { return (s.match || new RegExp("^" + s.name, "i")).test(x.label); })[0];
+    if (a) launchApp(a); else toast(s.name + " is installed. Open it from the Start menu once, then it'll launch from here.");
   }
   function launchApp(a) {
     if (!NATIVE) { toast("Opening " + a.label + " (works on your Fire TV)"); return; }
@@ -725,6 +891,19 @@
     if (f && f.dataset.pkg === pkg) updateHero(f);
   }
 
+  function steamTile(g) {
+    var a = { pkg: "steam:" + g.id, label: g.name, tv: true };
+    var t = appTile(a);
+    t._item = { kind: "app", app: a, steam: true };
+    return t;
+  }
+  var steamCache = null;
+  function steamLibrary() {
+    if (!WIN) return [];
+    if (!steamCache) { try { steamCache = JSON.parse(Reaper.getSteamGames()) || []; } catch (e) { steamCache = []; } }
+    return steamCache;
+  }
+
   function romTile(r) {
     var t = el("div", "tile f");
     t._item = { kind: "rom", rom: r };
@@ -746,7 +925,9 @@
       (inst ? "" : '<div class="get">Get app</div>');
     t._act = function () {
       var a = cloudApp(c);
+      if (WIN && a && c.launchUrl) { Reaper.openUrl(c.launchUrl); return; }
       if (a) { launchApp(a); return; }
+      if (WIN && c.winget) { toast("Installing " + c.name + " with winget\u2026"); Reaper.install("cloud:" + c.id, "winget:" + c.winget); return; }
       if (NATIVE) { toast("Opening " + c.name + " in the app store…"); Reaper.openAppstore(c.pkg || "", c.query, !!c.preferPlay); }
       else toast("Opens " + c.name + " in the Appstore on your Fire TV");
     };
@@ -763,7 +944,7 @@
       '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(s.glyph) + '</div><div class="name">' + esc(s.name) + '</div>' +
       (have ? "" : '<div class="get">Install</div>');
     t._act = function () {
-      if (installedVersion(s)) { Reaper.launch(s._pkg); return; }
+      if (installedVersion(s)) { launchStore(s); return; }
       var cs = cardState(s);
       if (cs.action === "install") { cardAction(s); toast("Downloading " + s.name + "…"); return; }
       go("store"); focusCard(s.id);
@@ -796,8 +977,13 @@
     hero.innerHTML = '<div class="wash"></div><div class="art"></div><div class="copy"><div class="kicker"></div><h2></h2><p></p><div class="hint"><i></i><span>Launch</span></div></div>';
     sc.appendChild(hero);
 
-    var favApps = favs.map(function (p) { return apps.filter(function (a) { return a.pkg === p; })[0]; }).filter(Boolean);
+    var favApps = favs.map(function (p) {
+      if (p.indexOf("steam:") === 0) { var g = steamLibrary().filter(function (x) { return "steam:" + x.id === p; })[0]; return g ? { pkg: p, label: g.name, tv: true } : null; }
+      return apps.filter(function (a) { return a.pkg === p; })[0];
+    }).filter(Boolean);
     if (favApps.length) sc.appendChild(shelf("Favorites", favApps.length, favApps.map(appTile)));
+    var steamGamesList = steamLibrary();
+    if (steamGamesList.length) sc.appendChild(shelf("Steam library", steamGamesList.length, steamGamesList.map(steamTile)));
     sc.appendChild(shelf("Your apps", apps.length, apps.map(appTile), "No apps found."));
     var myGames = ROMS.filter(function (r) { return romSaved[r.id]; });
     if (myGames.length) sc.appendChild(shelf("Your games", myGames.length, myGames.map(romTile)));
@@ -816,7 +1002,7 @@
     var it = t._item, kicker, title, desc, color, art = "", act = "Launch";
     if (it.kind === "app") {
       var a = it.app, ic = icons[a.pkg];
-      kicker = a.tv ? "Installed app" : "Installed app · phone layout";
+      kicker = it.steam ? "Steam game" : WIN ? "Installed app" : a.tv ? "Installed app" : "Installed app · phone layout";
       title = a.label;
       desc = favs.indexOf(a.pkg) >= 0 ? "Pinned to Favorites. Press Menu to unpin." : "Press Menu on the remote to pin this to Favorites.";
       color = (ic && ic.color) || a.color || "#3B2470";
@@ -887,6 +1073,7 @@
 
   function resolveRelease(s) {
     var src = s.source;
+    if (src.type === "winget") return Promise.resolve({ version: "", url: "winget:" + src.id, size: 0 });
     if (src.type === "fdroid") {
       return nativeFetch("https://f-droid.org/en/packages/" + src.pkg + "/").then(function (html) {
         var doc = new DOMParser().parseFromString(html, "text/html");
@@ -997,7 +1184,7 @@
   function cardAction(s) {
     var st = storeState[s.id], cs = cardState(s);
     if (!NATIVE) { toast("Installing works on your Fire TV."); return; }
-    if (cs.action === "open") { Reaper.launch(s._pkg); return; }
+    if (cs.action === "open") { launchStore(s); return; }
     if (cs.action === "retry") { st.error = ""; st.remote = null; refreshStore(); return; }
     if (cs.action !== "install") return;
     if (!Reaper.canInstall()) toast("First, allow ReaperOS to install apps. Opening that setting…");
@@ -1022,7 +1209,7 @@
           '<div><h4>' + esc(s.name) + '</h4><div class="src">From ' + esc(s.from) + (s.needs64 ? " · 64-bit only" : "") + '</div></div></div>' +
           '<p>' + esc(s.desc) + '</p><div class="prog"><i></i></div><div class="meta"></div><div class="act">Install</div>';
         c._act = function () { cardAction(s); };
-        c._menu = function () { if (storeState[s.id].installed && NATIVE) Reaper.uninstall(s._pkg); };
+        c._menu = function () { if (storeState[s.id].installed && NATIVE) Reaper.uninstall(WIN ? s.source.id : s._pkg); };
         tr.appendChild(c);
         finishArt(c, s.icons);
       });
@@ -1032,7 +1219,7 @@
 
     var setup = el("section", "shelf");
     setup.style.marginTop = "2.4rem";
-    setup.innerHTML = "<h3><span>Before your first install</span></h3>";
+    setup.innerHTML = "<h3><span>" + (WIN ? "Installs & updates" : "Before your first install") + "</span></h3>";
     var vp = el("div", "viewport"), tr2 = el("div", "track"); tr2.dataset.row = "1";
     var b1 = button("Allow app installs", "Lets ReaperOS hand APKs to the Fire OS installer", function () { NATIVE ? Reaper.openSettings("unknown") : toast("Opens the Fire TV permission screen"); });
     var b0 = button("Install starter pack", "Installs the featured apps one after another", function () {
@@ -1045,7 +1232,8 @@
       STORE.forEach(function (s) { storeState[s.id].remote = null; storeState[s.id].error = ""; });
       refreshStore(true); toast("Checking for updates…");
     });
-    tr2.appendChild(b1); tr2.appendChild(b2); vp.appendChild(tr2); setup.appendChild(vp);
+    if (!WIN) tr2.appendChild(b1);
+    tr2.appendChild(b2); vp.appendChild(tr2); setup.appendChild(vp);
     sc.appendChild(setup);
     refreshStore();
   }
@@ -1231,7 +1419,16 @@
   storeState.reaperos = { busy: false, pct: 0 };     // lets the native download callbacks report progress
   function myBuild() { var m = /(\d+)$/.exec(device.version || ""); return m ? parseInt(m[1], 10) : 0; }
 
+  window.reaperUpdate = function (stateName, info) {
+    if (stateName === "downloading") { selfUpdate.busy = true; toast("Downloading ReaperOS " + info + "\u2026"); }
+    else if (stateName === "progress") { storeState.reaperos.pct = parseInt(info, 10) || 0; }
+    else if (stateName === "ready") { selfUpdate.busy = false; selfUpdate.ready = info; toast("ReaperOS " + info + " is ready. It installs when you exit, or use Settings \u2192 Restart to update."); }
+    else if (stateName === "current") { selfUpdate.busy = false; if (selfUpdate.manual) toast("ReaperOS is up to date."); }
+    else if (stateName === "error") { selfUpdate.busy = false; if (selfUpdate.manual) toast("Couldn't check for updates: " + info); }
+    selfUpdate.checking = false; selfUpdate.manual = false; renderUpdateButton();
+  };
   function checkSelfUpdate(manual) {
+    if (WIN) { selfUpdate.manual = !!manual; selfUpdate.checking = true; renderUpdateButton(); Reaper.checkForUpdates(); return; }
     if (!NATIVE || selfUpdate.checking) return;
     selfUpdate.checking = true; renderUpdateButton();
     nativeFetch("https://api.github.com/repos/" + UPDATE_REPO + "/releases/tags/latest").then(function (txt) {
@@ -1260,7 +1457,8 @@
   function renderUpdateButton() {
     var b = $("#updBtn"); if (!b) return;
     var t, sub;
-    if (selfUpdate.busy) { t = "Updating ReaperOS"; sub = storeState.reaperos.pct >= 0 ? "Downloading " + (storeState.reaperos.pct || 0) + "%" : "Downloading…"; }
+    if (WIN && selfUpdate.ready) { t = "Restart to update"; sub = "ReaperOS " + selfUpdate.ready + " is downloaded"; }
+    else if (selfUpdate.busy) { t = "Updating ReaperOS"; sub = storeState.reaperos.pct >= 0 ? "Downloading " + (storeState.reaperos.pct || 0) + "%" : "Downloading…"; }
     else if (selfUpdate.checking) { t = "Checking for updates…"; sub = "This build: " + myBuild(); }
     else if (selfUpdate.latest > myBuild()) { t = "Update ReaperOS"; sub = "Build " + selfUpdate.latest + " is ready (you have " + myBuild() + ")"; }
     else { t = "Check for ReaperOS updates"; sub = "This build: " + (myBuild() || "preview") + (selfUpdate.latest ? " · up to date" : ""); }
@@ -1272,6 +1470,11 @@
     return STORE.filter(function (s) { var st = storeState[s.id]; return st.installed && cardState(s).label === "Update"; });
   }
   function updateAll() {
+    if (WIN) {
+      var ids = STORE.filter(function (s) { return storeState[s.id].installed; }).map(function (s) { return s.source.id; });
+      if (!ids.length) { toast("Install something from the store first."); return; }
+      Reaper.upgradeAll(ids); return;
+    }
     var list = updatableApps();
     if (!list.length) { toast("All your apps are up to date."); return; }
     installQueue = list;
@@ -1296,14 +1499,25 @@
     var sc = $("#page-settings .scroller"); sc.innerHTML = "";
     sc.appendChild(el("div", "pagehead", "<h2>Settings</h2><p>ReaperOS keeps your favorites and choices on this device.</p>"));
     var sec = el("section", "shelf"), vp = el("div", "viewport"), tr = el("div", "track"); tr.dataset.row = "1";
-    tr.appendChild(button("Fire TV settings", "Network, display, controllers, accounts", function () { NATIVE ? Reaper.openSettings("system") : toast("Opens Fire TV settings"); }));
-    tr.appendChild(button("Allow app installs", "Needed for the Homebrew Store", function () { NATIVE ? Reaper.openSettings("unknown") : toast("Opens the install permission"); }));
+    if (WIN) {
+      tr.appendChild(button("Windows Settings", "Display, sound, controllers, accounts", function () { Reaper.openSettings("system"); }));
+      var startOn = false; try { startOn = !!Reaper.getLoginItem(); } catch (e) {}
+      var boot = button("Start with Windows: " + (startOn ? "On" : "Off"), "Open ReaperOS when you sign in, like a console", function () {
+        startOn = !startOn; Reaper.setLoginItem(startOn);
+        boot.querySelector("b").textContent = "Start with Windows: " + (startOn ? "On" : "Off");
+      });
+      tr.appendChild(boot);
+      tr.appendChild(button("Exit ReaperOS", "Back to the Windows desktop", function () { Reaper.quit(); }));
+    } else {
+      tr.appendChild(button("Fire TV settings", "Network, display, controllers, accounts", function () { NATIVE ? Reaper.openSettings("system") : toast("Opens Fire TV settings"); }));
+      tr.appendChild(button("Allow app installs", "Needed for the Homebrew Store", function () { NATIVE ? Reaper.openSettings("unknown") : toast("Opens the install permission"); }));
+    }
     var sys = button("System apps: " + (showSystem ? "Shown" : "Hidden"), "Show Fire OS helper apps in Your apps", function () {
       showSystem = !showSystem; save("showSystem", showSystem);
       sys.querySelector("b").textContent = "System apps: " + (showSystem ? "Shown" : "Hidden");
       refreshApps();
     });
-    tr.appendChild(sys);
+    if (!WIN) tr.appendChild(sys);
     var th = button("Theme: " + (theme === "steam" ? "Big Picture" : "ReaperOS"), "Switch between the purple reaper look and a Steam Big Picture style", function () {
       theme = theme === "steam" ? "reaper" : "steam"; save("theme", theme);
       document.body.classList.toggle("theme-steam", theme === "steam");
@@ -1313,7 +1527,8 @@
     tr.appendChild(th);
     var upb = button("Check for ReaperOS updates", "", function () {
       if (!NATIVE) { toast("Updates install on your Fire TV."); return; }
-      if (selfUpdate.latest > myBuild()) startSelfUpdate(); else checkSelfUpdate(true);
+      if (WIN && selfUpdate.ready) Reaper.installUpdate();
+      else if (!WIN && selfUpdate.latest > myBuild()) startSelfUpdate(); else checkSelfUpdate(true);
     });
     upb.id = "updBtn"; tr.appendChild(upb);
     var au = button("Automatic updates: " + (autoUpdate ? "On" : "Off"), "Download ReaperOS and app updates automatically", function () {
@@ -1323,9 +1538,9 @@
     });
     tr.appendChild(au);
     setTimeout(renderUpdateButton, 0);
-    var mus = button("Load screen music: " + (musicOn ? "On" : "Off"), "The spooky jingle when ReaperOS opens", function () {
+    var mus = button("Load screen sound: " + (musicOn ? "On" : "Off"), "The scythe slash when ReaperOS opens", function () {
       musicOn = !musicOn; save("music", musicOn);
-      mus.querySelector("b").textContent = "Load screen music: " + (musicOn ? "On" : "Off");
+      mus.querySelector("b").textContent = "Load screen sound: " + (musicOn ? "On" : "Off");
       if (musicOn) synthJingle();
     });
     tr.appendChild(mus);
@@ -1443,10 +1658,10 @@
   $$(".tab").forEach(function (t) { t._act = function () { go(t.dataset.tab); }; });
 
   function updateHelp(t) {
-    var parts = ['<span><b>OK</b>' + (t && t.classList.contains("tab") ? "Open" : "Select") + "</span>"];
-    if (t && t._item && t._item.kind === "app") parts.push("<span><b>MENU</b>" + (favs.indexOf(t._item.app.pkg) >= 0 ? "Unpin" : "Pin to Favorites") + "</span>");
+    var parts = ['<span><b>' + (WIN ? "ENTER / A" : "OK") + '</b>' + (t && t.classList.contains("tab") ? "Open" : "Select") + "</span>"];
+    if (t && t._item && t._item.kind === "app") parts.push("<span><b>" + (WIN ? "M / Y" : "MENU") + "</b>" + (favs.indexOf(t._item.app.pkg) >= 0 ? "Unpin" : "Pin to Favorites") + "</span>");
     if (t && t.classList.contains("card")) parts.push("<span><b>MENU</b>" + (t.dataset.rom ? "Re-download" : "Uninstall") + "</span>");
-    parts.push("<span><b>BACK</b>" + (state.page === "home" ? "Top of the page" : "Home") + "</span>");
+    parts.push("<span><b>" + (WIN ? "ESC / B" : "BACK") + "</b>" + (state.page === "home" ? "Top of the page" : "Home") + "</span>");
     $("#help").innerHTML = parts.join("");
   }
 
@@ -1480,19 +1695,41 @@
       case "Back":
         if (state.page !== "home") { go("home"); return true; }
         if (state.row > 1) { setFocus(1, state.lastCol[1] || 0); return true; }
-        return false;  // already at the top of Home: hand back to Fire TV
+        return WIN;  // already at the top of Home: Fire TV goes back to its own home; Windows stays put
     }
     return false;
   };
 
-  // Keyboard support for previewing in a normal browser.
-  if (!NATIVE) {
+  // Keyboard, mouse and controller: the browser preview and the Windows app.
+  if (!NATIVE || WIN) {
     document.addEventListener("keydown", function (e) {
       var map = { ArrowUp: "ArrowUp", ArrowDown: "ArrowDown", ArrowLeft: "ArrowLeft", ArrowRight: "ArrowRight",
         Enter: "Enter", " ": "Enter", Escape: "Back", Backspace: "Back", m: "Menu", M: "Menu" };
       var k = map[e.key]; if (!k) return;
       e.preventDefault(); window.reaperKey(k, e.repeat);
     });
+    // Gamepads (Xbox, PlayStation, Switch Pro...) through the standard Gamepad API.
+    var padHeld = {}, padNext = {};
+    var PAD = { 12: "ArrowUp", 13: "ArrowDown", 14: "ArrowLeft", 15: "ArrowRight", 0: "Enter", 1: "Back", 3: "Menu", 9: "Menu", 4: "PageLeft", 5: "PageRight" };
+    (function pollPads() {
+      var pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      var now = performance.now(), down = {};
+      for (var i = 0; i < pads.length; i++) {
+        var gp = pads[i]; if (!gp) continue;
+        Object.keys(PAD).forEach(function (b) { if (gp.buttons[b] && gp.buttons[b].pressed) down[PAD[b]] = true; });
+        var x = gp.axes[0] || 0, y = gp.axes[1] || 0;
+        if (y < -0.6) down.ArrowUp = true;
+        if (y > 0.6) down.ArrowDown = true;
+        if (x < -0.6) down.ArrowLeft = true;
+        if (x > 0.6) down.ArrowRight = true;
+      }
+      Object.keys(down).forEach(function (k) {
+        if (!padHeld[k]) { padHeld[k] = true; padNext[k] = now + 380; window.reaperKey(k, false); }
+        else if (/^Arrow/.test(k) && now >= padNext[k]) { padNext[k] = now + 110; window.reaperKey(k, true); }
+      });
+      Object.keys(padHeld).forEach(function (k) { if (!down[k]) delete padHeld[k]; });
+      requestAnimationFrame(pollPads);
+    })();
     document.addEventListener("click", function (e) {
       var t = e.target.closest(".f"); if (!t) return;
       var rows = getRows();
@@ -1503,7 +1740,7 @@
 
 
   // ---------------------------------------------------------------- load-screen music
-  // An original creepy-carnival jingle synthesized live (no audio files needed).
+  // A scythe-slash sound synthesized live (no audio files needed).
   // If the project includes assets/splash.mp3, that plays instead.
   var musicOn = load("music", true);
   function playJingle() {
@@ -1514,32 +1751,54 @@
     var p = custom.play();
     if (p && p.catch) p.catch(function () { synthJingle(); });
   }
+  // Scythe slash: a filtered-noise whoosh into a metallic "shing", twice.
   function synthJingle() {
     var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     var ctx = new AC(); if (ctx.resume) ctx.resume();
-    var master = ctx.createGain(); master.gain.value = 0.22; master.connect(ctx.destination);
-    var t0 = ctx.currentTime + 0.05, beat = 0.17;
-    function hz(n) { return 440 * Math.pow(2, (n - 69) / 12); }
-    function note(n, at, len, type, vol) {
-      var o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = type; o.frequency.value = hz(n);
+    var master = ctx.createGain(); master.gain.value = 0.95; master.connect(ctx.destination);
+    var t0 = ctx.currentTime + 0.05;
+
+    var noise = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.6), ctx.sampleRate);
+    var d = noise.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+
+    function whoosh(at, dur, from, to, vol) {
+      var src = ctx.createBufferSource(); src.buffer = noise;
+      var bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.4;
+      bp.frequency.setValueAtTime(from, at);
+      bp.frequency.exponentialRampToValueAtTime(to, at + dur);
+      var g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, at);
-      g.gain.exponentialRampToValueAtTime(vol, at + 0.015);
-      g.gain.exponentialRampToValueAtTime(0.0001, at + len);
-      o.connect(g); g.connect(master); o.start(at); o.stop(at + len + 0.05);
+      g.gain.exponentialRampToValueAtTime(vol, at + dur * 0.7);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      src.connect(bp); bp.connect(g); g.connect(master);
+      src.start(at); src.stop(at + dur + 0.02);
     }
-    // Plucky minor-key waltz melody (MIDI note, beats).
-    var mel = [[62,1],[65,1],[69,1],[68,1],[69,2],[74,1],[72,1],[69,1],[70,1],[69,1],[67,1],[65,1],[64,1],[61,1],[62,3]];
-    var t = t0;
-    mel.forEach(function (m) { note(m[0], t, beat * m[1] * 1.6, "square", 0.35); t += beat * m[1]; });
-    // Oom-pah bass underneath.
-    for (var i = 0, b = t0; b < t - beat; i++, b += beat * 3) {
-      note(i % 2 ? 45 : 38, b, beat * 1.4, "triangle", 0.6);
-      note(57, b + beat, beat * 0.8, "triangle", 0.25); note(57, b + beat * 2, beat * 0.8, "triangle", 0.25);
+    function shing(at, base, vol, len) {
+      // inharmonic partials give a blade-like ring
+      [1, 1.41, 1.78, 2.52, 3.17].forEach(function (r, k) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sine"; o.frequency.setValueAtTime(base * r, at);
+        o.frequency.exponentialRampToValueAtTime(base * r * 0.985, at + len);
+        var v = vol / (k + 1.3);
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(v, at + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + len * (1 - k * 0.12));
+        o.connect(g); g.connect(master); o.start(at); o.stop(at + len + 0.05);
+      });
+      // bright scrape at the moment of contact
+      var src = ctx.createBufferSource(); src.buffer = noise;
+      var hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 5000;
+      var g2 = ctx.createGain();
+      g2.gain.setValueAtTime(vol * 0.8, at); g2.gain.exponentialRampToValueAtTime(0.0001, at + 0.12);
+      src.connect(hp); hp.connect(g2); g2.connect(master); src.start(at); src.stop(at + 0.14);
     }
-    // Low organ swell to close it out.
-    note(38, t, 1.6, "sawtooth", 0.18); note(50, t, 1.6, "triangle", 0.3);
-    setTimeout(function () { try { ctx.close(); } catch (e) {} }, (t - ctx.currentTime + 2.2) * 1000);
+
+    whoosh(t0 + 0.12, 0.34, 350, 4200, 0.9);   // first slash
+    shing(t0 + 0.42, 1850, 0.32, 1.1);
+    whoosh(t0 + 0.78, 0.26, 500, 5200, 0.75);  // second slash
+    shing(t0 + 1.0, 2350, 0.26, 1.4);
+    setTimeout(function () { try { ctx.close(); } catch (e) {} }, 3200);
   }
 
   // ---------------------------------------------------------------- start
@@ -1557,6 +1816,7 @@
     setTimeout(function () { checkSelfUpdate(false); }, wait + 8000);
     setInterval(function () { checkSelfUpdate(false); refreshStore(true); notifiedUpdates = false; }, 6 * 3600 * 1000);
   }
+  if (WIN) save("setupDone", true);
   if (!load("setupDone", false)) {
     if (NATIVE) setTimeout(runFirstSetup, wait + 500);
     else setTimeout(function () { toast("On your Fire TV, ReaperOS installs your apps automatically on first launch."); }, wait + 900);

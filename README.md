@@ -10,7 +10,7 @@ A Bazzite-style TV launcher for Amazon Fire TV, with a reaper load screen, your 
 - **Free homebrew games:** downloads freely distributed NES and Game Boy homebrew into `Downloads/ReaperOS/ROMs/<system>` and adds a Your games row on Home that launches each game straight into RetroArch.
 - **Settings:** shortcuts to Fire TV settings and the install permission, a theme switch (ReaperOS purple or Steam Big Picture blue), toggles for system apps and load-screen music, and device info.
 - **Automatic updates:** ReaperOS checks GitHub for a new build when it opens and every 6 hours, downloads it in the background, and brings up the install prompt. It also checks your installed store apps and lets you update them all at once (Homebrew Store → Update all apps). Turn this off in Settings.
-- **Load screen:** an animated reaper with an original spooky jingle. To use your own audio instead, add `app/src/main/assets/splash.mp3`.
+- **Load screen:** the reaper slashes a soul made of RAM sticks, with a synthesized scythe-slash sound. To use your own audio instead, add `app/src/main/assets/splash.mp3`.
 
 ## Getting the APK
 Every push to `main` builds the app with GitHub Actions and publishes it at:
@@ -36,3 +36,18 @@ The first time you install from the Homebrew Store, ReaperOS asks for permission
 
 ## Building locally
 Open the folder in Android Studio, or run `gradle assembleRelease` with Gradle 8.7+ and JDK 17.
+
+## Windows version
+ReaperOS also runs on Windows as a full-screen, controller-friendly launcher (the `windows/` folder, built with Electron from the same interface file).
+
+- **Steam library** row with each game's cover art, read from your Steam folders; games launch through Steam.
+- **Your apps** from the Start menu, including Microsoft Store apps like Xbox.
+- **PC & cloud gaming:** Steam Big Picture, Xbox, GeForce NOW, Steam Link and Moonlight. Missing ones install with winget.
+- **Store:** launchers (Steam, Epic, GOG Galaxy, Heroic, Playnite, Sunshine), emulators (RetroArch, PPSSPP, DuckStation, PCSX2, Dolphin, Cemu, xemu, ScummVM), media apps and tools, all installed through winget.
+- **Free homebrew games** saved to `Documents/ReaperOS/ROMs` and launched in RetroArch.
+- **Controls:** arrow keys / Enter / Esc / M, or any Xbox or PlayStation controller. F11 toggles full screen.
+- **Boot screen** in a Windows XP-style homage; **Start with Windows** option in Settings to use it like a console.
+- **Automatic updates** from the `windows-latest` release.
+
+Installer: `https://github.com/nookiekrizp-sketch/ReaperOS/releases/download/windows-latest/ReaperOS-Setup.exe`
+The installer isn't code-signed, so Windows SmartScreen may warn on first run: choose **More info → Run anyway**.

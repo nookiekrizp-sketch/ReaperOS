@@ -5,3 +5,7 @@ local.properties
 .idea/
 *.iml
 .DS_Store
+windows/node_modules/
+windows/dist/
+windows/ui/
+windows/package-lock.json

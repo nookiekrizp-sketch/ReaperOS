@@ -1,0 +1,38 @@
+{
+  "name": "reaperos",
+  "productName": "ReaperOS",
+  "version": "1.0.0",
+  "description": "ReaperOS: a Bazzite-style full-screen game launcher for Windows",
+  "main": "main.js",
+  "author": "ReaperOS",
+  "license": "MIT",
+  "scripts": {
+    "copy-ui": "node -e \"require('fs').mkdirSync('ui',{recursive:true});require('fs').copyFileSync('../app/src/main/assets/index.html','ui/index.html')\"",
+    "start": "npm run copy-ui && electron .",
+    "dist": "npm run copy-ui && electron-builder --win nsis --x64 --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.reaperos.launcher",
+    "productName": "ReaperOS",
+    "artifactName": "ReaperOS-Setup-${version}.${ext}",
+    "files": ["main.js", "preload.js", "ui/**", "package.json"],
+    "directories": { "output": "dist", "buildResources": "build" },
+    "win": { "icon": "build/icon.png", "target": [{ "target": "nsis", "arch": ["x64"] }] },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ReaperOS"
+    },
+    "publish": [{ "provider": "generic", "url": "https://github.com/nookiekrizp-sketch/ReaperOS/releases/download/windows-latest" }]
+  }
+}
