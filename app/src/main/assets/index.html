@@ -135,6 +135,8 @@
     background: linear-gradient(rgba(11,7,20,0), rgba(11,7,20,.85));
   }
   .tile.hasban .name { opacity: 0; }
+  .tile .get { position: absolute; top: .55rem; right: .6rem; font-size: .8rem; font-weight: 700; letter-spacing: .05rem;
+    background: rgba(11,7,20,.75); color: var(--cyan); padding: .2rem .6rem; border-radius: 1rem; }
   .tile .pin { position: absolute; top: .5rem; right: .6rem; font-size: .9rem; color: var(--cyan); }
   .tile.focused { transform: scale(1.09); z-index: 2; will-change: transform; }
   .tile.focused::after, .card.focused::after, .btn.focused::after {
@@ -149,7 +151,7 @@
   .pagehead p { font-size: 1.2rem; color: var(--dim); margin-top: .4rem; max-width: 70rem; line-height: 1.4; }
   .cards { display: flex; padding: 0 4rem; transition: transform .2s ease; }
   .card {
-    position: relative; flex: 0 0 auto; width: 25rem; min-height: 17rem; border-radius: 1.3rem;
+    position: relative; flex: 0 0 auto; width: 25rem; min-height: 15rem; border-radius: 1.3rem;
     background: var(--panel); padding: 1.8rem; transition: transform .16s ease;
     display: flex; flex-direction: column;
   }
@@ -189,6 +191,22 @@
   }
   #help span { margin-right: 2.6rem; }
   #help b { color: var(--dim); font-weight: 600; margin-right: .4rem; }
+  #setup { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 30; display: none;
+    align-items: center; justify-content: center; background: rgba(11,7,20,.88); }
+  #setup.on { display: flex; }
+  #setup .box { width: 60rem; background: var(--panel); border-radius: 1.6rem; padding: 3rem 3.4rem; }
+  #setup h2 { font-size: 2.6rem; font-weight: 800; }
+  #setup p { font-size: 1.2rem; color: var(--dim); margin: .6rem 0 1.8rem; line-height: 1.4; }
+  #setup p b { color: var(--cyan); }
+  #setup li { list-style: none; display: flex; align-items: center; padding: .7rem 0; border-top: .1rem solid var(--line); font-size: 1.25rem; }
+  #setup li .nm { flex: 1; font-weight: 600; }
+  #setup li .st { color: var(--dim); font-size: 1.1rem; }
+  #setup li.done .st { color: var(--green); }
+  #setup li.now .st { color: var(--cyan); }
+  #setup li.bad .st { color: var(--red); }
+  #setup .keys { margin-top: 1.8rem; font-size: 1rem; color: var(--faint); }
+  #setup .keys span { margin-right: 2.4rem; }
+  #setup .keys b { color: var(--dim); margin-right: .4rem; }
   #toast {
     position: fixed; left: 50%; bottom: 5rem; z-index: 40; transform: translate(-50%, 2rem);
     background: var(--text); color: var(--bg); font-size: 1.2rem; font-weight: 600;
@@ -253,6 +271,14 @@
 <div class="page" id="page-store"><div class="scroller"></div></div>
 <div class="page" id="page-settings"><div class="scroller"></div></div>
 
+<div id="setup">
+  <div class="box">
+    <h2>Setting up your apps</h2>
+    <p>ReaperOS is installing your apps. Fire OS asks you to confirm each one, so press <b>Install</b> whenever it appears.</p>
+    <ul id="setupList"></ul>
+    <div class="keys"><span><b>OK</b>Hide and keep installing</span><span><b>BACK</b>Skip the rest</span></div>
+  </div>
+</div>
 <div id="help"></div>
 <div id="toast"></div>
 
@@ -272,39 +298,87 @@
   var showSystem = load("showSystem", false);
 
   // ---------------------------------------------------------------- catalog
+  // Cloud gaming services, as their native Fire TV apps. Matched by name, so no web pages.
   var CLOUD = [
-    { id: "xcloud", name: "Xbox Cloud Gaming", glyph: "X", color: "#107C10", url: "https://www.xbox.com/play", icons: ["https://www.google.com/s2/favicons?domain=xbox.com&sz=256"],
-      kicker: "Cloud gaming", desc: "Stream your Game Pass library straight to the TV. Pair a controller first." },
-    { id: "gfn", name: "GeForce NOW", glyph: "G", color: "#5E9E00", url: "https://play.geforcenow.com", pkg: "com.nvidia.geforcenow", icons: ["https://www.google.com/s2/favicons?domain=play.geforcenow.com&sz=256", "https://www.google.com/s2/favicons?domain=nvidia.com&sz=256"],
-      kicker: "Cloud gaming", desc: "Play your Steam and Epic games on NVIDIA's cloud rigs." },
-    { id: "luna", name: "Amazon Luna", glyph: "L", color: "#7B2FF7", url: "https://luna.amazon.com", icons: ["https://www.google.com/s2/favicons?domain=luna.amazon.com&sz=256"],
-      kicker: "Cloud gaming", desc: "Amazon's game streaming, including the Prime Gaming lineup." },
-    { id: "boost", name: "Boosteroid", glyph: "B", color: "#2D6BFF", url: "https://cloud.boosteroid.com", icons: ["https://www.google.com/s2/favicons?domain=cloud.boosteroid.com&sz=256", "https://www.google.com/s2/favicons?domain=boosteroid.com&sz=256"],
-      kicker: "Cloud gaming", desc: "Cloud PC gaming with a huge supported-games list." }
+    { id: "xcloud", name: "Xbox", glyph: "X", color: "#107C10", match: /xbox/i, query: "Xbox",
+      icons: ["https://www.google.com/s2/favicons?domain=xbox.com&sz=256"], kicker: "Cloud gaming app",
+      desc: "Stream your Game Pass library straight to the TV. Pair a controller first." },
+    { id: "gfn", name: "GeForce NOW", glyph: "G", color: "#5E9E00", match: /geforce/i, pkg: "com.nvidia.geforcenow", query: "GeForce NOW", preferPlay: true,
+      icons: ["https://www.google.com/s2/favicons?domain=nvidia.com&sz=256"], kicker: "Cloud gaming app",
+      desc: "Play your Steam and Epic games on NVIDIA's cloud rigs. Not in Amazon's store: install Aurora Store first, then this opens it there." },
+    { id: "luna", name: "Amazon Luna", glyph: "L", color: "#7B2FF7", match: /\bluna\b/i, query: "Amazon Luna",
+      icons: ["https://www.google.com/s2/favicons?domain=luna.amazon.com&sz=256"], kicker: "Cloud gaming app",
+      desc: "Amazon's game streaming, including the Prime Gaming lineup." },
+    { id: "boost", name: "Boosteroid", glyph: "B", color: "#2D6BFF", match: /boosteroid/i, pkg: "com.boosteroidtv.streaming", query: "Boosteroid",
+      icons: ["https://www.google.com/s2/favicons?domain=boosteroid.com&sz=256"], kicker: "Cloud gaming app",
+      desc: "Cloud PC gaming with a huge supported-games list." }
   ];
 
+  function FD(pkg) { return { type: "fdroid", pkg: pkg }; }
+  // Homebrew catalog, grouped into store rows. "featured" items also appear on Home.
+  var CATEGORIES = [
+    { id: "media", title: "Streaming & media" },
+    { id: "games", title: "Gaming & emulators" },
+    { id: "stores", title: "Alternate app stores" },
+    { id: "tools", title: "Tools & Fire TV tweaks" }
+  ];
   var STORE = [
-    { id: "moonlight", name: "Moonlight", glyph: "M", color: "#2F6FE0", pkg: "com.limelight",
-      source: { type: "fdroid", pkg: "com.limelight" }, from: "F-Droid", icons: ["https://f-droid.org/repo/com.limelight/en-US/icon.png"],
-      desc: "Stream games from your own gaming PC at up to 4K using Sunshine or GeForce Experience." },
-    { id: "gamenative", name: "GameNative", glyph: "G", color: "#E8590C", pkg: ["app.gamenative", "com.gamenative", "app.gamenative.android"],
+    // Streaming & media
+    { id: "smarttube", cat: "media", featured: true, name: "SmartTube", glyph: "S", color: "#E5322D", pkg: "app.smarttube.fdroid",
+      source: FD("app.smarttube.fdroid"), desc: "Ad-free YouTube built for TV remotes, with SponsorBlock and 4K/HDR playback." },
+    { id: "stremio", cat: "media", featured: true, name: "Stremio", glyph: "S", color: "#7B5BF5", pkg: "com.stremio.one",
+      source: { type: "stremio" }, from: "Stremio.com", icons: ["https://www.google.com/s2/favicons?domain=stremio.com&sz=256"],
+      desc: "Movies, shows and live TV in one library, with add-ons. Official Android TV build." },
+    { id: "kodi", cat: "media", featured: true, name: "Kodi", glyph: "K", color: "#17B2E7", pkg: "org.xbmc.kodi",
+      source: FD("org.xbmc.kodi"), desc: "The classic home-theater media center for your own files, drives and network shares." },
+    { id: "jellyfin", cat: "media", name: "Jellyfin", glyph: "J", color: "#00A4DC", pkg: "org.jellyfin.androidtv",
+      source: FD("org.jellyfin.androidtv"), desc: "Stream movies and shows from your own Jellyfin media server." },
+    { id: "vlc", cat: "media", name: "VLC", glyph: "V", color: "#FF8800", pkg: "org.videolan.vlc",
+      source: FD("org.videolan.vlc"), desc: "Plays nearly any video or audio file, plus network streams and shares." },
+    { id: "mpv", cat: "media", name: "mpv", glyph: "M", color: "#6A3FA0", pkg: "is.xyz.mpv",
+      source: FD("is.xyz.mpv"), desc: "A lightweight, high-quality video player that many power users swear by." },
+
+    // Gaming & emulators
+    { id: "moonlight", cat: "games", featured: true, name: "Moonlight", glyph: "M", color: "#2F6FE0", pkg: "com.limelight",
+      source: FD("com.limelight"), desc: "Stream games from your own gaming PC at up to 4K using Sunshine or GeForce Experience." },
+    { id: "retroarch", cat: "games", featured: true, name: "RetroArch", glyph: "R", color: "#3A3A3A", pkg: "com.retroarch",
+      source: FD("com.retroarch"), desc: "All-in-one retro console emulator frontend with a TV-friendly interface." },
+    { id: "lemuroid", cat: "games", name: "Lemuroid", glyph: "L", color: "#1E9E6A", pkg: "com.swordfish.lemuroid",
+      source: FD("com.swordfish.lemuroid"), desc: "The simplest retro emulator: point it at your games folder and play." },
+    { id: "ppsspp", cat: "games", name: "PPSSPP", glyph: "P", color: "#2A6FB0", pkg: "org.ppsspp.ppsspp",
+      source: FD("org.ppsspp.ppsspp"), desc: "PSP emulator that runs well even on modest hardware." },
+    { id: "gamenative", cat: "games", featured: true, name: "GameNative", glyph: "G", color: "#E8590C", pkg: ["app.gamenative", "com.gamenative", "app.gamenative.android"],
       source: { type: "github", repo: "utkarshdalal/GameNative" }, from: "GitHub", needs64: true,
       icons: ["https://raw.githubusercontent.com/utkarshdalal/GameNative/master/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
               "https://raw.githubusercontent.com/utkarshdalal/GameNative/master/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp",
-              "https://raw.githubusercontent.com/utkarshdalal/GameNative/main/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
-              "https://raw.githubusercontent.com/utkarshdalal/GameNative/main/app/src/main/ic_launcher-playstore.png"],
+              "https://raw.githubusercontent.com/utkarshdalal/GameNative/main/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"],
       desc: "Run the PC games you own from Steam, Epic and GOG directly on the device. Large download." },
-    { id: "smarttube", name: "SmartTube", glyph: "S", color: "#E5322D", pkg: "app.smarttube.fdroid",
-      source: { type: "fdroid", pkg: "app.smarttube.fdroid" }, from: "F-Droid", icons: ["https://f-droid.org/repo/app.smarttube.fdroid/en-US/icon.png"],
-      desc: "Ad-free YouTube built for TV remotes, with SponsorBlock and 4K/HDR playback." },
-    { id: "stremio", name: "Stremio", glyph: "S", color: "#7B5BF5", pkg: "com.stremio.one",
-      source: { type: "stremio" }, from: "Stremio.com",
-      icons: ["https://www.google.com/s2/favicons?domain=stremio.com&sz=256"],
-      desc: "Movies, shows and live TV in one library, with add-ons. Official Android TV build." },
-    { id: "jellyfin", name: "Jellyfin", glyph: "J", color: "#00A4DC", pkg: "org.jellyfin.androidtv",
-      source: { type: "fdroid", pkg: "org.jellyfin.androidtv" }, from: "F-Droid", icons: ["https://f-droid.org/repo/org.jellyfin.androidtv/en-US/icon.png"],
-      desc: "Stream movies and shows from your own Jellyfin media server." }
+
+    // Alternate app stores
+    { id: "obtainium", cat: "stores", featured: true, name: "Obtainium", glyph: "O", color: "#4A5BD6", pkg: "dev.imranr.obtainium.fdroid",
+      source: FD("dev.imranr.obtainium.fdroid"), desc: "Install and auto-update apps straight from any GitHub, GitLab or F-Droid release page." },
+    { id: "aurora", cat: "stores", name: "Aurora Store", glyph: "A", color: "#2D9CDB", pkg: "com.aurora.store",
+      source: FD("com.aurora.store"), desc: "Download Google Play apps without Google services, anonymously or with your account." },
+    { id: "fdroid", cat: "stores", name: "F-Droid", glyph: "F", color: "#1976D2", pkg: "org.fdroid.fdroid",
+      source: FD("org.fdroid.fdroid"), allowBeta: true, desc: "The full open-source app catalog, thousands of free apps with automatic updates." },
+
+    // Tools & Fire TV tweaks
+    { id: "localsend", cat: "tools", name: "LocalSend", glyph: "L", color: "#13A89E", pkg: "org.localsend.localsend_app",
+      source: FD("org.localsend.localsend_app"), desc: "Send files and APKs from your iPhone to the TV over Wi-Fi. Free app on both sides." },
+    { id: "appmanager", cat: "tools", name: "App Manager", glyph: "A", color: "#5C6BC0", pkg: "io.github.muntashirakon.AppManager",
+      source: FD("io.github.muntashirakon.AppManager"), desc: "See every app on the stick, back up APKs, and disable bloat (with ADB)." },
+    { id: "termux", cat: "tools", name: "Termux", glyph: ">", color: "#202020", pkg: "com.termux",
+      source: FD("com.termux"), desc: "A full Linux terminal on your Fire TV, for tinkering and ADB scripts." },
+    { id: "tailscale", cat: "tools", name: "Tailscale", glyph: "T", color: "#242424", pkg: "com.tailscale.ipn",
+      source: FD("com.tailscale.ipn"), desc: "Private network to your PC from anywhere, great for Moonlight away from home." },
+    { id: "launcherhijack", cat: "tools", name: "Launcher Hijack", glyph: "H", color: "#8B5CF6", pkg: "com.baronkiko.launcherhijack",
+      source: { type: "github", repo: "BaronKiko/LauncherHijack" }, from: "GitHub", maxSdk: 25,
+      desc: "Makes the Home button open ReaperOS instead of the Fire TV home. Older Fire OS (6 and below) only." }
   ];
+  STORE.forEach(function (s) {
+    if (!s.from) s.from = s.source.type === "fdroid" ? "F-Droid" : "GitHub";
+    if (!s.icons) s.icons = s.source.type === "fdroid" ? ["https://f-droid.org/repo/" + s.source.pkg + "/en-US/icon.png"] : [];
+  });
 
   var DEMO_APPS = [
     { pkg: "demo.netflix", label: "Netflix", tv: true, color: "#B20710" },
@@ -316,7 +390,8 @@
     { pkg: "demo.settings", label: "Settings", tv: true, system: true, color: "#5B5A6E" }
   ];
 
-  var apps = [];          // installed apps from the device
+  var apps = [];          // installed apps from the device (shown)
+  var allApps = [];       // every launchable app, including hidden system ones
   var icons = {};         // pkg -> {src, banner, color}
   var device = { abis: [] };
   if (NATIVE) { try { device = JSON.parse(Reaper.deviceInfo()) || device; } catch (e) {} }
@@ -348,7 +423,13 @@
     sampleColor(data.src, function (c) { data.color = c; paintIcon(pkg); });
   };
   window.reaperToast = toast;
-  window.reaperResume = function () { refreshApps(); refreshStore(); };
+  window.reaperResume = function () {
+    refreshApps(); refreshStore();
+    // Back from the Fire OS installer: anything downloaded but still missing was cancelled.
+    STORE.forEach(function (x) { var st = storeState[x.id]; if (st.pct >= 100 && !st.busy && !st.installed) st.declined = true; });
+    if (setupOn) renderSetup();
+    if (installQueue.length) setTimeout(nextInQueue, 800);   // continue the starter pack
+  };
   window.reaperProgress = function (id, pct, bytes) {
     var st = storeState[id]; if (!st) return;
     st.busy = pct < 100;
@@ -472,10 +553,15 @@
     var list;
     if (NATIVE) { try { list = JSON.parse(Reaper.getApps()); } catch (e) { list = []; } }
     else list = DEMO_APPS;
+    allApps = list;
     apps = list.filter(function (a) { return showSystem || !a.system || a.tv; });
     apps.sort(function (a, b) { return (b.tv ? 1 : 0) - (a.tv ? 1 : 0) || a.label.localeCompare(b.label); });
     favs = favs.filter(function (p) { return list.some(function (a) { return a.pkg === p; }); });
     if (state.page === "home") renderHome(true);
+  }
+  function cloudApp(c) {
+    if (c.pkg && NATIVE && Reaper.installedVersion(c.pkg)) return { pkg: c.pkg, label: c.name };
+    return allApps.filter(function (a) { return c.match.test(a.label); })[0] || null;
   }
   function launchApp(a) {
     if (!NATIVE) { toast("Opening " + a.label + " (works on your Fire TV)"); return; }
@@ -498,12 +584,11 @@
     t._act = function () { launchApp(a); };
     t._menu = function () { toggleFav(a); };
     if (icons[a.pkg]) paintTile(t, a.pkg);
-    else if (NATIVE) Reaper.requestIcon(a.pkg);
-    else paintDemo(t, a);
+    else { paintDemo(t, a); if (NATIVE) Reaper.requestIcon(a.pkg); }   // letter until the real icon arrives
     return t;
   }
   function paintDemo(t, a) {
-    t.querySelector(".bgc").style.background = "linear-gradient(135deg," + a.color + ", #120A22)";
+    t.querySelector(".bgc").style.background = "linear-gradient(135deg," + (a.color || "#3B2470") + ", #120A22)";
     var g = el("div", "ic glyph", esc(a.label.charAt(0))); g.style.background = "rgba(0,0,0,.25)";
     t.appendChild(g);
   }
@@ -528,14 +613,18 @@
 
   function linkTile(c) {
     var t = el("div", "tile f");
-    t._item = { kind: "cloud", cloud: c };
+    var inst = cloudApp(c);
+    t._item = { kind: "cloud", cloud: c, app: inst };
     t.dataset.ikey = "cloud:" + c.id;
-    if (c.pkg && NATIVE && Reaper.installedVersion(c.pkg)) { t.dataset.pkg = c.pkg; if (!icons[c.pkg]) Reaper.requestIcon(c.pkg); }
+    if (inst && NATIVE) { t.dataset.pkg = inst.pkg; if (!icons[inst.pkg]) Reaper.requestIcon(inst.pkg); }
     t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + c.color + ',#120A22 90%)"></div>' +
-      '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(c.glyph) + '</div><div class="name">' + esc(c.name) + '</div>';
+      '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(c.glyph) + '</div><div class="name">' + esc(c.name) + '</div>' +
+      (inst ? "" : '<div class="get">Get app</div>');
     t._act = function () {
-      if (c.pkg && NATIVE && Reaper.installedVersion(c.pkg)) { Reaper.launch(c.pkg); return; }
-      if (NATIVE) Reaper.openUrl(c.url); else toast("Opens " + c.url + " in the browser");
+      var a = cloudApp(c);
+      if (a) { launchApp(a); return; }
+      if (NATIVE) { toast("Opening " + c.name + " in the app store…"); Reaper.openAppstore(c.pkg || "", c.query, !!c.preferPlay); }
+      else toast("Opens " + c.name + " in the Appstore on your Fire TV");
     };
     finishArt(t, c.icons);
     return t;
@@ -544,12 +633,16 @@
     var t = el("div", "tile f");
     t._item = { kind: "store", store: s };
     t.dataset.ikey = "store:" + s.id;
-    if (installedVersion(s)) { t.dataset.pkg = s._pkg; if (!icons[s._pkg]) Reaper.requestIcon(s._pkg); }
+    var have = installedVersion(s);
+    if (have) { t.dataset.pkg = s._pkg; if (!icons[s._pkg]) Reaper.requestIcon(s._pkg); }
     t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + s.color + ',#120A22 90%)"></div>' +
-      '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(s.glyph) + '</div><div class="name">' + esc(s.name) + '</div>';
+      '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(s.glyph) + '</div><div class="name">' + esc(s.name) + '</div>' +
+      (have ? "" : '<div class="get">Install</div>');
     t._act = function () {
-      if (installedVersion(s)) Reaper.launch(s._pkg);
-      else { go("store"); focusCard(s.id); }
+      if (installedVersion(s)) { Reaper.launch(s._pkg); return; }
+      var cs = cardState(s);
+      if (cs.action === "install") { cardAction(s); toast("Downloading " + s.name + "…"); return; }
+      go("store"); focusCard(s.id);
     };
     finishArt(t, s.icons);
     return t;
@@ -583,7 +676,8 @@
     if (favApps.length) sc.appendChild(shelf("Favorites", favApps.length, favApps.map(appTile)));
     sc.appendChild(shelf("Your apps", apps.length, apps.map(appTile), "No apps found."));
     sc.appendChild(shelf("Cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
-    sc.appendChild(shelf("Homebrew", STORE.length, STORE.map(storeTile)));
+    var hb = STORE.filter(function (s) { return s.featured || installedVersion(s); });
+    sc.appendChild(shelf("Homebrew", hb.length, hb.map(storeTile)));
 
     if (state.page === "home") {
       if (keep && restoreFocus(keep)) return;
@@ -602,12 +696,14 @@
       color = (ic && ic.color) || a.color || "#3B2470";
       if (ic) art = '<img class="' + (ic.banner ? "wide" : "") + '" src="' + ic.src + '">';
     } else if (it.kind === "cloud") {
-      var c = it.cloud; kicker = c.kicker; title = c.name; desc = c.desc; color = c.color; act = "Play";
+      var c = it.cloud, ca = cloudApp(c); kicker = c.kicker; title = c.name; color = c.color;
+      desc = ca ? c.desc : "Not installed yet. Press OK to get the app.";
+      act = ca ? "Play" : "Get app";
       art = artFor(t, c.glyph);
     } else {
       var s = it.store, inst = installedVersion(s);
       kicker = "Homebrew · " + s.from; title = s.name; desc = s.desc; color = s.color;
-      act = inst ? "Open" : "Get it in the store";
+      act = inst ? "Open" : "Install";
       art = artFor(t, s.glyph);
     }
     hero.querySelector(".wash").style.background =
@@ -623,15 +719,59 @@
   var storeState = {};
   STORE.forEach(function (s) { storeState[s.id] = { remote: null, busy: false, pct: 0 }; });
 
+  // Android version -> API level, for "requires Android X" checks.
+  function androidSdk(v) {
+    var t = { "2.3": 9, "4.0": 14, "4.1": 16, "4.2": 17, "4.3": 18, "4.4": 19, "5.0": 21, "5.1": 22, "6.0": 23, "7.0": 24, "7.1": 25,
+      "8.0": 26, "8.1": 27, "9": 28, "10": 29, "11": 30, "12": 31, "13": 33, "14": 34, "15": 35 };
+    return t[v] || t[String(parseInt(v, 10))] || 0;
+  }
+  var deviceAbis = (device.abis && device.abis.length) ? device.abis : ["armeabi-v7a", "armeabi"];
+  // Newest stable build that matches this Fire TV's chip and Android version.
+  function pickBuild(s, versions) {
+    function chipRank(v) {
+      if (!v.abis.length) return 0;                                  // universal build
+      var best = 99;
+      v.abis.forEach(function (a) { var i = deviceAbis.indexOf(a); if (i >= 0 && i < best) best = i; });
+      return best;
+    }
+    var fits = versions.filter(function (v) { return chipRank(v) < 99; });
+    if (!fits.length) throw new Error("no build for this Fire TV's chip");
+    var sdk = device.sdk || 0;
+    var runs = fits.filter(function (v) { return !sdk || !v.minSdk || v.minSdk <= sdk; });
+    if (!runs.length) {
+      var need = fits[0].minSdk, names = { 21: "5.0", 22: "5.1", 23: "6.0", 24: "7.0", 25: "7.1", 26: "8.0", 27: "8.1", 28: "9", 29: "10", 30: "11" };
+      return { blocked: "Needs a newer Fire OS (Android " + (names[need] || need) + "+)" };
+    }
+    var stable = runs.filter(function (v) { return !v.beta; });
+    var pool = stable.length ? stable : (s.allowBeta ? runs : []);
+    if (!pool.length) throw new Error("only beta builds available");
+    var top = pool[0].name;
+    var same = pool.filter(function (v) { return v.name === top; });
+    same.sort(function (a, b) { return chipRank(a) - chipRank(b); });
+    return { version: same[0].name, url: same[0].url, size: 0 };
+  }
+
   function resolveRelease(s) {
     var src = s.source;
     if (src.type === "fdroid") {
-      return nativeFetch("https://f-droid.org/api/v1/packages/" + src.pkg).then(function (txt) {
-        var j = JSON.parse(txt), code = j.suggestedVersionCode, name = "";
-        (j.packages || []).forEach(function (p) { if (p.versionCode === code) name = p.versionName; });
-        if (!code && j.packages && j.packages[0]) { code = j.packages[0].versionCode; name = j.packages[0].versionName; }
-        remoteIcon("store:" + s.id, ["https://f-droid.org/repo/icons-640/" + src.pkg + "." + code + ".png"]);
-        return { version: name, url: "https://f-droid.org/repo/" + src.pkg + "_" + code + ".apk", size: 0 };
+      return nativeFetch("https://f-droid.org/en/packages/" + src.pkg + "/").then(function (html) {
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        var iconEl = doc.querySelector(".package-icon");
+        if (iconEl && iconEl.getAttribute("src")) remoteIcon("store:" + s.id, [new URL(iconEl.getAttribute("src"), "https://f-droid.org/").href]);
+        var versions = $$(".package-version", doc).map(function (li) {
+          var head = li.querySelector(".package-version-header").textContent.replace(/\s+/g, " ");
+          var req = (li.querySelector(".package-version-requirement") || {}).textContent || "";
+          var apk = $$("a", li).map(function (a) { return a.getAttribute("href") || ""; }).filter(function (h) { return /\.apk$/.test(h); })[0];
+          var m = /requires Android ([\d.]+)/.exec(req);
+          return {
+            name: (/Version (\S+)/.exec(head) || [])[1] || "",
+            beta: !!li.querySelector(".beta-badge"),
+            abis: $$(".package-nativecode", li).map(function (c) { return c.textContent.trim(); }),
+            minSdk: m ? androidSdk(m[1]) : 0,
+            url: apk ? new URL(apk, "https://f-droid.org/").href : ""
+          };
+        }).filter(function (v) { return v.url; });
+        return pickBuild(s, versions);
       });
     }
     if (src.type === "stremio") {
@@ -667,14 +807,21 @@
     });
   }
 
-  function refreshStore() {
+  var releaseCache = load("releases", {});
+  var CACHE_MS = 6 * 3600 * 1000;
+  function refreshStore(force) {
     STORE.forEach(function (s) {
       var st = storeState[s.id];
       st.installed = installedVersion(s);
+      var cached = releaseCache[s.id];
+      if (!force && !st.remote && cached && Date.now() - cached.at < CACHE_MS) st.remote = cached.r;
       updateCard(s.id);
       if (st.remote || st.loading) return;
       st.loading = true;
-      resolveRelease(s).then(function (r) { st.remote = r; st.error = ""; })
+      resolveRelease(s).then(function (r) {
+        st.remote = r; st.error = "";
+        releaseCache[s.id] = { at: Date.now(), r: r }; save("releases", releaseCache);
+      })
         .catch(function (e) { st.error = "Couldn't reach " + s.from + " (" + e.message + ")"; })
         .then(function () { st.loading = false; updateCard(s.id); });
     });
@@ -683,6 +830,8 @@
   function cardState(s) {
     var st = storeState[s.id];
     if (s.needs64 && NATIVE && !is64) return { label: "Needs a 64-bit Fire TV", warn: true, action: null };
+    if (s.maxSdk && device.sdk && device.sdk > s.maxSdk && !st.installed) return { label: "Not for this Fire OS version", warn: true, action: null };
+    if (st.remote && st.remote.blocked && !st.installed) return { label: st.remote.blocked, warn: true, action: null };
     if (st.busy) return { label: st.pct >= 0 ? "Downloading " + st.pct + "%" : "Downloading " + fmtBytes(st.bytes), action: null };
     if (st.installed) {
       var newer = st.remote && st.remote.version && normVer(st.remote.version) !== normVer(st.installed);
@@ -694,6 +843,7 @@
   }
 
   function updateCard(id) {
+    if (setupOn) renderSetup();
     var card = $('.card[data-id="' + id + '"]'); if (!card) return;
     var s = STORE.filter(function (x) { return x.id === id; })[0], st = storeState[id], cs = cardState(s);
     var meta = [];
@@ -714,7 +864,7 @@
     if (cs.action === "retry") { st.error = ""; st.remote = null; refreshStore(); return; }
     if (cs.action !== "install") return;
     if (!Reaper.canInstall()) toast("First, allow ReaperOS to install apps. Opening that setting…");
-    st.busy = true; st.pct = 0; st.error = "";
+    st.busy = true; st.pct = 0; st.error = ""; st.declined = false;
     updateCard(s.id);
     Reaper.install(s.id, st.remote.url);
   }
@@ -722,36 +872,106 @@
   function renderStore() {
     var sc = $("#page-store .scroller"); sc.innerHTML = "";
     sc.appendChild(el("div", "pagehead",
-      "<h2>Homebrew Store</h2><p>Open-source apps that aren't in the Amazon Appstore. ReaperOS downloads the latest release and hands it to Fire OS to install. Press Menu on an installed app to uninstall it.</p>"));
-    var row = el("div", "viewport"), tr = el("div", "cards"); tr.dataset.row = "1";
-    STORE.forEach(function (s) {
-      var c = el("div", "card f"); c.dataset.id = s.id; c.dataset.ikey = "store:" + s.id;
-      if (installedVersion(s)) { c.dataset.pkg = s._pkg; if (!icons[s._pkg]) Reaper.requestIcon(s._pkg); }
-      c.innerHTML = '<div class="head"><div class="logo" style="background:' + s.color + '">' + esc(s.glyph) + '</div>' +
-        '<div><h4>' + esc(s.name) + '</h4><div class="src">From ' + esc(s.from) + (s.needs64 ? " · 64-bit only" : "") + '</div></div></div>' +
-        '<p>' + esc(s.desc) + '</p><div class="prog"><i></i></div><div class="meta"></div><div class="act">Install</div>';
-      c._act = function () { cardAction(s); };
-      c._menu = function () {
-        if (storeState[s.id].installed && NATIVE) Reaper.uninstall(s._pkg);
-      };
-      tr.appendChild(c);
-      finishArt(c, s.icons);
+      "<h2>Homebrew Store</h2><p>Open-source apps and Fire TV tools that aren't in the Amazon Appstore. ReaperOS picks the right build for your Fire TV, downloads it, and hands it to Fire OS to install. Want something that isn't listed? Install Obtainium and add any GitHub project. Press Menu on an installed app to uninstall it.</p>"));
+    CATEGORIES.forEach(function (cat) {
+      var list = STORE.filter(function (s) { return s.cat === cat.id; });
+      var sec = el("section", "shelf");
+      sec.innerHTML = "<h3><span>" + esc(cat.title) + "</span><small>" + list.length + " apps</small></h3>";
+      var row = el("div", "viewport"), tr = el("div", "cards"); tr.dataset.row = "1";
+      list.forEach(function (s) {
+        var c = el("div", "card f"); c.dataset.id = s.id; c.dataset.ikey = "store:" + s.id;
+        if (installedVersion(s)) { c.dataset.pkg = s._pkg; if (!icons[s._pkg]) Reaper.requestIcon(s._pkg); }
+        c.innerHTML = '<div class="head"><div class="logo" style="background:' + s.color + '">' + esc(s.glyph) + '</div>' +
+          '<div><h4>' + esc(s.name) + '</h4><div class="src">From ' + esc(s.from) + (s.needs64 ? " · 64-bit only" : "") + '</div></div></div>' +
+          '<p>' + esc(s.desc) + '</p><div class="prog"><i></i></div><div class="meta"></div><div class="act">Install</div>';
+        c._act = function () { cardAction(s); };
+        c._menu = function () { if (storeState[s.id].installed && NATIVE) Reaper.uninstall(s._pkg); };
+        tr.appendChild(c);
+        finishArt(c, s.icons);
+      });
+      row.appendChild(tr); sec.appendChild(row); sc.appendChild(sec);
     });
-    row.appendChild(tr); sc.appendChild(row);
 
     var setup = el("section", "shelf");
     setup.style.marginTop = "2.4rem";
     setup.innerHTML = "<h3><span>Before your first install</span></h3>";
     var vp = el("div", "viewport"), tr2 = el("div", "track"); tr2.dataset.row = "1";
     var b1 = button("Allow app installs", "Lets ReaperOS hand APKs to the Fire OS installer", function () { NATIVE ? Reaper.openSettings("unknown") : toast("Opens the Fire TV permission screen"); });
+    var b0 = button("Install starter pack", "Installs the featured apps one after another", function () {
+      if (NATIVE) runFirstSetup(); else startStarterPack();
+    });
+    tr2.appendChild(b0);
     var b2 = button("Check for updates", "Re-checks every app's latest version", function () {
       STORE.forEach(function (s) { storeState[s.id].remote = null; storeState[s.id].error = ""; });
-      refreshStore(); toast("Checking for updates…");
+      refreshStore(true); toast("Checking for updates…");
     });
     tr2.appendChild(b1); tr2.appendChild(b2); vp.appendChild(tr2); setup.appendChild(vp);
     sc.appendChild(setup);
     refreshStore();
   }
+  // ---------------------------------------------------------------- first-run setup
+  var setupItems = [], setupOn = false, setupSkipped = {};
+  function setupStatus(s) {
+    var st = storeState[s.id], cs = cardState(s);
+    if (st.installed) return ["Installed", "done"];
+    if (setupSkipped[s.id]) return ["Skipped", ""];
+    if (st.declined && !st.busy) return ["Not installed", "bad"];
+    if (cs.warn) return [cs.label, "bad"];
+    if (st.busy) return [cs.label, "now"];
+    if (st.error) return ["Couldn't download", "bad"];
+    if (st.pct >= 100) return ["Confirm Install on screen", "now"];
+    if (st.loading || !st.remote) return ["Getting ready…", ""];
+    return ["Waiting", ""];
+  }
+  function renderSetup() {
+    if (!setupItems.length) return;
+    $("#setupList").innerHTML = setupItems.map(function (s) {
+      var x = setupStatus(s);
+      return '<li class="' + x[1] + '"><span class="nm">' + esc(s.name) + '</span><span class="st">' + esc(x[0]) + "</span></li>";
+    }).join("");
+    var finished = setupItems.every(function (s) { var c = setupStatus(s)[1]; return c === "done" || c === "bad" || setupSkipped[s.id]; });
+    if (finished && setupOn) {
+      save("setupDone", true);
+      setTimeout(function () { hideSetup(); toast("All set. Your apps are on the Home screen."); }, 1800);
+    }
+  }
+  function showSetup() { setupOn = true; $("#setup").classList.add("on"); renderSetup(); }
+  function hideSetup() { setupOn = false; $("#setup").classList.remove("on"); }
+  function runFirstSetup() {
+    if (!NATIVE) return;
+    setupItems = STORE.filter(function (s) { return s.featured && !(s.needs64 && !is64); });
+    if (!setupItems.length) return;
+    showSetup();
+    var tries = 0;
+    (function waitReady() {
+      renderSetup();
+      var ready = setupItems.every(function (s) { var st = storeState[s.id]; return st.installed || st.remote || st.error; });
+      if (!ready && tries++ < 40) { setTimeout(waitReady, 500); return; }
+      installQueue = setupItems.filter(function (s) { return !storeState[s.id].installed && cardState(s).action === "install"; });
+      nextInQueue();
+    })();
+  }
+
+  // Installs featured apps one at a time; Fire OS asks to confirm each.
+  var installQueue = [];
+  function startStarterPack() {
+    if (!NATIVE) { toast("The starter pack installs on your Fire TV."); return; }
+    installQueue = STORE.filter(function (s) {
+      return s.featured && !storeState[s.id].installed && cardState(s).action === "install";
+    });
+    if (!installQueue.length) { toast("Starter apps are installed or still loading. Try again in a moment."); return; }
+    toast("Installing " + installQueue.length + " apps. Confirm each one when Fire OS asks.");
+    nextInQueue();
+  }
+  function nextInQueue() {
+    var busy = STORE.some(function (s) { return storeState[s.id].busy; });
+    if (busy || !installQueue.length) return;
+    var s = installQueue.shift();
+    storeState[s.id].installed = installedVersion(s);
+    if (storeState[s.id].installed) return nextInQueue();
+    cardAction(s);
+  }
+
   function focusCard(id) {
     var rows = getRows();
     for (var r = 0; r < rows.length; r++) {
@@ -913,6 +1133,14 @@
       if (repeat && now - lastMove < 90) return true;   // smooth held-button scrolling
       lastMove = now;
     }
+    if (setupOn) {
+      if (key === "Enter" && !repeat) { hideSetup(); toast("Still installing in the background."); }
+      if (key === "Back" && !repeat) {
+        installQueue.forEach(function (s) { setupSkipped[s.id] = true; });
+        installQueue = []; save("setupDone", true); hideSetup(); toast("Skipped. Install the rest anytime from the Homebrew Store.");
+      }
+      return true;
+    }
     var f = focusedEl();
     switch (key) {
       case "ArrowUp": move(-1, 0); return true;
@@ -999,6 +1227,10 @@
   var wait = Math.max(0, 2600 - (Date.now() - started));   // let the reaper have its moment
   setTimeout(function () { $("#splash").classList.add("gone"); }, wait);
   setTimeout(function () { refreshStore(); }, wait + 600); // warm the store quietly
+  if (!load("setupDone", false)) {
+    if (NATIVE) setTimeout(runFirstSetup, wait + 500);
+    else setTimeout(function () { toast("On your Fire TV, ReaperOS installs your apps automatically on first launch."); }, wait + 900);
+  }
 })();
 </script>
 </body>

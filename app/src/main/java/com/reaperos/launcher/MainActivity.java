@@ -412,6 +412,33 @@ public class MainActivity extends Activity {
             ui.post(() -> openExternal(url));
         }
 
+        /**
+         * Opens an app's store page: the Amazon Appstore first, then any Play-compatible
+         * store (such as Aurora Store), then an Appstore search as a last resort.
+         */
+        @JavascriptInterface
+        public void openAppstore(final String pkg, final String query, final boolean preferPlay) {
+            ui.post(() -> {
+                List<String> uris = new ArrayList<>();
+                String q = Uri.encode(query == null ? "" : query);
+                boolean hasPkg = pkg != null && pkg.length() > 0;
+                if (preferPlay && hasPkg) uris.add("market://details?id=" + pkg);
+                if (hasPkg) uris.add("amzn://apps/android?p=" + pkg);
+                if (!preferPlay && hasPkg) uris.add("market://details?id=" + pkg);
+                uris.add("amzn://apps/android?s=" + q);
+                uris.add("market://search?q=" + q);
+                for (String u : uris) {
+                    try {
+                        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(u));
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(i);
+                        return;
+                    } catch (ActivityNotFoundException ignored) { }
+                }
+                toast("No app store found on this device.");
+            });
+        }
+
         @JavascriptInterface
         public void openSettings(final String which) {
             ui.post(() -> {

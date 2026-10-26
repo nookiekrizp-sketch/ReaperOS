@@ -4,7 +4,9 @@ A Bazzite-style TV launcher for Amazon Fire TV, with a reaper load screen, your 
 
 ## What it does
 - **Home:** a hero banner that follows your selection, Favorites (press **Menu** on any app to pin it), all your installed apps with their real icons, Cloud Gaming shortcuts, and Homebrew quick links.
-- **Homebrew Store:** installs and updates Moonlight, GameNative (64-bit Fire TVs only), SmartTube, Stremio and Jellyfin straight from F-Droid, GitHub and Stremio.com. Fire OS shows its normal "Install?" screen to confirm.
+- **First launch:** ReaperOS automatically installs its core apps (SmartTube, Stremio, Kodi, Moonlight, RetroArch, Obtainium, plus GameNative on 64-bit Fire TVs). Fire OS asks you to press Install for each one. You can rerun this anytime from Homebrew Store → Install starter pack.
+- **Cloud gaming:** Xbox, GeForce NOW, Amazon Luna and Boosteroid tiles open the real apps. If one isn't installed, the tile opens its Amazon Appstore page (GeForce NOW opens in Aurora Store, since Amazon doesn't carry it).
+- **Homebrew Store:** 19 open-source apps in four rows (streaming & media, gaming & emulators, alternate app stores, tools & Fire TV tweaks), from F-Droid, GitHub and Stremio.com. ReaperOS picks the build that matches your Fire TV's chip and Fire OS version. For anything not listed, install Obtainium and add any GitHub project.
 - **Settings:** shortcuts to Fire TV settings and the install permission, a toggle for system apps, a toggle for load-screen music, and device info.
 - **Load screen:** an animated reaper with an original spooky jingle. To use your own audio instead, add `app/src/main/assets/splash.mp3`.
 
