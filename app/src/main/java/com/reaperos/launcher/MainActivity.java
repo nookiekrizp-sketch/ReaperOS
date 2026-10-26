@@ -293,6 +293,77 @@ public class MainActivity extends Activity {
         throw new Exception("Too many redirects");
     }
 
+    // ---------------------------------------------------------------- game files
+
+    private static final int REQ_STORAGE = 42;
+    private String[] pendingGame;
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode != REQ_STORAGE || pendingGame == null) return;
+        final String[] job = pendingGame;
+        pendingGame = null;
+        if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) {
+            io.execute(() -> saveGameNow(job[0], job[1], job[2], job[3]));
+        } else {
+            js("window.reaperGameError && reaperGameError(" + q(job[0]) + "," + q("Storage permission was declined") + ")");
+        }
+    }
+
+    /** Downloads a game file into Downloads/ReaperOS/<folder>/ where emulators can find it. */
+    private void saveGameNow(String id, String url, String folder, String name) {
+        HttpURLConnection c = null;
+        OutputStream os = null;
+        String shownPath = "Downloads/ReaperOS/" + folder + "/" + name;
+        try {
+            c = open(url);
+            int code = c.getResponseCode();
+            if (code >= 400) throw new Exception("HTTP " + code);
+            long total = c.getContentLength();
+
+            if (Build.VERSION.SDK_INT >= 29) {
+                android.content.ContentValues v = new android.content.ContentValues();
+                v.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name);
+                v.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream");
+                v.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                        android.os.Environment.DIRECTORY_DOWNLOADS + "/ReaperOS/" + folder);
+                Uri dest = getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                if (dest == null) throw new Exception("Couldn't create the file");
+                os = getContentResolver().openOutputStream(dest);
+            } else {
+                File dir = new File(android.os.Environment.getExternalStoragePublicDirectory(
+                        android.os.Environment.DIRECTORY_DOWNLOADS), "ReaperOS/" + folder);
+                if (!dir.exists() && !dir.mkdirs()) throw new Exception("Couldn't create the folder");
+                os = new FileOutputStream(new File(dir, name));
+            }
+            if (os == null) throw new Exception("Couldn't open the file");
+
+            InputStream in = c.getInputStream();
+            byte[] buf = new byte[65536];
+            long done = 0;
+            int last = -1, n;
+            while ((n = in.read(buf)) > 0) {
+                os.write(buf, 0, n);
+                done += n;
+                int pct = total > 0 ? (int) (done * 100 / total) : -1;
+                if (pct != last) {
+                    last = pct;
+                    js("window.reaperGameProgress && reaperGameProgress(" + q(id) + "," + pct + ")");
+                }
+            }
+            in.close();
+            os.close();
+            os = null;
+            js("window.reaperGameSaved && reaperGameSaved(" + q(id) + "," + q(shownPath) + ")");
+        } catch (Exception ex) {
+            js("window.reaperGameError && reaperGameError(" + q(id) + "," + q(String.valueOf(ex.getMessage())) + ")");
+        } finally {
+            try { if (os != null) os.close(); } catch (Exception ignored) { }
+            if (c != null) c.disconnect();
+        }
+    }
+
     /** Returns a message if the APK only contains native code for chips this device lacks. */
     private static String abiProblem(File apk) {
         Set<String> abis = new HashSet<>();
@@ -488,6 +559,19 @@ public class MainActivity extends Activity {
                     toast("Couldn't uninstall that app.");
                 }
             });
+        }
+
+        @JavascriptInterface
+        public void saveGame(final String id, final String url, final String folder, final String name) {
+            if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT < 29
+                    && checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                pendingGame = new String[]{id, url, folder, name};
+                ui.post(() -> requestPermissions(
+                        new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQ_STORAGE));
+                return;
+            }
+            io.execute(() -> saveGameNow(id, url, folder, name));
         }
 
         @JavascriptInterface

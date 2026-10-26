@@ -320,6 +320,7 @@
     { id: "media", title: "Streaming & media" },
     { id: "games", title: "Game streaming & PC games" },
     { id: "emus", title: "Emulators" },
+    { id: "freegames", title: "Free games" },
     { id: "stores", title: "Alternate app stores" },
     { id: "tools", title: "Tools & Fire TV tweaks" }
   ];
@@ -392,6 +393,32 @@
       source: { type: "github", repo: "mmatyas/pegasus-frontend" },
       desc: "A console-style game library that launches your emulators from one beautiful menu." },
 
+    // Free games (open source, play with a remote or controller)
+    { id: "stk", cat: "freegames", featured: true, name: "SuperTuxKart", glyph: "S", color: "#2E86DE", pkg: "org.supertuxkart.stk",
+      source: FD("org.supertuxkart.stk"), desc: "3D kart racing with dozens of tracks, battle modes and online races. Use a controller." },
+    { id: "mindustry", cat: "freegames", name: "Mindustry", glyph: "M", color: "#C97A2B", pkg: "io.anuke.mindustry",
+      source: FD("io.anuke.mindustry"), desc: "Factory building meets tower defense. Huge campaign and online multiplayer." },
+    { id: "spd", cat: "freegames", name: "Shattered Pixel Dungeon", glyph: "S", color: "#5D4037", pkg: "com.shatteredpixel.shatteredpixeldungeon",
+      source: FD("com.shatteredpixel.shatteredpixeldungeon"), desc: "A beloved roguelike dungeon crawler with controller support." },
+    { id: "luanti", cat: "freegames", name: "Luanti", glyph: "L", color: "#4CAF50", pkg: "net.minetest.minetest",
+      source: FD("net.minetest.minetest"), desc: "Open-source block-building sandbox (formerly Minetest), with thousands of free games and mods." },
+    { id: "pixelwheels", cat: "freegames", name: "Pixel Wheels", glyph: "P", color: "#E53935", pkg: "com.agateau.tinywheels.android",
+      source: FD("com.agateau.tinywheels.android"), desc: "Retro top-down racing with weapons. Great couch multiplayer." },
+    { id: "tuxrider", cat: "freegames", name: "Tux Rider", glyph: "T", color: "#00ACC1", pkg: "com.drodin.tuxrider",
+      source: FD("com.drodin.tuxrider"), desc: "Slide a penguin downhill, collecting fish. Classic Tux Racer fun." },
+    { id: "unciv", cat: "freegames", name: "Unciv", glyph: "U", color: "#8D6E63", pkg: "com.unciv.app",
+      source: FD("com.unciv.app"), desc: "Build an empire turn by turn, a free Civilization V-style strategy game." },
+    { id: "freedoom", cat: "freegames", name: "Freedoom", glyph: "F", color: "#B71C1C", pkg: "net.nullsum.freedoom",
+      source: FD("net.nullsum.freedoom"), desc: "Classic-style first-person shooter with free Doom-engine campaigns. 64-bit Fire TVs." },
+    { id: "puzzles", cat: "freegames", name: "Simon Tatham's Puzzles", glyph: "?", color: "#546E7A", pkg: "name.boyle.chris.sgtpuzzles",
+      source: FD("name.boyle.chris.sgtpuzzles"), desc: "40 clever logic puzzles: Sudoku-likes, mines, bridges and more." },
+    { id: "klooni", cat: "freegames", name: "1010! Klooni", glyph: "K", color: "#F9A825", pkg: "dev.lonami.klooni",
+      source: FD("dev.lonami.klooni"), desc: "Relaxing block-placing puzzle game." },
+    { id: "solitaire", cat: "freegames", name: "Simple Solitaire", glyph: "S", color: "#2E7D32", pkg: "de.tobiasbielefeld.solitaire",
+      source: FD("de.tobiasbielefeld.solitaire"), desc: "17 solitaire card games in one app." },
+    { id: "lexica", cat: "freegames", name: "Lexica", glyph: "L", color: "#6A1B9A", pkg: "com.serwylo.lexica",
+      source: FD("com.serwylo.lexica"), desc: "Find as many words as you can in a letter grid before time runs out." },
+
     // Alternate app stores
     { id: "obtainium", cat: "stores", featured: true, name: "Obtainium", glyph: "O", color: "#4A5BD6", pkg: "dev.imranr.obtainium.fdroid",
       source: FD("dev.imranr.obtainium.fdroid"), desc: "Install and auto-update apps straight from any GitHub, GitLab or F-Droid release page." },
@@ -409,6 +436,8 @@
       source: FD("com.termux"), desc: "A full Linux terminal on your Fire TV, for tinkering and ADB scripts." },
     { id: "tailscale", cat: "tools", name: "Tailscale", glyph: "T", color: "#242424", pkg: "com.tailscale.ipn",
       source: FD("com.tailscale.ipn"), desc: "Private network to your PC from anywhere, great for Moonlight away from home." },
+    { id: "keymapper", cat: "tools", name: "Key Mapper", glyph: "K", color: "#0D47A1", pkg: "io.github.sds100.keymapper",
+      source: FD("io.github.sds100.keymapper"), desc: "Remap Fire TV remote buttons, for example to open ReaperOS or an emulator." },
     { id: "launcherhijack", cat: "tools", name: "Launcher Hijack", glyph: "H", color: "#8B5CF6", pkg: "com.baronkiko.launcherhijack",
       source: { type: "github", repo: "BaronKiko/LauncherHijack" }, from: "GitHub", maxSdk: 25,
       desc: "Makes the Home button open ReaperOS instead of the Fire TV home. Older Fire OS (6 and below) only." }
@@ -925,7 +954,7 @@
   function renderStore() {
     var sc = $("#page-store .scroller"); sc.innerHTML = "";
     sc.appendChild(el("div", "pagehead",
-      "<h2>Homebrew Store</h2><p>Open-source apps, emulators and Fire TV tools that aren't in the Amazon Appstore. ReaperOS picks the right build for your Fire TV, downloads it, and hands it to Fire OS to install. Want something that isn't listed? Install Obtainium and add any GitHub project. Press Menu on an installed app to uninstall it.</p>"));
+      "<h2>Homebrew Store</h2><p>Open-source apps, emulators, free games and Fire TV tools that aren't in the Amazon Appstore. ReaperOS picks the right build for your Fire TV, downloads it, and hands it to Fire OS to install. Want something that isn't listed? Install Obtainium and add any GitHub project. Press Menu on an installed app to uninstall it.</p>"));
     CATEGORIES.forEach(function (cat) {
       var list = STORE.filter(function (s) { return s.cat === cat.id; });
       var sec = el("section", "shelf");
@@ -943,6 +972,7 @@
         finishArt(c, s.icons);
       });
       row.appendChild(tr); sec.appendChild(row); sc.appendChild(sec);
+      if (cat.id === "freegames") sc.appendChild(romSection());
     });
 
     var setup = el("section", "shelf");
@@ -1031,6 +1061,83 @@
       var items = items$(rows[r]);
       for (var c = 0; c < items.length; c++) if (items[c].dataset.id === id) { setFocus(r, c); return; }
     }
+  }
+
+
+  // ---------------------------------------------------------------- free homebrew games
+  // Freely distributed homebrew made for retro consoles, saved where emulators can find them.
+  var ROMS = [
+    { id: "nova", name: "Nova the Squirrel", sys: "NES", folder: "ROMs/NES", file: "nova.nes", color: "#E67E22",
+      url: "https://github.com/NovaSquirrel/NovaTheSquirrel/releases/download/v1.0.6a/nova.nes",
+      desc: "A full-length platformer about a squirrel who can copy enemy abilities." },
+    { id: "thwaite", name: "Thwaite", sys: "NES", folder: "ROMs/NES", file: "thwaite.nes", color: "#C0392B",
+      url: "https://github.com/pinobatch/thwaite-nes/releases/download/v0.04/thwaite.nes",
+      desc: "Missile Command-style defense of a medieval village. One or two players." },
+    { id: "croom", name: "Concentration Room", sys: "NES", folder: "ROMs/NES", file: "croom.nes", color: "#16A085",
+      url: "https://github.com/pinobatch/croom-nes/releases/download/v0.02a/croom.nes",
+      desc: "A memory card-matching game with a spooky lab twist." },
+    { id: "libbet", name: "Libbet and the Magic Floor", sys: "Game Boy", folder: "ROMs/GB", file: "libbet.gb", color: "#7F8C3A",
+      url: "https://github.com/pinobatch/libbet/releases/download/v0.08/libbet.gb",
+      desc: "Puzzle game: roll across every tile of a basement floor to restore it." },
+    { id: "ucity", name: "µCity", sys: "Game Boy Color", folder: "ROMs/GBC", file: "ucity.gbc", color: "#2980B9",
+      url: "https://github.com/AntonioND/ucity/releases/download/v1.3/ucity.gbc",
+      desc: "A full city-building simulator, SimCity-style, on a Game Boy Color." }
+  ];
+  var romSaved = load("romSaved", {});
+  var romState = {};
+  ROMS.forEach(function (r) { romState[r.id] = { busy: false, pct: 0, error: "" }; });
+
+  function romLabel(r) {
+    var st = romState[r.id];
+    if (st.busy) return st.pct >= 0 ? "Downloading " + st.pct + "%" : "Downloading…";
+    if (st.error) return "Retry";
+    return romSaved[r.id] ? "Saved ✓" : "Download";
+  }
+  function updateRom(id) {
+    var c = $('.card[data-rom="' + id + '"]'); if (!c) return;
+    var r = ROMS.filter(function (x) { return x.id === id; })[0], st = romState[id];
+    c.querySelector(".act").textContent = romLabel(r);
+    c.querySelector(".meta").textContent = st.error ? st.error : (romSaved[id] ? "In " + romSaved[id] : r.sys + " · plays in RetroArch or Lemuroid");
+    c.classList.toggle("busy", !!st.busy);
+    c.querySelector(".prog i").style.width = Math.max(0, st.pct || 0) + "%";
+  }
+  function downloadRom(r) {
+    var st = romState[r.id];
+    if (st.busy) return;
+    if (!NATIVE) { toast("Game downloads work on your Fire TV."); return; }
+    if (romSaved[r.id] && !st.error) {
+      toast(r.name + " is in Downloads/ReaperOS. Open it from RetroArch or Lemuroid.");
+      return;
+    }
+    st.busy = true; st.pct = 0; st.error = ""; updateRom(r.id);
+    Reaper.saveGame(r.id, r.url, r.folder, r.file);
+  }
+  window.reaperGameProgress = function (id, pct) { var st = romState[id]; if (!st) return; st.pct = pct; updateRom(id); };
+  window.reaperGameSaved = function (id, path) {
+    var st = romState[id]; if (!st) return;
+    st.busy = false; st.pct = 100; romSaved[id] = path.replace(/\/[^\/]+$/, ""); save("romSaved", romSaved);
+    var r = ROMS.filter(function (x) { return x.id === id; })[0];
+    updateRom(id); toast(r.name + " saved. Find it in " + romSaved[id] + " from RetroArch or Lemuroid.");
+  };
+  window.reaperGameError = function (id, msg) {
+    var st = romState[id]; if (!st) return;
+    st.busy = false; st.error = "Couldn't save: " + msg; updateRom(id); toast(st.error);
+  };
+  function romSection() {
+    var sec = el("section", "shelf");
+    sec.innerHTML = "<h3><span>Free homebrew for your emulators</span><small>" + ROMS.length + " games</small></h3>";
+    var vp = el("div", "viewport"), tr = el("div", "cards"); tr.dataset.row = "1";
+    ROMS.forEach(function (r) {
+      var c = el("div", "card f"); c.dataset.rom = r.id;
+      c.innerHTML = '<div class="head"><div class="logo" style="background:' + r.color + ';font-size:1.3rem">' + esc(r.sys === "NES" ? "NES" : "GB") + '</div>' +
+        '<div><h4>' + esc(r.name) + '</h4><div class="src">' + esc(r.sys) + ' homebrew · free</div></div></div>' +
+        '<p>' + esc(r.desc) + '</p><div class="prog"><i></i></div><div class="meta"></div><div class="act">Download</div>';
+      c._act = function () { downloadRom(r); };
+      tr.appendChild(c);
+    });
+    vp.appendChild(tr); sec.appendChild(vp);
+    setTimeout(function () { ROMS.forEach(function (r) { updateRom(r.id); }); }, 0);
+    return sec;
   }
 
   // ---------------------------------------------------------------- settings
