@@ -297,6 +297,10 @@
     { id: "smarttube", name: "SmartTube", glyph: "S", color: "#E5322D", pkg: "app.smarttube.fdroid",
       source: { type: "fdroid", pkg: "app.smarttube.fdroid" }, from: "F-Droid", icons: ["https://f-droid.org/repo/app.smarttube.fdroid/en-US/icon.png"],
       desc: "Ad-free YouTube built for TV remotes, with SponsorBlock and 4K/HDR playback." },
+    { id: "stremio", name: "Stremio", glyph: "S", color: "#7B5BF5", pkg: "com.stremio.one",
+      source: { type: "stremio" }, from: "Stremio.com",
+      icons: ["https://www.google.com/s2/favicons?domain=stremio.com&sz=256"],
+      desc: "Movies, shows and live TV in one library, with add-ons. Official Android TV build." },
     { id: "jellyfin", name: "Jellyfin", glyph: "J", color: "#00A4DC", pkg: "org.jellyfin.androidtv",
       source: { type: "fdroid", pkg: "org.jellyfin.androidtv" }, from: "F-Droid", icons: ["https://f-droid.org/repo/org.jellyfin.androidtv/en-US/icon.png"],
       desc: "Stream movies and shows from your own Jellyfin media server." }
@@ -628,6 +632,22 @@
         if (!code && j.packages && j.packages[0]) { code = j.packages[0].versionCode; name = j.packages[0].versionName; }
         remoteIcon("store:" + s.id, ["https://f-droid.org/repo/icons-640/" + src.pkg + "." + code + ".png"]);
         return { version: name, url: "https://f-droid.org/repo/" + src.pkg + "_" + code + ".apk", size: 0 };
+      });
+    }
+    if (src.type === "stremio") {
+      // Read Stremio's official download page and pick the newest Android TV build for this chip.
+      var fallback = "https://dl.strem.io/android/v1.12.0-androidTV/com.stremio.one-1.12.0-51048576-armeabi-v7a.apk";
+      return nativeFetch("https://www.stremio.com/downloads").then(function (html) {
+        var links = (html.match(/https:\/\/dl\.strem\.io\/android\/[^"'\s<>]+\.apk/g) || [])
+          .filter(function (u) { return /androidTV/i.test(u); });
+        if (!links.length) throw new Error("no Android TV build listed");
+        var newest = links[0].split("/")[4];               // e.g. v1.12.0-androidTV
+        links = links.filter(function (u) { return u.split("/")[4] === newest; });
+        var abis = device.abis && device.abis.length ? device.abis : ["armeabi-v7a"], pick = null;
+        abis.some(function (abi) { pick = links.filter(function (u) { return u.indexOf("-" + abi + ".apk") > 0; })[0]; return !!pick; });
+        return { version: newest.replace(/^v/, "").replace(/-androidTV$/i, ""), url: pick || links[0], size: 0 };
+      }, function () {
+        return { version: "1.12.0", url: fallback, size: 0 };
       });
     }
     return nativeFetch("https://api.github.com/repos/" + src.repo + "/releases/latest").then(function (txt) {

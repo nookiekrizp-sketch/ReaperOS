@@ -4,7 +4,7 @@ A Bazzite-style TV launcher for Amazon Fire TV, with a reaper load screen, your 
 
 ## What it does
 - **Home:** a hero banner that follows your selection, Favorites (press **Menu** on any app to pin it), all your installed apps with their real icons, Cloud Gaming shortcuts, and Homebrew quick links.
-- **Homebrew Store:** installs and updates Moonlight, GameNative (64-bit Fire TVs only), SmartTube and Jellyfin straight from F-Droid and GitHub. Fire OS shows its normal "Install?" screen to confirm.
+- **Homebrew Store:** installs and updates Moonlight, GameNative (64-bit Fire TVs only), SmartTube, Stremio and Jellyfin straight from F-Droid, GitHub and Stremio.com. Fire OS shows its normal "Install?" screen to confirm.
 - **Settings:** shortcuts to Fire TV settings and the install permission, a toggle for system apps, a toggle for load-screen music, and device info.
 - **Load screen:** an animated reaper with an original spooky jingle. To use your own audio instead, add `app/src/main/assets/splash.mp3`.
 
