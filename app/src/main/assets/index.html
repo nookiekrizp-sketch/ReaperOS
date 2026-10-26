@@ -533,6 +533,11 @@
   };
   window.reaperProgress = function (id, pct, bytes) {
     var st = storeState[id]; if (!st) return;
+    if (id === "reaperos") {
+      st.pct = pct; st.busy = pct < 100;
+      if (pct >= 100) { selfUpdate.busy = false; toast("ReaperOS update downloaded. Press Install to finish; ReaperOS will reopen updated."); }
+      renderUpdateButton(); return;
+    }
     st.busy = pct < 100;
     st.pct = pct; st.bytes = bytes;
     if (pct >= 100) { st.busy = false; toast("Download finished. Confirm the install on screen."); }
@@ -547,6 +552,7 @@
   };
   window.reaperInstallError = function (id, msg) {
     var st = storeState[id]; if (!st) return;
+    if (id === "reaperos") { st.busy = false; selfUpdate.busy = false; renderUpdateButton(); toast("ReaperOS update failed: " + msg); return; }
     st.busy = false; st.error = /^This app/.test(msg) ? msg : "Download failed: " + msg;
     updateCard(id); toast(st.error);
   };
@@ -954,7 +960,7 @@
         releaseCache[s.id] = { at: Date.now(), r: r }; save("releases", releaseCache);
       })
         .catch(function (e) { st.error = "Couldn't reach " + s.from + " (" + e.message + ")"; })
-        .then(function () { st.loading = false; updateCard(s.id); });
+        .then(function () { st.loading = false; updateCard(s.id); maybeNotifyAppUpdates(); });
     });
   }
 
@@ -1033,6 +1039,8 @@
       if (NATIVE) runFirstSetup(); else startStarterPack();
     });
     tr2.appendChild(b0);
+    var b3 = button("Update all apps", "Installs every available update, one after another", function () { updateAll(); });
+    tr2.appendChild(b3);
     var b2 = button("Check for updates", "Re-checks every app's latest version", function () {
       STORE.forEach(function (s) { storeState[s.id].remote = null; storeState[s.id].error = ""; });
       refreshStore(true); toast("Checking for updates…");
@@ -1215,6 +1223,70 @@
     return sec;
   }
 
+
+  // ---------------------------------------------------------------- automatic updates
+  var UPDATE_REPO = "nookiekrizp-sketch/ReaperOS";
+  var autoUpdate = load("autoUpdate", true);
+  var selfUpdate = { checking: false, latest: 0, url: "", busy: false, pct: 0, error: "" };
+  storeState.reaperos = { busy: false, pct: 0 };     // lets the native download callbacks report progress
+  function myBuild() { var m = /(\d+)$/.exec(device.version || ""); return m ? parseInt(m[1], 10) : 0; }
+
+  function checkSelfUpdate(manual) {
+    if (!NATIVE || selfUpdate.checking) return;
+    selfUpdate.checking = true; renderUpdateButton();
+    nativeFetch("https://api.github.com/repos/" + UPDATE_REPO + "/releases/tags/latest").then(function (txt) {
+      var j = JSON.parse(txt), m = /build (\d+)/i.exec(j.name || "");
+      var apk = (j.assets || []).filter(function (a) { return /\.apk$/i.test(a.name); })[0];
+      selfUpdate.latest = m ? parseInt(m[1], 10) : 0;
+      selfUpdate.url = apk ? apk.browser_download_url : "";
+      selfUpdate.error = "";
+      if (selfUpdate.latest > myBuild() && selfUpdate.url) {
+        if (autoUpdate || manual) startSelfUpdate();
+        else toast("A ReaperOS update is ready. Settings → Update ReaperOS.");
+      } else if (manual) toast("ReaperOS is up to date (build " + myBuild() + ").");
+    }).catch(function (e) {
+      selfUpdate.error = e.message;
+      if (manual) toast("Couldn't check for updates: " + e.message);
+    }).then(function () { selfUpdate.checking = false; renderUpdateButton(); });
+  }
+  function startSelfUpdate() {
+    if (selfUpdate.busy || !selfUpdate.url) return;
+    // Don't interrupt first-run setup or another install.
+    if (setupOn || STORE.some(function (s) { return storeState[s.id].busy; })) { setTimeout(startSelfUpdate, 20000); return; }
+    selfUpdate.busy = true; storeState.reaperos.busy = true;
+    toast("Downloading ReaperOS build " + selfUpdate.latest + "…");
+    Reaper.install("reaperos", selfUpdate.url);
+  }
+  function renderUpdateButton() {
+    var b = $("#updBtn"); if (!b) return;
+    var t, sub;
+    if (selfUpdate.busy) { t = "Updating ReaperOS"; sub = storeState.reaperos.pct >= 0 ? "Downloading " + (storeState.reaperos.pct || 0) + "%" : "Downloading…"; }
+    else if (selfUpdate.checking) { t = "Checking for updates…"; sub = "This build: " + myBuild(); }
+    else if (selfUpdate.latest > myBuild()) { t = "Update ReaperOS"; sub = "Build " + selfUpdate.latest + " is ready (you have " + myBuild() + ")"; }
+    else { t = "Check for ReaperOS updates"; sub = "This build: " + (myBuild() || "preview") + (selfUpdate.latest ? " · up to date" : ""); }
+    b.querySelector("b").textContent = t; b.querySelector("span").textContent = sub;
+  }
+
+  // Store apps with a newer version than what's installed.
+  function updatableApps() {
+    return STORE.filter(function (s) { var st = storeState[s.id]; return st.installed && cardState(s).label === "Update"; });
+  }
+  function updateAll() {
+    var list = updatableApps();
+    if (!list.length) { toast("All your apps are up to date."); return; }
+    installQueue = list;
+    toast("Updating " + list.length + " app" + (list.length === 1 ? "" : "s") + ". Confirm each one when Fire OS asks.");
+    nextInQueue();
+  }
+  var notifiedUpdates = false;
+  function maybeNotifyAppUpdates() {
+    if (notifiedUpdates || !autoUpdate || setupOn) return;
+    var n = updatableApps().length;
+    if (!n) return;
+    notifiedUpdates = true;
+    toast(n + " app update" + (n === 1 ? " is" : "s are") + " ready. Homebrew Store → Update all apps.");
+  }
+
   // ---------------------------------------------------------------- settings
   function button(title, sub, fn) {
     var b = el("div", "btn f", "<b>" + esc(title) + "</b><span>" + esc(sub) + "</span>");
@@ -1239,6 +1311,18 @@
       toast(theme === "steam" ? "Big Picture theme on" : "ReaperOS theme on");
     });
     tr.appendChild(th);
+    var upb = button("Check for ReaperOS updates", "", function () {
+      if (!NATIVE) { toast("Updates install on your Fire TV."); return; }
+      if (selfUpdate.latest > myBuild()) startSelfUpdate(); else checkSelfUpdate(true);
+    });
+    upb.id = "updBtn"; tr.appendChild(upb);
+    var au = button("Automatic updates: " + (autoUpdate ? "On" : "Off"), "Download ReaperOS and app updates automatically", function () {
+      autoUpdate = !autoUpdate; save("autoUpdate", autoUpdate);
+      au.querySelector("b").textContent = "Automatic updates: " + (autoUpdate ? "On" : "Off");
+      if (autoUpdate) { checkSelfUpdate(false); refreshStore(true); }
+    });
+    tr.appendChild(au);
+    setTimeout(renderUpdateButton, 0);
     var mus = button("Load screen music: " + (musicOn ? "On" : "Off"), "The spooky jingle when ReaperOS opens", function () {
       musicOn = !musicOn; save("music", musicOn);
       mus.querySelector("b").textContent = "Load screen music: " + (musicOn ? "On" : "Off");
@@ -1469,6 +1553,10 @@
   var wait = Math.max(0, 2600 - (Date.now() - started));   // let the reaper have its moment
   setTimeout(function () { $("#splash").classList.add("gone"); }, wait);
   setTimeout(function () { refreshStore(); }, wait + 600); // warm the store quietly
+  if (NATIVE && autoUpdate) {
+    setTimeout(function () { checkSelfUpdate(false); }, wait + 8000);
+    setInterval(function () { checkSelfUpdate(false); refreshStore(true); notifiedUpdates = false; }, 6 * 3600 * 1000);
+  }
   if (!load("setupDone", false)) {
     if (NATIVE) setTimeout(runFirstSetup, wait + 500);
     else setTimeout(function () { toast("On your Fire TV, ReaperOS installs your apps automatically on first launch."); }, wait + 900);

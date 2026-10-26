@@ -9,6 +9,7 @@ A Bazzite-style TV launcher for Amazon Fire TV, with a reaper load screen, your 
 - **Homebrew Store:** 48 open-source apps in six rows (streaming & media, game streaming & PC games, 18 emulators, 12 free games, alternate app stores, tools & Fire TV tweaks), from F-Droid, GitHub and Stremio.com. ReaperOS picks the build that matches your Fire TV's chip and Fire OS version, and checks each download before installing so 64-bit-only apps never fail halfway. For anything not listed, install Obtainium and add any GitHub project.
 - **Free homebrew games:** downloads freely distributed NES and Game Boy homebrew into `Downloads/ReaperOS/ROMs/<system>` and adds a Your games row on Home that launches each game straight into RetroArch.
 - **Settings:** shortcuts to Fire TV settings and the install permission, a theme switch (ReaperOS purple or Steam Big Picture blue), toggles for system apps and load-screen music, and device info.
+- **Automatic updates:** ReaperOS checks GitHub for a new build when it opens and every 6 hours, downloads it in the background, and brings up the install prompt. It also checks your installed store apps and lets you update them all at once (Homebrew Store → Update all apps). Turn this off in Settings.
 - **Load screen:** an animated reaper with an original spooky jingle. To use your own audio instead, add `app/src/main/assets/splash.mp3`.
 
 ## Getting the APK
