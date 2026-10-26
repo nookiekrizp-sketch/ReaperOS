@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
 <title>ReaperOS</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ReaperOS">
+<meta name="theme-color" content="#0B0714">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
 <style>
   /* 1rem = 1/96 of the screen width, so the layout scales to any TV. */
   :root {
@@ -115,6 +122,39 @@
   body.platform-win #splash .xp-left { left: 3rem; }
   body.platform-win #splash .xp-right { right: 3rem; font-style: italic; font-weight: 700; font-size: 1.4rem; }
   body.platform-win #splash .xp-right b { color: #F0861D; font-size: .6em; vertical-align: super; }
+
+
+  /* ------------------------------------------------ touch screens (iOS web app) */
+  body.platform-touch .page { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  body.platform-touch .scroller { transform: none !important; transition: none; padding-top: calc(6rem + env(safe-area-inset-top)); }
+  body.platform-touch .viewport { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  body.platform-touch .viewport::-webkit-scrollbar { display: none; }
+  body.platform-touch .track, body.platform-touch .cards { transform: none !important; transition: none; }
+  body.platform-touch .track::after, body.platform-touch .cards::after { content: ""; flex: 0 0 4rem; }
+  body.platform-touch #top { padding-top: env(safe-area-inset-top); height: calc(6rem + env(safe-area-inset-top)); }
+  body.platform-touch #help { display: none; }
+  body.platform-touch .tile.focused, body.platform-touch .card.focused { transform: none; }
+  /* phones held upright: bigger type, compact header and hero */
+  @media (max-aspect-ratio: 1/1) {
+    html { font-size: calc(100vw / 46); }
+    body.platform-touch #top { padding-left: 1.6rem; padding-right: 1.6rem; }
+    body.platform-touch .brand span, body.platform-touch .clock .d { display: none; }
+    body.platform-touch .brand { margin-right: 1rem; }
+    body.platform-touch .tab { font-size: 1.15rem; padding: .5rem .9rem; margin-right: .4rem; }
+    body.platform-touch .clock .t { font-size: 1.5rem; }
+    body.platform-touch .hero { margin: .5rem 1.6rem 1.5rem; height: 19rem; }
+    body.platform-touch .hero .copy { left: 2rem; right: 2rem; max-width: none; top: auto; bottom: 1.8rem; transform: none; }
+    body.platform-touch .hero h2 { font-size: 2.8rem; }
+    body.platform-touch .hero .art { right: 1.6rem; top: 1.6rem; transform: none; width: 7rem; height: 7rem; }
+    body.platform-touch .hero .art img, body.platform-touch .hero .art .glyph { width: 7rem !important; height: 7rem !important; font-size: 3rem !important; }
+    body.platform-touch .hero .art img.wide { width: 12rem !important; height: auto !important; }
+    body.platform-touch .shelf h3, body.platform-touch .pagehead, body.platform-touch .about, body.platform-touch .empty { margin-left: 1.6rem; margin-right: 1.6rem; }
+    body.platform-touch .track, body.platform-touch .cards { padding: 0 1.6rem; }
+    body.platform-touch .tile { width: 13rem; height: 8.2rem; }
+    body.platform-touch .card { width: 22rem; }
+    body.platform-touch .pagehead h2 { font-size: 2.4rem; }
+    body.platform-touch #splash .reaper { width: 40rem; height: 20rem; }
+  }
 
   /* ------------------------------------------------ top bar */
   #top {
@@ -395,10 +435,17 @@
   var NATIVE = !!window.Reaper;
   // "android" on Fire TV, "windows" in the Windows app, "web" in a plain browser preview.
   var PLATFORM = (function () {
-    if (!NATIVE) return "web";
+    if (!NATIVE) {
+      var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      return iOS ? "ios" : "web";
+    }
     try { return JSON.parse(Reaper.deviceInfo()).platform || "android"; } catch (e) { return "android"; }
   })();
   var WIN = PLATFORM === "windows";
+  var IOS = PLATFORM === "ios";
+  var TOUCH = !NATIVE && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+  if (TOUCH) document.body.classList.add("platform-touch");
+  if (IOS) { var st0 = document.querySelector('.tab[data-tab="store"]'); if (st0) st0.textContent = "Store"; }
   if (WIN) {
     document.body.classList.add("platform-win");
     var h1 = document.querySelector("#splash h1"); if (h1) h1.innerHTML = "Reaper<b>OS</b>";
@@ -606,6 +653,69 @@
     { id: "retrocrush", name: "RetroCrush", glyph: "R", color: "#E8344E", match: /retrocrush/i, query: "RetroCrush", icons: ["https://www.google.com/s2/favicons?domain=retrocrush.tv&sz=256"], kicker: "Free anime",
       desc: "Free classic and retro anime, ad-supported." },
   ];
+
+
+  // ---------------------------------------------------------------- iOS catalog
+  // iOS can't install apps for us, so tiles open the app (by URL scheme when one is known)
+  // and fall back to its App Store page.
+  function appStoreSearch(q) {
+    return "itms-apps://search.itunes.apple.com/WebObjects/MZSearch.woa/wa/search?media=software&term=" + encodeURIComponent(q);
+  }
+  function openIOS(c) {
+    if (c.web) { window.open(c.web, "_blank"); return; }
+    var store = appStoreSearch(c.query || c.name);
+    if (!c.scheme) { window.location.href = store; return; }
+    var left = false;
+    var onHide = function () { if (document.visibilityState === "hidden") left = true; };
+    document.addEventListener("visibilitychange", onHide);
+    window.location.href = c.scheme;
+    setTimeout(function () {
+      document.removeEventListener("visibilitychange", onHide);
+      if (!left && document.visibilityState === "visible") window.location.href = store;
+    }, 1600);
+  }
+  var IOS_SCHEMES = { netflix: "nflx://", youtube: "youtube://", prime: "aiv://", disney: "disneyplus://", hulu: "hulu://",
+    appletv: "videos://", plex: "plex://", crunchyroll: "crunchyroll://" };
+  if (IOS) {
+    MOVIES.concat(ANIME).forEach(function (m) { m.scheme = IOS_SCHEMES[m.id] || ""; });
+    CLOUD = [
+      { id: "xcloud", name: "Xbox Cloud Gaming", glyph: "X", color: "#107C10", web: "https://www.xbox.com/play",
+        icons: ["https://www.google.com/s2/favicons?domain=xbox.com&sz=256"], kicker: "Cloud gaming",
+        desc: "Game Pass in Safari, the official way on iPhone and iPad. Pair a controller first." },
+      { id: "gfn", name: "GeForce NOW", glyph: "G", color: "#5E9E00", web: "https://play.geforcenow.com",
+        icons: ["https://www.google.com/s2/favicons?domain=nvidia.com&sz=256"], kicker: "Cloud gaming",
+        desc: "Your Steam and Epic games streamed from NVIDIA, in Safari." },
+      { id: "luna", name: "Amazon Luna", glyph: "L", color: "#7B2FF7", web: "https://luna.amazon.com",
+        icons: ["https://www.google.com/s2/favicons?domain=luna.amazon.com&sz=256"], kicker: "Cloud gaming",
+        desc: "Amazon's game streaming, in Safari." },
+      { id: "steamlink", name: "Steam Link", glyph: "S", color: "#2A475E", query: "Steam Link",
+        icons: ["https://www.google.com/s2/favicons?domain=steampowered.com&sz=256"], kicker: "Stream from your PC",
+        desc: "Stream your Steam library, including Big Picture, from your gaming PC." }
+    ];
+    CATEGORIES = [
+      { id: "emus", title: "Emulators" },
+      { id: "games", title: "Game streaming" },
+      { id: "media", title: "Media players" },
+      { id: "tools", title: "Tools" },
+      { id: "freegames", title: "Games" }
+    ];
+    var AS = function (q) { return { type: "appstore", query: q }; };
+    STORE = [
+      { id: "retroarch", cat: "emus", featured: true, name: "RetroArch", glyph: "R", color: "#3A3A3A", source: AS("RetroArch"), desc: "All-in-one retro emulator, free on the App Store." },
+      { id: "delta", cat: "emus", featured: true, name: "Delta", glyph: "D", color: "#8E44AD", source: AS("Delta Game Emulator"), scheme: "delta://", desc: "Nintendo classics through DS with a beautiful library and controller support." },
+      { id: "ppsspp", cat: "emus", name: "PPSSPP", glyph: "P", color: "#2A6FB0", source: AS("PPSSPP"), desc: "PlayStation Portable." },
+      { id: "provenance", cat: "emus", name: "Provenance", glyph: "P", color: "#34495E", source: AS("Provenance Emulator"), desc: "Multi-system emulator for Atari, Sega, Nintendo, Sony and more." },
+      { id: "gamma", cat: "emus", name: "Gamma", glyph: "G", color: "#16A085", source: AS("Gamma PS1 Emulator"), desc: "PlayStation 1." },
+      { id: "moonlight", cat: "games", featured: true, name: "Moonlight", glyph: "M", color: "#2F6FE0", source: AS("Moonlight Game Streaming"), desc: "Stream games from a PC running Sunshine at up to 4K." },
+      { id: "steamlinkapp", cat: "games", name: "Steam Link", glyph: "S", color: "#2A475E", source: AS("Steam Link"), desc: "Stream from Steam on your PC." },
+      { id: "xboxapp", cat: "games", name: "Xbox", glyph: "X", color: "#107C10", source: AS("Xbox"), desc: "Remote play from your console and your Game Pass account." },
+      { id: "vlc", cat: "media", name: "VLC", glyph: "V", color: "#FF8800", source: AS("VLC media player"), scheme: "vlc://", desc: "Plays nearly any video file, from Files or your network." },
+      { id: "swiftfin", cat: "media", name: "Swiftfin (Jellyfin)", glyph: "J", color: "#00A4DC", source: AS("Swiftfin"), desc: "Watch your own Jellyfin media server." },
+      { id: "localsend", cat: "tools", name: "LocalSend", glyph: "L", color: "#13A89E", source: AS("LocalSend"), desc: "Send game files and videos between this device, your PC and your Fire TV." },
+      { id: "stk", cat: "freegames", featured: true, name: "SuperTuxKart", glyph: "S", color: "#2E86DE", source: AS("SuperTuxKart"), desc: "3D kart racing with a controller." }
+    ];
+    STORE.forEach(function (s) { s.from = "App Store"; s.icons = []; s.query = s.source.query; });
+  }
 
   // ---------------------------------------------------------------- Windows catalog
   // On Windows everything installs through winget, Windows' built-in package manager.
@@ -862,7 +972,7 @@
   function refreshApps() {
     var list;
     if (NATIVE) { try { list = JSON.parse(Reaper.getApps()); } catch (e) { list = []; } }
-    else list = DEMO_APPS;
+    else list = IOS ? [] : DEMO_APPS;
     allApps = list;
     apps = list.filter(function (a) { return showSystem || !a.system || a.tv; });
     apps.sort(function (a, b) { return (b.tv ? 1 : 0) - (a.tv ? 1 : 0) || a.label.localeCompare(b.label); });
@@ -870,6 +980,7 @@
     if (state.page === "home") renderHome(true);
   }
   function cloudApp(c) {
+    if (IOS) return null;
     if (WIN) return allApps.filter(function (a) { return c.match.test(a.label); })[0] || null;
     if (c.pkg && NATIVE && Reaper.installedVersion(c.pkg)) return { pkg: c.pkg, label: c.name };
     return allApps.filter(function (a) { return c.match.test(a.label); })[0] || null;
@@ -958,8 +1069,9 @@
     if (inst && NATIVE) { t.dataset.pkg = inst.pkg; if (!icons[inst.pkg]) Reaper.requestIcon(inst.pkg); }
     t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + c.color + ',#120A22 90%)"></div>' +
       '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(c.glyph) + '</div><div class="name">' + esc(c.name) + '</div>' +
-      (inst ? "" : '<div class="get">Get app</div>');
+      (inst || IOS ? "" : '<div class="get">Get app</div>');
     t._act = function () {
+      if (IOS) { openIOS(c); return; }
       var a = cloudApp(c);
       if (WIN && a && c.launchUrl) { Reaper.openUrl(c.launchUrl); return; }
       if (a) { launchApp(a); return; }
@@ -978,8 +1090,9 @@
     if (have) { t.dataset.pkg = s._pkg; if (!icons[s._pkg]) Reaper.requestIcon(s._pkg); }
     t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + s.color + ',#120A22 90%)"></div>' +
       '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(s.glyph) + '</div><div class="name">' + esc(s.name) + '</div>' +
-      (have ? "" : '<div class="get">Install</div>');
+      (have || IOS ? "" : '<div class="get">Install</div>');
     t._act = function () {
+      if (IOS) { openIOS(s); return; }
       if (installedVersion(s)) { launchStore(s); return; }
       var cs = cardState(s);
       if (cs.action === "install") { cardAction(s); toast("Downloading " + s.name + "…"); return; }
@@ -1020,14 +1133,14 @@
     if (favApps.length) sc.appendChild(shelf("Favorites", favApps.length, favApps.map(appTile)));
     var steamGamesList = steamLibrary();
     if (steamGamesList.length) sc.appendChild(shelf("Steam library", steamGamesList.length, steamGamesList.map(steamTile)));
-    sc.appendChild(shelf("Your apps", apps.length, apps.map(appTile), "No apps found."));
+    if (!IOS) sc.appendChild(shelf("Your apps", apps.length, apps.map(appTile), "No apps found."));
     var myGames = ROMS.filter(function (r) { return romSaved[r.id]; });
     if (myGames.length) sc.appendChild(shelf("Your games", myGames.length, myGames.map(romTile)));
     sc.appendChild(shelf("Movies & TV", MOVIES.length, MOVIES.map(linkTile)));
     sc.appendChild(shelf("Anime", ANIME.length, ANIME.map(linkTile)));
     sc.appendChild(shelf("PC & cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
     var hb = STORE.filter(function (s) { return s.featured || installedVersion(s); });
-    sc.appendChild(shelf("Homebrew", hb.length, hb.map(storeTile)));
+    sc.appendChild(shelf(IOS ? "Games & emulators" : "Homebrew", hb.length, hb.map(storeTile)));
 
     if (state.page === "home") {
       if (keep && restoreFocus(keep)) return;
@@ -1050,13 +1163,13 @@
       art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:3.6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(rr.sys === "NES" ? "NES" : "GB") + "</div>";
     } else if (it.kind === "cloud") {
       var c = it.cloud, ca = cloudApp(c); kicker = c.kicker; title = c.name; color = c.color;
-      desc = ca ? c.desc : "Not installed yet. Press OK to get the app.";
-      act = ca ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : "Play") : "Get app";
+      desc = ca || IOS ? c.desc : "Not installed yet. Press OK to get the app.";
+      act = ca || IOS ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : "Play") : "Get app";
       art = artFor(t, c.glyph);
     } else {
       var s = it.store, inst = installedVersion(s);
       kicker = "Homebrew · " + s.from; title = s.name; desc = s.desc; color = s.color;
-      act = inst ? "Open" : "Install";
+      act = IOS ? "Open" : inst ? "Open" : "Install";
       art = artFor(t, s.glyph);
     }
     hero.querySelector(".wash").style.background =
@@ -1111,6 +1224,7 @@
 
   function resolveRelease(s) {
     var src = s.source;
+    if (src.type === "appstore") return Promise.resolve({ version: "", url: "appstore", size: 0 });
     if (src.type === "winget") return Promise.resolve({ version: "", url: "winget:" + src.id, size: 0 });
     if (src.type === "fdroid") {
       return nativeFetch("https://f-droid.org/en/packages/" + src.pkg + "/").then(function (html) {
@@ -1191,6 +1305,7 @@
 
   function cardState(s) {
     var st = storeState[s.id];
+    if (IOS) return { label: "Open or get", action: "ios" };
     if (s.needs64 && NATIVE && !is64) return { label: "Needs a 64-bit Fire TV", warn: true, action: null };
     if (s.maxSdk && device.sdk && device.sdk > s.maxSdk && !st.installed) return { label: "Not for this Fire OS version", warn: true, action: null };
     if (st.remote && st.remote.blocked && !st.installed) return { label: st.remote.blocked, warn: true, action: null };
@@ -1221,6 +1336,7 @@
 
   function cardAction(s) {
     var st = storeState[s.id], cs = cardState(s);
+    if (IOS) { openIOS(s); return; }
     if (!NATIVE) { toast("Installing works on your Fire TV."); return; }
     if (cs.action === "open") { launchStore(s); return; }
     if (cs.action === "retry") { st.error = ""; st.remote = null; refreshStore(); return; }
@@ -1233,7 +1349,8 @@
 
   function renderStore() {
     var sc = $("#page-store .scroller"); sc.innerHTML = "";
-    sc.appendChild(el("div", "pagehead",
+    if (IOS) sc.appendChild(el("div", "pagehead", "<h2>App Store picks</h2><p>Emulators, streaming and media apps that are on the App Store. Tap one to open it, or to get it if you don't have it yet.</p>"));
+    else sc.appendChild(el("div", "pagehead",
       "<h2>Homebrew Store</h2><p>Open-source apps, emulators, free games and Fire TV tools that aren't in the Amazon Appstore. ReaperOS picks the right build for your Fire TV, downloads it, and hands it to Fire OS to install. Want something that isn't listed? Install Obtainium and add any GitHub project. Press Menu on an installed app to uninstall it.</p>"));
     CATEGORIES.forEach(function (cat) {
       var list = STORE.filter(function (s) { return s.cat === cat.id; });
@@ -1255,6 +1372,7 @@
       if (cat.id === "freegames") sc.appendChild(romSection());
     });
 
+    if (IOS) { return; }
     var setup = el("section", "shelf");
     setup.style.marginTop = "2.4rem";
     setup.innerHTML = "<h3><span>" + (WIN ? "Installs & updates" : "Before your first install") + "</span></h3>";
@@ -1376,6 +1494,7 @@
     var st = romState[r.id];
     if (st.busy) return st.pct >= 0 ? "Downloading " + st.pct + "%" : "Downloading…";
     if (st.error) return "Retry";
+    if (IOS) return "Save to Files";
     return romSaved[r.id] ? "Play in RetroArch" : "Download";
   }
   function updateRom(id) {
@@ -1389,6 +1508,11 @@
   function downloadRom(r) {
     var st = romState[r.id];
     if (st.busy) return;
+    if (IOS) {
+      window.open(r.url, "_blank");
+      toast("Saving " + r.name + " to Files \u2192 Downloads. Import it in RetroArch or Delta.");
+      return;
+    }
     if (!NATIVE) { toast("Game downloads work on your Fire TV."); return; }
     if (romSaved[r.id] && !st.error) { playRom(r); return; }
     st.busy = true; st.pct = 0; st.error = ""; updateRom(r.id);
@@ -1546,7 +1670,7 @@
       });
       tr.appendChild(boot);
       tr.appendChild(button("Exit ReaperOS", "Back to the Windows desktop", function () { Reaper.quit(); }));
-    } else {
+    } else if (!IOS) {
       tr.appendChild(button("Fire TV settings", "Network, display, controllers, accounts", function () { NATIVE ? Reaper.openSettings("system") : toast("Opens Fire TV settings"); }));
       tr.appendChild(button("Allow app installs", "Needed for the Homebrew Store", function () { NATIVE ? Reaper.openSettings("unknown") : toast("Opens the install permission"); }));
     }
@@ -1555,7 +1679,7 @@
       sys.querySelector("b").textContent = "System apps: " + (showSystem ? "Shown" : "Hidden");
       refreshApps();
     });
-    if (!WIN) tr.appendChild(sys);
+    if (!WIN && !IOS) tr.appendChild(sys);
     var th = button("Theme: " + (theme === "steam" ? "Big Picture" : "ReaperOS"), "Switch between the purple reaper look and a Steam Big Picture style", function () {
       theme = theme === "steam" ? "reaper" : "steam"; save("theme", theme);
       document.body.classList.toggle("theme-steam", theme === "steam");
@@ -1568,13 +1692,13 @@
       if (WIN && selfUpdate.ready) Reaper.installUpdate();
       else if (!WIN && selfUpdate.latest > myBuild()) startSelfUpdate(); else checkSelfUpdate(true);
     });
-    upb.id = "updBtn"; tr.appendChild(upb);
+    upb.id = "updBtn"; if (!IOS) tr.appendChild(upb);
     var au = button("Automatic updates: " + (autoUpdate ? "On" : "Off"), "Download ReaperOS and app updates automatically", function () {
       autoUpdate = !autoUpdate; save("autoUpdate", autoUpdate);
       au.querySelector("b").textContent = "Automatic updates: " + (autoUpdate ? "On" : "Off");
       if (autoUpdate) { checkSelfUpdate(false); refreshStore(true); }
     });
-    tr.appendChild(au);
+    if (!IOS) tr.appendChild(au);
     setTimeout(renderUpdateButton, 0);
     var mus = button("Load screen sound: " + (musicOn ? "On" : "Off"), "The scythe slash when ReaperOS opens", function () {
       musicOn = !musicOn; save("music", musicOn);
@@ -1641,6 +1765,7 @@
 
   function scrollRow(row, t) {
     if (row.id === "top") return;
+    if (TOUCH) { try { t.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); } catch (e) {} return; }
     var vpW = row.parentNode.clientWidth;
     var pad = parseFloat(getComputedStyle(document.documentElement).fontSize) * 4;
     var left = t.offsetLeft, right = left + t.offsetWidth;
@@ -1654,6 +1779,7 @@
   }
 
   function scrollPage(row, r) {
+    if (TOUCH) return;
     var sc = $(".scroller", pageEl());
     if (r <= 1) { sc.style.transform = "translateY(0)"; sc._y = 0; return; }
     var vh = window.innerHeight, rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
@@ -1839,6 +1965,11 @@
     setTimeout(function () { try { ctx.close(); } catch (e) {} }, 3200);
   }
 
+  // Web app: offline cache and instant updates when served over https (GitHub Pages).
+  if (!NATIVE && "serviceWorker" in navigator && location.protocol === "https:") {
+    try { navigator.serviceWorker.register("sw.js"); } catch (e) {}
+  }
+
   // ---------------------------------------------------------------- start
   var started = Date.now();
   playJingle();
@@ -1857,7 +1988,7 @@
   if (WIN) save("setupDone", true);
   if (!load("setupDone", false)) {
     if (NATIVE) setTimeout(runFirstSetup, wait + 500);
-    else setTimeout(function () { toast("On your Fire TV, ReaperOS installs your apps automatically on first launch."); }, wait + 900);
+    else if (!IOS) setTimeout(function () { toast("On your Fire TV, ReaperOS installs your apps automatically on first launch."); }, wait + 900);
   }
 })();
 </script>

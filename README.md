@@ -52,3 +52,9 @@ ReaperOS also runs on Windows as a full-screen, controller-friendly launcher (th
 
 Installer: `https://github.com/nookiekrizp-sketch/ReaperOS/releases/download/windows-latest/ReaperOS-Setup.exe`
 The installer isn't code-signed, so Windows SmartScreen may warn on first run: choose **More info → Run anyway**.
+
+## iPhone & iPad (web app)
+ReaperOS also runs as a home-screen web app on iPhone and iPad, published with GitHub Pages:
+`https://nookiekrizp-sketch.github.io/ReaperOS/`
+
+Open it in Safari, tap **Share → Add to Home Screen**, then launch it from the new icon. It runs full-screen with touch and controller support. Movie, anime and app tiles open the app if it's installed (or its App Store page if not); Xbox Cloud Gaming, GeForce NOW and Amazon Luna open in Safari, which is how they officially run on iOS. Free homebrew games save to the Files app for RetroArch or Delta. iOS doesn't let web apps list or install apps, so there's no Your apps row on iOS.
