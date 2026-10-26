@@ -318,7 +318,8 @@
   // Homebrew catalog, grouped into store rows. "featured" items also appear on Home.
   var CATEGORIES = [
     { id: "media", title: "Streaming & media" },
-    { id: "games", title: "Gaming & emulators" },
+    { id: "games", title: "Game streaming & PC games" },
+    { id: "emus", title: "Emulators" },
     { id: "stores", title: "Alternate app stores" },
     { id: "tools", title: "Tools & Fire TV tweaks" }
   ];
@@ -341,18 +342,55 @@
     // Gaming & emulators
     { id: "moonlight", cat: "games", featured: true, name: "Moonlight", glyph: "M", color: "#2F6FE0", pkg: "com.limelight",
       source: FD("com.limelight"), desc: "Stream games from your own gaming PC at up to 4K using Sunshine or GeForce Experience." },
-    { id: "retroarch", cat: "games", featured: true, name: "RetroArch", glyph: "R", color: "#3A3A3A", pkg: "com.retroarch",
+    { id: "retroarch", cat: "emus", featured: true, name: "RetroArch", glyph: "R", color: "#3A3A3A", pkg: "com.retroarch",
       source: FD("com.retroarch"), desc: "All-in-one retro console emulator frontend with a TV-friendly interface." },
-    { id: "lemuroid", cat: "games", name: "Lemuroid", glyph: "L", color: "#1E9E6A", pkg: "com.swordfish.lemuroid",
+    { id: "lemuroid", cat: "emus", name: "Lemuroid", glyph: "L", color: "#1E9E6A", pkg: "com.swordfish.lemuroid",
       source: FD("com.swordfish.lemuroid"), desc: "The simplest retro emulator: point it at your games folder and play." },
-    { id: "ppsspp", cat: "games", name: "PPSSPP", glyph: "P", color: "#2A6FB0", pkg: "org.ppsspp.ppsspp",
+    { id: "ppsspp", cat: "emus", name: "PPSSPP", glyph: "P", color: "#2A6FB0", pkg: "org.ppsspp.ppsspp",
       source: FD("org.ppsspp.ppsspp"), desc: "PSP emulator that runs well even on modest hardware." },
+    { id: "dolphin", cat: "emus", name: "Dolphin", glyph: "D", color: "#2E7DFF", pkg: "org.dolphinemu.dolphinemu",
+      source: FD("org.dolphinemu.dolphinemu"), desc: "GameCube and Wii. Needs a 64-bit Fire TV, and the newest sticks for full speed." },
+    { id: "flycast", cat: "emus", name: "Flycast", glyph: "F", color: "#E0592A", pkg: "com.flycast.emulator",
+      source: { type: "github", repo: "flyinghead/flycast" }, desc: "Sega Dreamcast, NAOMI and Atomiswave arcade." },
+    { id: "mame4droid", cat: "emus", name: "MAME4droid", glyph: "M", color: "#B8860B", pkg: "com.seleuco.mame4d2024",
+      source: { type: "github", repo: "seleuco/MAME4droid-2024" }, desc: "Thousands of classic arcade machines, based on current MAME." },
+    { id: "melonds", cat: "emus", name: "melonDS", glyph: "M", color: "#E85A9B", pkg: "me.magnum.melonds",
+      source: { type: "github", repo: "rafaelvcaetano/melonDS-android" }, desc: "Nintendo DS, with layout options that suit a TV screen." },
+    { id: "azahar", cat: "emus", name: "Azahar", glyph: "A", color: "#D6453A", pkg: ["org.azahar_emu.azahar", "io.github.azahar_emu.azahar"],
+      source: { type: "github", repo: "azahar-emu/azahar", asset: "vanilla" }, needs64: true,
+      desc: "Nintendo 3DS (the successor to Citra). 64-bit Fire TVs; demanding games need the newest sticks." },
+    { id: "vita3k", cat: "emus", name: "Vita3K", glyph: "V", color: "#1F6FD1", pkg: "org.vita3k.emulator",
+      source: { type: "github", repo: "Vita3K/Vita3K-Android" }, needs64: true,
+      desc: "Experimental PlayStation Vita emulator. 64-bit only; best with lighter games." },
+    { id: "mupen", cat: "emus", name: "Mupen64Plus AE", glyph: "N", color: "#2F9E44", pkg: "org.mupen64plusae.v3.alpha",
+      source: FD("org.mupen64plusae.v3.alpha"), desc: "Nintendo 64 with per-game settings and controller profiles." },
+    { id: "wonderdroid", cat: "emus", name: "WonderDroid X", glyph: "W", color: "#7A6CF0", pkg: "com.atelieryl.wonderdroid",
+      source: FD("com.atelieryl.wonderdroid"), desc: "Bandai WonderSwan and WonderSwan Color." },
+    { id: "eightbit", cat: "emus", name: "8-Bit Wonders", glyph: "8", color: "#8D6E63", pkg: "de.rainerhock.eightbitwonders",
+      source: FD("de.rainerhock.eightbitwonders"), desc: "Commodore 64, VIC-20 and other Commodore 8-bit machines, with built-in games." },
+    { id: "usp", cat: "emus", name: "USP Spectrum", glyph: "Z", color: "#C62828", pkg: "app.usp",
+      source: FD("app.usp"), desc: "ZX Spectrum emulator (Unreal Speccy Portable)." },
+    { id: "limbo", cat: "emus", name: "Limbo x86", glyph: "L", color: "#455A64", pkg: "com.limbo.emu.main",
+      source: FD("com.limbo.emu.main"), desc: "QEMU-based PC emulator for DOS and old Windows. Slow, but fun to tinker with." },
+    { id: "j2me", cat: "emus", name: "J2ME Loader", glyph: "J", color: "#F57C00", pkg: "ru.playsoftware.j2meloader",
+      source: FD("ru.playsoftware.j2meloader"), desc: "Classic Java phone games from the pre-smartphone era." },
+    { id: "easyrpg", cat: "emus", name: "EasyRPG Player", glyph: "E", color: "#5E35B1", pkg: "org.easyrpg.player",
+      source: FD("org.easyrpg.player"), desc: "Plays RPG Maker 2000 and 2003 games." },
+    { id: "tic80", cat: "emus", name: "TIC-80", glyph: "T", color: "#1A1C2C", pkg: "com.nesbox.tic",
+      source: { type: "github", repo: "nesbox/TIC-80" }, desc: "A fantasy console with hundreds of tiny free community games." },
     { id: "gamenative", cat: "games", featured: true, name: "GameNative", glyph: "G", color: "#E8590C", pkg: ["app.gamenative", "com.gamenative", "app.gamenative.android"],
       source: { type: "github", repo: "utkarshdalal/GameNative" }, from: "GitHub", needs64: true,
       icons: ["https://raw.githubusercontent.com/utkarshdalal/GameNative/master/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
               "https://raw.githubusercontent.com/utkarshdalal/GameNative/master/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp",
               "https://raw.githubusercontent.com/utkarshdalal/GameNative/main/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png"],
+      asset: "^gamenative-v[\\d.]+\\.apk$",
       desc: "Run the PC games you own from Steam, Epic and GOG directly on the device. Large download." },
+    { id: "winlator", cat: "games", name: "Winlator", glyph: "W", color: "#3949AB", pkg: "com.winlator",
+      source: { type: "github", repo: "brunodev85/winlator" }, needs64: true,
+      desc: "Runs Windows games and programs through Wine and Box64. 64-bit Fire TVs only." },
+    { id: "pegasus", cat: "games", name: "Pegasus", glyph: "P", color: "#00897B", pkg: "org.pegasus_frontend.android",
+      source: { type: "github", repo: "mmatyas/pegasus-frontend" },
+      desc: "A console-style game library that launches your emulators from one beautiful menu." },
 
     // Alternate app stores
     { id: "obtainium", cat: "stores", featured: true, name: "Obtainium", glyph: "O", color: "#4A5BD6", pkg: "dev.imranr.obtainium.fdroid",
@@ -375,7 +413,9 @@
       source: { type: "github", repo: "BaronKiko/LauncherHijack" }, from: "GitHub", maxSdk: 25,
       desc: "Makes the Home button open ReaperOS instead of the Fire TV home. Older Fire OS (6 and below) only." }
   ];
+  var learnedAtStart = load("learnedPkgs", {});
   STORE.forEach(function (s) {
+    if (learnedAtStart[s.id]) { var l = pkgList(s.pkg); if (l.indexOf(learnedAtStart[s.id]) < 0) s.pkg = [learnedAtStart[s.id]].concat(l); }
     if (!s.from) s.from = s.source.type === "fdroid" ? "F-Droid" : "GitHub";
     if (!s.icons) s.icons = s.source.type === "fdroid" ? ["https://f-droid.org/repo/" + s.source.pkg + "/en-US/icon.png"] : [];
   });
@@ -437,9 +477,16 @@
     if (pct >= 100) { st.busy = false; toast("Download finished. Confirm the install on screen."); }
     updateCard(id);
   };
+  var learnedPkgs = load("learnedPkgs", {});
+  window.reaperApk = function (id, pkg) {
+    if (!pkg) return;
+    learnedPkgs[id] = pkg; save("learnedPkgs", learnedPkgs);
+    var s = STORE.filter(function (x) { return x.id === id; })[0];
+    if (s) { var l = pkgList(s.pkg); if (l.indexOf(pkg) < 0) s.pkg = [pkg].concat(l); }
+  };
   window.reaperInstallError = function (id, msg) {
     var st = storeState[id]; if (!st) return;
-    st.busy = false; st.error = "Download failed: " + msg;
+    st.busy = false; st.error = /^This app/.test(msg) ? msg : "Download failed: " + msg;
     updateCard(id); toast(st.error);
   };
 
@@ -735,7 +782,10 @@
       return best;
     }
     var fits = versions.filter(function (v) { return chipRank(v) < 99; });
-    if (!fits.length) throw new Error("no build for this Fire TV's chip");
+    if (!fits.length) {
+      var any64 = versions.some(function (v) { return v.abis.indexOf("arm64-v8a") >= 0; });
+      return { blocked: any64 ? "Needs a 64-bit Fire TV" : "Not built for this Fire TV's chip" };
+    }
     var sdk = device.sdk || 0;
     var runs = fits.filter(function (v) { return !sdk || !v.minSdk || v.minSdk <= sdk; });
     if (!runs.length) {
@@ -793,6 +843,8 @@
     return nativeFetch("https://api.github.com/repos/" + src.repo + "/releases/latest").then(function (txt) {
       var j = JSON.parse(txt);
       var apks = (j.assets || []).filter(function (a) { return /\.apk$/i.test(a.name); });
+      var want = src.asset || s.asset;
+      if (want) { var re = new RegExp(want, "i"); var only = apks.filter(function (a) { return re.test(a.name); }); if (only.length) apks = only; }
       if (!apks.length) throw new Error("No APK in the latest release");
       var abis = device.abis && device.abis.length ? device.abis : ["armeabi-v7a"];
       var pick = null;
@@ -800,6 +852,7 @@
         pick = apks.filter(function (a) { return a.name.toLowerCase().indexOf(abi.toLowerCase()) >= 0; })[0];
         return !!pick;
       });
+      if (!pick && is64) pick = apks.filter(function (a) { return /(android64|aarch64|_64\.apk$|-64\.apk$)/i.test(a.name); })[0];
       if (!pick) pick = apks.filter(function (a) { return /universal/i.test(a.name); })[0];
       if (!pick) pick = apks.filter(function (a) { return !/(arm64|armeabi|x86)/i.test(a.name); })[0];
       if (!pick) pick = apks[0];
@@ -872,7 +925,7 @@
   function renderStore() {
     var sc = $("#page-store .scroller"); sc.innerHTML = "";
     sc.appendChild(el("div", "pagehead",
-      "<h2>Homebrew Store</h2><p>Open-source apps and Fire TV tools that aren't in the Amazon Appstore. ReaperOS picks the right build for your Fire TV, downloads it, and hands it to Fire OS to install. Want something that isn't listed? Install Obtainium and add any GitHub project. Press Menu on an installed app to uninstall it.</p>"));
+      "<h2>Homebrew Store</h2><p>Open-source apps, emulators and Fire TV tools that aren't in the Amazon Appstore. ReaperOS picks the right build for your Fire TV, downloads it, and hands it to Fire OS to install. Want something that isn't listed? Install Obtainium and add any GitHub project. Press Menu on an installed app to uninstall it.</p>"));
     CATEGORIES.forEach(function (cat) {
       var list = STORE.filter(function (s) { return s.cat === cat.id; });
       var sec = el("section", "shelf");

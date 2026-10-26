@@ -41,7 +41,12 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -288,6 +293,31 @@ public class MainActivity extends Activity {
         throw new Exception("Too many redirects");
     }
 
+    /** Returns a message if the APK only contains native code for chips this device lacks. */
+    private static String abiProblem(File apk) {
+        Set<String> abis = new HashSet<>();
+        ZipFile zip = null;
+        try {
+            zip = new ZipFile(apk);
+            Enumeration<? extends ZipEntry> en = zip.entries();
+            while (en.hasMoreElements()) {
+                String n = en.nextElement().getName();
+                if (n.startsWith("lib/") && n.endsWith(".so")) {
+                    String[] parts = n.split("/");
+                    if (parts.length >= 3) abis.add(parts[1]);
+                }
+            }
+        } catch (Exception ex) {
+            return null;   // can't inspect it: let the Fire OS installer decide
+        } finally {
+            try { if (zip != null) zip.close(); } catch (Exception ignored) { }
+        }
+        if (abis.isEmpty()) return null;
+        for (String a : Build.SUPPORTED_ABIS) if (abis.contains(a)) return null;
+        if (abis.contains("arm64-v8a")) return "This app needs a 64-bit Fire TV";
+        return "This app isn't built for this Fire TV's chip";
+    }
+
     private String iconFor(String pkg) {
         String cached = iconCache.get(pkg);
         if (cached != null) return cached;
@@ -530,6 +560,15 @@ public class MainActivity extends Activity {
                     }
                     os.close();
                     in.close();
+                    // Learn the real package name, and refuse builds this chip can't run.
+                    String pkgName = "";
+                    try {
+                        PackageInfo pi = getPackageManager().getPackageArchiveInfo(out.getAbsolutePath(), 0);
+                        if (pi != null && pi.packageName != null) pkgName = pi.packageName;
+                    } catch (Exception ignored) { }
+                    String abiProblem = abiProblem(out);
+                    js("window.reaperApk && reaperApk(" + q(id) + "," + q(pkgName) + ")");
+                    if (abiProblem != null) throw new Exception(abiProblem);
                     js("window.reaperProgress && reaperProgress(" + q(id) + ",100," + done + ")");
                     final File apk = out;
                     ui.post(() -> startInstall(apk));
