@@ -1,0 +1,3 @@
+# Lets administrators switch between the ReaperOS session and the desktop without a password.
+# The script only accepts "reaperos" or "desktop".
+%wheel ALL=(root) NOPASSWD: /usr/libexec/reaperos-set-session reaperos, /usr/libexec/reaperos-set-session desktop

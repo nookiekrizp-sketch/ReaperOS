@@ -1,0 +1,15 @@
+#!/bin/bash
+# First boot: sign the main account in to ReaperOS automatically, like a console.
+# To turn this off, create /etc/reaperos/no-autologin (and delete
+# /etc/sddm.conf.d/zz-reaperos.conf).
+set -eu
+
+conf=/etc/sddm.conf.d/zz-reaperos.conf
+[ -e /etc/reaperos/no-autologin ] && exit 0
+[ -e "$conf" ] && exit 0
+
+user=$(getent passwd | awk -F: '$3 >= 1000 && $3 < 60000 && $7 !~ /(nologin|false)$/ { print $1; exit }')
+[ -n "$user" ] || exit 0
+
+mkdir -p /etc/sddm.conf.d
+printf '[Autologin]\nUser=%s\nSession=reaperos.desktop\nRelogin=true\n' "$user" > "$conf"

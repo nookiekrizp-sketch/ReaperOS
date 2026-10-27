@@ -62,3 +62,27 @@ ReaperOS also runs as a home-screen web app on iPhone and iPad, published with G
 `https://nookiekrizp-sketch.github.io/ReaperOS/`
 
 Open it in Safari, tap **Share → Add to Home Screen**, then launch it from the new icon. It runs full-screen with touch and controller support. Movie, anime and app tiles open the app if it's installed (or its App Store page if not); Xbox Cloud Gaming, GeForce NOW and Amazon Luna open in Safari, which is how they officially run on iOS. Free homebrew games save to the Files app for RetroArch or Delta. iOS doesn't let web apps list or install apps, so there's no Your apps row on iOS.
+
+## ReaperOS OS (bootable, for PCs)
+ReaperOS is also a full operating system for gaming PCs, built on [Bazzite](https://bazzite.gg) (Fedora Linux) the same way Universal Blue images are made. It boots straight into ReaperOS full screen, like SteamOS's Gaming Mode, and keeps everything Bazzite provides: GPU drivers, Steam with Proton, controller support and automatic background updates.
+
+- **Boots into ReaperOS:** the main account signs in automatically to a full-screen ReaperOS session (gamescope).
+- **Desktop mode:** Settings → Desktop mode switches to the full KDE desktop; **Return to ReaperOS** in the app menu switches back.
+- **Store from Flathub:** Heroic, Lutris, Bottles, ProtonUp-Qt, RetroArch, RetroDECK, PCSX2, RPCS3, Dolphin, Cemu, Azahar, Stremio, Kodi, Plex, Spotify, Discord and more, installed per user with no password prompts.
+- **Steam library, Your apps, Media player (mpv), built-in games, cloud gaming** all work as in the Windows version. Netflix and other copy-protected services open in the system browser.
+- **Power controls:** Shut down, Restart and Sleep in Settings.
+- **Updates:** the image is rebuilt daily on top of the newest Bazzite, and your PC picks it up automatically.
+
+### Installing
+Installing an OS replaces what's on the target drive, so back up first.
+
+1. Download Bazzite from [bazzite.gg](https://bazzite.gg) (choose the **Desktop** edition with **KDE Plasma**, for your GPU: AMD/Intel, or NVIDIA) and install it from a USB stick.
+2. After the first boot, open a terminal and switch the system to ReaperOS:
+
+   `sudo bootc switch ghcr.io/nookiekrizp-sketch/reaperos:latest`
+
+3. Restart. The PC boots into ReaperOS.
+
+To go back to plain Bazzite: `sudo bootc switch ghcr.io/ublue-os/bazzite:stable`, then restart.
+
+The image is built by `.github/workflows/os.yml` from `os/Containerfile`.

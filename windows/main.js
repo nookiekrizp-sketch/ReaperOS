@@ -9,6 +9,8 @@ const { spawn, spawnSync } = require("child_process");
 
 let win = null;
 const isWin = process.platform === "win32";
+const isLinux = process.platform === "linux";
+const L = isLinux ? require("./linux") : null;   // ReaperOS OS (Bazzite) support
 
 // ------------------------------------------------------------------ helpers
 
@@ -74,6 +76,7 @@ function indexShortcuts() {
 }
 
 function loadApps() {
+  if (isLinux) { appsCache = L.loadApps(); return appsCache; }
   if (!shortcutIndex) indexShortcuts();
   let list = [];
   try {
@@ -104,6 +107,7 @@ function loadApps() {
 }
 
 function launchApp(pkg) {
+  if (isLinux && (pkg.startsWith("desktop:") || pkg.startsWith("flatpak:"))) return L.launch(pkg);
   try {
     if (pkg.startsWith("steam:")) { shell.openExternal("steam://rungameid/" + pkg.slice(6)); return true; }
     if (pkg.startsWith("lnk:")) { shell.openPath(pkg.slice(4)); return true; }
@@ -118,6 +122,7 @@ async function iconFor(pkg) {
     const id = pkg.slice(6);
     return { src: `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/header.jpg`, banner: true };
   }
+  if (isLinux) return L.iconFor(pkg);
   const app0 = (appsCache || []).find((a) => a.pkg === pkg);
   let target = pkg.startsWith("lnk:") ? pkg.slice(4) : null;
   if (!target && app0 && shortcutIndex) target = shortcutIndex[app0.label.toLowerCase()] || null;
@@ -137,6 +142,7 @@ async function iconFor(pkg) {
 // ------------------------------------------------------------------ Steam library
 
 function steamRoot() {
+  if (isLinux) return L.steamRoot();
   const reg = powershell("(Get-ItemProperty -Path 'HKCU:\\Software\\Valve\\Steam' -ErrorAction SilentlyContinue).SteamPath").trim();
   const candidates = [reg, "C:\\Program Files (x86)\\Steam", "C:\\Program Files\\Steam"].filter(Boolean);
   return candidates.find((p) => fs.existsSync(path.join(p, "steamapps"))) || null;
@@ -182,6 +188,7 @@ let wingetCache = {};      // PackageIdentifier (lower) -> version
 let wingetLoaded = false;
 
 function refreshWinget() {
+  if (isLinux) return L.refreshFlatpak().then((map) => { wingetCache = map; wingetLoaded = true; });
   return new Promise((resolve) => {
     if (!isWin) { wingetLoaded = true; return resolve(); }
     const out = path.join(os.tmpdir(), "reaperos-winget.json");
@@ -211,9 +218,9 @@ function wingetArgs(spec) {
   return args;
 }
 
-function runWinget(id, args, verb) {
-  if (!isWin) { js(`window.reaperInstallError && reaperInstallError(${q(id)}, "winget only works on Windows")`); return; }
-  const p = spawn("winget", args, { windowsHide: true });
+function runWinget(id, args, verb, cmd = "winget") {
+  if (!isWin && cmd === "winget") { js(`window.reaperInstallError && reaperInstallError(${q(id)}, "winget only works on Windows")`); return; }
+  const p = spawn(cmd, args, { windowsHide: true });
   let last = -1, tail = "";
   const onData = (d) => {
     const s = d.toString();
@@ -226,7 +233,7 @@ function runWinget(id, args, verb) {
   };
   p.stdout.on("data", onData);
   p.stderr.on("data", onData);
-  p.on("error", () => js(`window.reaperInstallError && reaperInstallError(${q(id)}, "winget isn't available. Install App Installer from the Microsoft Store.")`));
+  p.on("error", () => js(`window.reaperInstallError && reaperInstallError(${q(id)}, ${q(cmd === "winget" ? "winget isn't available. Install App Installer from the Microsoft Store." : "Flatpak isn't available on this system.")})`));
   p.on("close", async (code) => {
     await refreshWinget();
     appsCache = null; loadApps();
@@ -279,6 +286,7 @@ function retroarchExe() {
 }
 
 function playInRetroArch(rom, core) {
+  if (isLinux) return L.playInRetroArch(rom, core, wingetCache);
   const exe = retroarchExe();
   if (!exe) return "not_installed";
   const dll = path.join(path.dirname(exe), "cores", core + "_libretro.dll");
@@ -329,6 +337,7 @@ function listMedia() {
 }
 
 function mpvPath() {
+  if (isLinux) return "mpv";
   const bundled = path.join(process.resourcesPath || "", "mpv", "mpv.exe");
   if (app.isPackaged && fs.existsSync(bundled)) return bundled;
   const dev = path.join(__dirname, "mpv", "mpv.exe");
@@ -389,9 +398,10 @@ function openWebWindow(url, ua) {
 
 const syncHandlers = {
   deviceInfo: () => JSON.stringify({
-    platform: "windows",
+    platform: isLinux ? "linux" : "windows",
+    session: isLinux ? L.inSession() : false,
     version: app.getVersion(),
-    model: "Windows PC (" + os.hostname() + ")",
+    model: (isLinux ? "ReaperOS PC (" : "Windows PC (") + os.hostname() + ")",
     abis: [process.arch === "arm64" ? "arm64" : "x86_64"],
     sdk: 0
   }),
@@ -404,7 +414,7 @@ const syncHandlers = {
   },
   launch: (pkg) => launchApp(String(pkg || "")),
   playInRetroArch: (rom, core) => playInRetroArch(rom, core),
-  getLoginItem: () => app.getLoginItemSettings().openAtLogin,
+  getLoginItem: () => (isLinux ? false : app.getLoginItemSettings().openAtLogin),
   // Bundled games for the built-in player
   listMedia: () => JSON.stringify(listMedia()),
   getPlayerOption: (key, def) => (key in playerOptions ? playerOptions[key] : def),
@@ -426,10 +436,17 @@ const asyncHandlers = {
   },
   install: (id, spec) => {
     if (String(spec).startsWith("winget:")) return runWinget(id, wingetArgs(spec), "Install");
-    js(`window.reaperInstallError && reaperInstallError(${q(id)}, "Not available on Windows")`);
+    if (isLinux && String(spec).startsWith("flatpak:")) {
+      L.ensureFlathub();
+      return runWinget(id, L.installArgs(String(spec).slice(8)), "Install", "flatpak");
+    }
+    js(`window.reaperInstallError && reaperInstallError(${q(id)}, "Not available on this system")`);
   },
-  uninstall: (id) => runWinget("uninstall:" + id, ["uninstall", "--id", id, "-e", "--disable-interactivity"], "Uninstall"),
+  uninstall: (id) => (isLinux
+    ? runWinget("uninstall:" + id, ["uninstall", "--user", "-y", "--noninteractive", String(id)], "Uninstall", "flatpak")
+    : runWinget("uninstall:" + id, ["uninstall", "--id", id, "-e", "--disable-interactivity"], "Uninstall")),
   upgradeAll: (ids) => {
+    if (isLinux) return runWinget("upgrade", ["update", "--user", "-y", "--noninteractive"], "Updates", "flatpak");
     const list = Array.isArray(ids) ? ids : [];
     if (!list.length) return runWinget("upgrade", ["upgrade", "--all", "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity"], "Updates");
     // one package at a time, in order
@@ -443,14 +460,28 @@ const asyncHandlers = {
   },
   saveGame: (id, url, folder, name) => saveGame(id, url, folder, name),
   openUrl: (url) => shell.openExternal(String(url)),
-  openSettings: () => shell.openExternal("ms-settings:"),
-  openAppstore: (pkg, query) => shell.openExternal("ms-windows-store://search/?query=" + encodeURIComponent(query || pkg || "")),
+  openSettings: () => (isLinux ? L.openSettings() : shell.openExternal("ms-settings:")),
+  openAppstore: (pkg, query) => shell.openExternal(isLinux
+    ? "https://flathub.org/apps/search?q=" + encodeURIComponent(query || pkg || "")
+    : "ms-windows-store://search/?query=" + encodeURIComponent(query || pkg || "")),
   checkForUpdates: () => {
-    if (!updater || !app.isPackaged) { js(`window.reaperUpdate && reaperUpdate("current", "")`); return; }
+    if (isLinux || !updater || !app.isPackaged) { js(`window.reaperUpdate && reaperUpdate("current", "")`); return; }
     updater.checkForUpdates().catch((e) => js(`window.reaperUpdate && reaperUpdate("error", ${q(e.message)})`));
   },
   installUpdate: () => { if (updater) updater.quitAndInstall(false, true); },
-  setLoginItem: (on) => app.setLoginItemSettings({ openAtLogin: !!on, args: ["--startup"] }),
+  setLoginItem: (on) => { if (!isLinux) app.setLoginItemSettings({ openAtLogin: !!on, args: ["--startup"] }); },
+  // Shut down / restart / sleep, from Settings.
+  power: (action) => {
+    if (isLinux) { if (!L.power(String(action))) toast("Couldn't " + action + "."); return; }
+    const args = { shutdown: ["/s", "/t", "0"], restart: ["/r", "/t", "0"] }[String(action)];
+    if (args) spawn("shutdown", args, { detached: true, stdio: "ignore", windowsHide: true }).unref();
+  },
+  // ReaperOS OS: next sign-in goes to the KDE desktop, then this session ends.
+  desktopMode: () => {
+    if (!isLinux) return;
+    if (L.desktopMode()) app.quit();
+    else toast("Desktop mode isn't set up on this system.");
+  },
   // Built-in player window for services' websites (Xbox Cloud Gaming, GeForce NOW, YouTube...).
   openWeb: (url, ua) => openWebWindow(String(url), ua ? String(ua) : ""),
   requestMediaPermission: () => js("window.reaperMediaPermission && reaperMediaPermission(true)"),
@@ -496,7 +527,7 @@ app.whenReady().then(() => {
   win.loadFile(path.join(__dirname, "ui", "index.html"));
 
   setTimeout(() => { loadApps(); refreshWinget().then(() => js("window.reaperResume && reaperResume()")); }, 200);
-  setupUpdater();
+  if (isWin) setupUpdater();
 });
 
 app.on("window-all-closed", () => app.quit());

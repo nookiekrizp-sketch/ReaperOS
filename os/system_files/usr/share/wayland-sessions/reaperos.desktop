@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=ReaperOS
+Comment=ReaperOS full-screen console session
+Exec=/usr/bin/reaperos-session
+Type=Application
+DesktopNames=gamescope

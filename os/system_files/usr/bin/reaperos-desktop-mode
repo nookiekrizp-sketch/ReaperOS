@@ -1,0 +1,4 @@
+#!/bin/bash
+# Called by ReaperOS (Settings > Desktop mode): the next sign-in opens the KDE desktop.
+# ReaperOS then closes, which ends the session; the login screen signs back in.
+exec sudo -n /usr/libexec/reaperos-set-session desktop

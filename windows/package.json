@@ -2,14 +2,15 @@
   "name": "reaperos",
   "productName": "ReaperOS",
   "version": "1.0.0",
-  "description": "ReaperOS: a Bazzite-style full-screen game launcher for Windows",
+  "description": "ReaperOS: a Bazzite-style full-screen game launcher and OS shell",
   "main": "main.js",
   "author": "ReaperOS",
   "license": "MIT",
   "scripts": {
     "copy-ui": "node -e \"require('fs').rmSync('ui',{recursive:true,force:true});require('fs').cpSync('../app/src/main/assets','ui',{recursive:true})\"",
     "start": "npm run copy-ui && electron .",
-    "dist": "npm run copy-ui && electron-builder --win nsis --x64 --publish never"
+    "dist": "npm run copy-ui && electron-builder --win nsis --x64 --publish never",
+    "dist:linux": "npm run copy-ui && electron-builder --linux dir --x64 --publish never"
   },
   "dependencies": {
     "electron-updater": "^6.3.9"
@@ -22,10 +23,34 @@
     "appId": "com.reaperos.launcher",
     "productName": "ReaperOS",
     "artifactName": "ReaperOS-Setup-${version}.${ext}",
-    "files": ["main.js", "preload.js", "ui/**", "package.json"],
-    "extraResources": [{ "from": "mpv", "to": "mpv" }],
-    "directories": { "output": "dist", "buildResources": "build" },
-    "win": { "icon": "build/icon.png", "target": [{ "target": "nsis", "arch": ["x64"] }] },
+    "files": [
+      "main.js",
+      "preload.js",
+      "linux.js",
+      "ui/**",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "mpv",
+          "to": "mpv"
+        }
+      ]
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
@@ -34,6 +59,19 @@
       "createStartMenuShortcut": true,
       "shortcutName": "ReaperOS"
     },
-    "publish": [{ "provider": "generic", "url": "https://github.com/nookiekrizp-sketch/ReaperOS/releases/download/windows-latest" }]
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://github.com/nookiekrizp-sketch/ReaperOS/releases/download/windows-latest"
+      }
+    ],
+    "linux": {
+      "target": [
+        "dir"
+      ],
+      "icon": "build/icon.png",
+      "category": "Game",
+      "executableName": "reaperos"
+    }
   }
 }

@@ -35,5 +35,7 @@ contextBridge.exposeInMainWorld("Reaper", {
   requestMediaPermission: async("requestMediaPermission"),
   playMedia: async("playMedia"),
   setPlayerOption: async("setPlayerOption"),
+  power: async("power"),
+  desktopMode: async("desktopMode"),
   quit: async("quit")
 });

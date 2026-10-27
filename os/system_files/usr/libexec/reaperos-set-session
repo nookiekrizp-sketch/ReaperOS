@@ -1,0 +1,23 @@
+#!/bin/bash
+# Chooses which session the login screen signs in to automatically.
+# Usage (as root, via sudo): reaperos-set-session reaperos|desktop
+set -euo pipefail
+
+case "${1:-}" in
+  reaperos) session="reaperos.desktop" ;;
+  desktop)  session="plasma.desktop" ;;
+  *) echo "usage: $0 reaperos|desktop" >&2; exit 2 ;;
+esac
+
+conf=/etc/sddm.conf.d/zz-reaperos.conf
+user=""
+[ -f "$conf" ] && user=$(sed -n 's/^User=//p' "$conf" | head -n1)
+[ -n "$user" ] || user="${SUDO_USER:-}"
+
+if ! [[ "$user" =~ ^[a-z_][a-z0-9_-]*[$]?$ ]] || ! getent passwd "$user" >/dev/null; then
+  echo "no valid user to sign in" >&2
+  exit 1
+fi
+
+mkdir -p /etc/sddm.conf.d
+printf '[Autologin]\nUser=%s\nSession=%s\nRelogin=true\n' "$user" "$session" > "$conf"

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Return to ReaperOS
+Comment=Leave the desktop and go back to the ReaperOS console session
+Exec=/usr/bin/reaperos-gaming-mode
+Icon=reaperos
+Type=Application
+Categories=Game;System;

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=ReaperOS
+Comment=Open the ReaperOS launcher in a window on the desktop
+Exec=/usr/bin/reaperos
+Icon=reaperos
+Type=Application
+Categories=Game;

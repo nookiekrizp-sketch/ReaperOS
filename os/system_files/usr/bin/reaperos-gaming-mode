@@ -1,0 +1,8 @@
+#!/bin/bash
+# "Return to ReaperOS" on the KDE desktop: switch the session back and sign out.
+if ! sudo -n /usr/libexec/reaperos-set-session reaperos; then
+  command -v kdialog >/dev/null && kdialog --error "Couldn't switch back to ReaperOS. Your account needs to be an administrator."
+  exit 1
+fi
+dbus-send --session --type=method_call --dest=org.kde.Shutdown /Shutdown org.kde.Shutdown.logout 2>/dev/null \
+  || loginctl terminate-session "${XDG_SESSION_ID:-self}"

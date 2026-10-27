@@ -1,0 +1,32 @@
+#!/bin/bash
+# The ReaperOS session: ReaperOS full screen on gamescope, the compositor SteamOS uses.
+# Started by the login screen. When ReaperOS closes, the session ends and the login
+# screen signs straight back in (to ReaperOS, or to the desktop after "Desktop mode").
+
+export REAPEROS_SESSION=1
+export XDG_CURRENT_DESKTOP=gamescope
+
+state="${XDG_STATE_HOME:-$HOME/.local/state}/reaperos"
+mkdir -p "$state"
+start=$(date +%s)
+
+if command -v gamescope >/dev/null 2>&1; then
+  gamescope -f -- /usr/bin/reaperos
+else
+  /usr/bin/reaperos
+fi
+code=$?
+
+# Safety net: if ReaperOS keeps closing within seconds, fall back to the desktop
+# instead of looping forever.
+if [ $(( $(date +%s) - start )) -lt 20 ]; then
+  n=$(( $(cat "$state/quick-exits" 2>/dev/null || echo 0) + 1 ))
+  echo "$n" > "$state/quick-exits"
+  if [ "$n" -ge 3 ]; then
+    echo 0 > "$state/quick-exits"
+    sudo -n /usr/libexec/reaperos-set-session desktop || true
+  fi
+else
+  echo 0 > "$state/quick-exits"
+fi
+exit $code

@@ -455,10 +455,14 @@
     try { return JSON.parse(Reaper.deviceInfo()).platform || "android"; } catch (e) { return "android"; }
   })();
   var WIN = PLATFORM === "windows";
+  var LINUX = PLATFORM === "linux";          // the ReaperOS operating system (Bazzite)
+  var DESK = WIN || LINUX;                   // desktop app: keyboard, controllers, Steam, package installs
+  var OS_SESSION = false;                    // running as the ReaperOS OS session (not inside the KDE desktop)
+  try { if (LINUX) OS_SESSION = !!JSON.parse(Reaper.deviceInfo()).session; } catch (e) {}
   var IOS = PLATFORM === "ios";
   var TOUCH = !NATIVE && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
   if (TOUCH) document.body.classList.add("platform-touch");
-  if (IOS) { var st0 = document.querySelector('.tab[data-tab="store"]'); if (st0) st0.textContent = "Store"; }
+  if (IOS || LINUX) { var st0 = document.querySelector('.tab[data-tab="store"]'); if (st0) st0.textContent = "Store"; }
   if (WIN) {
     document.body.classList.add("platform-win");
     var h1 = document.querySelector("#splash h1"); if (h1) h1.innerHTML = "Reaper<b>OS</b>";
@@ -763,6 +767,95 @@
     STORE.forEach(function (s) { s.from = "App Store"; s.icons = []; s.query = s.source.query; });
   }
 
+
+  // ---------------------------------------------------------------- Linux (ReaperOS OS) catalog
+  // Everything installs from Flathub as the signed-in user, so no password prompts.
+  function FP(id) { return { type: "flatpak", id: id }; }
+  if (LINUX) {
+    var LINUX_SITES = { netflix: "https://www.netflix.com", prime: "https://www.primevideo.com", disney: "https://www.disneyplus.com",
+      hbomax: "https://www.max.com", hulu: "https://www.hulu.com", peacock: "https://www.peacocktv.com",
+      paramount: "https://www.paramountplus.com", appletv: "https://tv.apple.com", hidive: "https://www.hidive.com" };
+    // Copy-protected services play in the system browser, which has the protection modules.
+    MOVIES.concat(ANIME).forEach(function (m) { if (!m.web && LINUX_SITES[m.id]) m.site = LINUX_SITES[m.id]; if (!m.match) m.match = new RegExp("^" + m.name + "$", "i"); });
+    var plexItem = MOVIES.filter(function (m) { return m.id === "plex"; })[0];
+    if (plexItem) { plexItem.spec = "flatpak:tv.plex.PlexDesktop"; plexItem.match = /^plex$/i; }
+    SOCIAL[0].spec = "flatpak:com.spotify.Client";
+    SOCIAL[1].site = "https://music.apple.com"; SOCIAL[1].web = "https://music.apple.com"; SOCIAL[1].ua = UA_DESKTOP;
+    SOCIAL[2].spec = "flatpak:com.discordapp.Discord";
+    CLOUD = [
+      { id: "bigpicture", name: "Steam Big Picture", glyph: "S", color: "#1B2838", match: /^steam$/i, launchUrl: "steam://open/bigpicture",
+        icons: ["https://www.google.com/s2/favicons?domain=store.steampowered.com&sz=256"], kicker: "Steam",
+        desc: "Steam's controller-first Big Picture mode, with Proton for your Windows games." },
+      { id: "xcloud", name: "Xbox Cloud Gaming", glyph: "X", color: "#107C10", web: "https://www.xbox.com/play", ua: UA_EDGE,
+        icons: ["https://www.google.com/s2/favicons?domain=xbox.com&sz=256"], kicker: "Cloud gaming",
+        desc: "Game Pass streaming, right inside ReaperOS. Pair a controller first." },
+      { id: "gfn", name: "GeForce NOW", glyph: "G", color: "#5E9E00", web: "https://play.geforcenow.com", ua: UA_DESKTOP,
+        icons: ["https://www.google.com/s2/favicons?domain=nvidia.com&sz=256"], kicker: "Cloud gaming",
+        desc: "Your Steam and Epic games streamed from NVIDIA, inside ReaperOS." },
+      { id: "luna", name: "Amazon Luna", glyph: "L", color: "#7B2FF7", web: "https://luna.amazon.com", ua: UA_DESKTOP,
+        icons: ["https://www.google.com/s2/favicons?domain=luna.amazon.com&sz=256"], kicker: "Cloud gaming",
+        desc: "Amazon's game streaming, inside ReaperOS." },
+      { id: "moonlight", name: "Moonlight", glyph: "M", color: "#2F6FE0", match: /^moonlight/i, spec: "flatpak:com.moonlight_stream.Moonlight",
+        icons: ["https://www.google.com/s2/favicons?domain=moonlight-stream.org&sz=256"], kicker: "Streaming",
+        desc: "Stream from another gaming PC running Sunshine." },
+      { id: "steamlink", name: "Steam Link", glyph: "S", color: "#2A475E", match: /steam ?link/i, spec: "flatpak:com.valvesoftware.SteamLink",
+        icons: ["https://www.google.com/s2/favicons?domain=steampowered.com&sz=256"], kicker: "Streaming",
+        desc: "Stream your library from another PC running Steam." }
+    ];
+    CATEGORIES = [
+      { id: "launchers", title: "Game launchers & tools" },
+      { id: "emus", title: "Emulators" },
+      { id: "media", title: "Streaming & media" },
+      { id: "freegames", title: "Free games" },
+      { id: "tools", title: "Tools" }
+    ];
+    var F = function (id, cat, name, glyph, color, desc, extra) {
+      var o = { id: id.replace(/[^A-Za-z0-9]/g, "").toLowerCase(), cat: cat, name: name, glyph: glyph, color: color, pkg: id, source: FP(id), desc: desc };
+      for (var k in (extra || {})) o[k] = extra[k];
+      return o;
+    };
+    STORE = [
+      F("com.heroicgameslauncher.hgl", "launchers", "Heroic", "H", "#0B5CAD", "Play your Epic, GOG and Amazon games, with Proton built in.", { featured: true }),
+      F("net.lutris.Lutris", "launchers", "Lutris", "L", "#FF9900", "One library for games from every store, plus Windows installers."),
+      F("com.usebottles.bottles", "launchers", "Bottles", "B", "#3584E4", "Run Windows programs and games in tidy, separate bottles."),
+      F("net.davidotek.pupgui2", "launchers", "ProtonUp-Qt", "P", "#7C3AED", "Install newer Proton and Wine versions for better game compatibility."),
+      F("org.prismlauncher.PrismLauncher", "launchers", "Prism Launcher", "P", "#DF6277", "Minecraft Java Edition with easy mods and instances."),
+      F("io.github.unknownskl.greenlight", "launchers", "Greenlight", "G", "#2E7D32", "Xbox Cloud Gaming and Xbox console streaming client."),
+
+      F("org.libretro.RetroArch", "emus", "RetroArch", "R", "#3A3A3A", "All-in-one retro emulator. Plays the free homebrew games too.", { featured: true }),
+      F("net.retrodeck.retrodeck", "emus", "RetroDECK", "R", "#E43F5A", "Every emulator set up together, controller-first."),
+      F("org.ppsspp.PPSSPP", "emus", "PPSSPP", "P", "#2A6FB0", "PlayStation Portable."),
+      F("org.duckstation.DuckStation", "emus", "DuckStation", "D", "#C8A400", "PlayStation 1, fast and accurate."),
+      F("net.pcsx2.PCSX2", "emus", "PCSX2", "P", "#1E4FA0", "PlayStation 2."),
+      F("net.rpcs3.RPCS3", "emus", "RPCS3", "R", "#1C1C1C", "PlayStation 3."),
+      F("org.DolphinEmu.dolphin-emu", "emus", "Dolphin", "D", "#2E7DFF", "GameCube and Wii."),
+      F("info.cemu.Cemu", "emus", "Cemu", "C", "#3A8FD6", "Wii U."),
+      F("org.azahar_emu.Azahar", "emus", "Azahar", "A", "#D6453A", "Nintendo 3DS."),
+      F("net.kuribo64.melonDS", "emus", "melonDS", "M", "#E85A9B", "Nintendo DS and DSi."),
+      F("org.flycast.Flycast", "emus", "Flycast", "F", "#E0592A", "Dreamcast, NAOMI and Atomiswave."),
+      F("app.xemu.xemu", "emus", "xemu", "X", "#4CAF50", "Original Xbox."),
+      F("org.scummvm.ScummVM", "emus", "ScummVM", "S", "#2E7D32", "Classic point-and-click adventures."),
+
+      F("com.stremio.Stremio", "media", "Stremio", "S", "#7B5BF5", "Movies, shows and live TV in one library, with add-ons.", { featured: true }),
+      F("tv.kodi.Kodi", "media", "Kodi", "K", "#17B2E7", "The classic home-theater media center."),
+      F("tv.plex.PlexDesktop", "media", "Plex", "P", "#E5A00D", "Free movies and live TV, plus your Plex server."),
+      F("com.github.iwalton3.jellyfin-media-player", "media", "Jellyfin Media Player", "J", "#00A4DC", "Watch your own Jellyfin server."),
+      F("org.videolan.VLC", "media", "VLC", "V", "#FF8800", "Plays nearly any video or audio file."),
+      F("com.spotify.Client", "media", "Spotify", "S", "#1DB954", "Music and podcasts."),
+
+      F("net.supertuxkart.SuperTuxKart", "freegames", "SuperTuxKart", "S", "#2E86DE", "3D kart racing with online play.", { featured: true }),
+      F("org.luanti.luanti", "freegames", "Luanti", "L", "#4CAF50", "Open-source block-building sandbox with thousands of games."),
+      F("com.shatteredpixel.shatteredpixeldungeon", "freegames", "Shattered Pixel Dungeon", "S", "#5D4037", "A beloved roguelike dungeon crawler."),
+
+      F("com.discordapp.Discord", "tools", "Discord", "D", "#5865F2", "Voice and text chat with friends."),
+      F("org.localsend.localsend_app", "tools", "LocalSend", "L", "#13A89E", "Send files between this PC, your iPhone and your Fire TV."),
+      F("com.obsproject.Studio", "tools", "OBS Studio", "O", "#302E31", "Record and stream your gameplay."),
+      F("com.github.tchx84.Flatseal", "tools", "Flatseal", "F", "#4A86CF", "Change what each app is allowed to access."),
+      F("io.github.flattool.Warehouse", "tools", "Warehouse", "W", "#6D4C41", "Manage and clean up installed apps.")
+    ];
+    STORE.forEach(function (s) { s.from = "Flathub"; s.icons = ["https://dl.flathub.org/media/" + s.pkg.split(".").join("/") + "/stable/icons/128x128/" + s.pkg + ".png"]; });
+  }
+
   // ---------------------------------------------------------------- Windows catalog
   // On Windows everything installs through winget, Windows' built-in package manager.
   function WG(id) { return { type: "winget", id: id }; }
@@ -880,7 +973,7 @@
   };
   window.reaperToast = toast;
   window.reaperResume = function () {
-    if (WIN) steamCache = null;
+    if (DESK) steamCache = null;
     refreshApps(); refreshStore();
     // Back from the Fire OS installer: anything downloaded but still missing was cancelled.
     STORE.forEach(function (x) { var st = storeState[x.id]; if (st.pct >= 100 && !st.busy && !st.installed) st.declined = true; });
@@ -1031,12 +1124,13 @@
   }
   function cloudApp(c) {
     if (IOS) return null;
-    if (WIN) return allApps.filter(function (a) { return c.match.test(a.label); })[0] || null;
+    if (DESK) return c.match ? (allApps.filter(function (a) { return c.match.test(a.label); })[0] || null) : null;
     if (c.pkg && NATIVE && Reaper.installedVersion(c.pkg)) return { pkg: c.pkg, label: c.name };
     return allApps.filter(function (a) { return c.match.test(a.label); })[0] || null;
   }
   function launchStore(s) {
-    if (!WIN) { Reaper.launch(s._pkg); return; }
+    if (LINUX && s.source && s.source.type === "flatpak") { Reaper.launch("flatpak:" + s.source.id); return; }
+    if (!DESK) { Reaper.launch(s._pkg); return; }
     var a = allApps.filter(function (x) { return (s.match || new RegExp("^" + s.name, "i")).test(x.label); })[0];
     if (a) launchApp(a); else toast(s.name + " is installed. Open it from the Start menu once, then it'll launch from here.");
   }
@@ -1096,7 +1190,7 @@
   }
   var steamCache = null;
   function steamLibrary() {
-    if (!WIN) return [];
+    if (!DESK) return [];
     if (!steamCache) { try { steamCache = JSON.parse(Reaper.getSteamGames()) || []; } catch (e) { steamCache = []; } }
     return steamCache;
   }
@@ -1124,10 +1218,11 @@
     t._act = function () {
       if (IOS) { openIOS(c); return; }
       var a = cloudApp(c);
-      if (WIN && a && c.launchUrl) { Reaper.openUrl(c.launchUrl); return; }
+      if (DESK && a && c.launchUrl) { Reaper.openUrl(c.launchUrl); return; }
       if (a) { launchApp(a); return; }
       if (canEmbed(c)) { openEmbedded(c); return; }
-      if (WIN && c.winget) { toast("Installing " + c.name + " with winget\u2026"); Reaper.install("cloud:" + c.id, "winget:" + c.winget); return; }
+      if (DESK && (c.spec || c.winget)) { toast("Installing " + c.name + "\u2026"); Reaper.install("cloud:" + c.id, c.spec || ("winget:" + c.winget)); return; }
+      if (LINUX && c.site) { Reaper.openUrl(c.site); return; }
       if (NATIVE) { toast("Opening " + c.name + " in the app store…"); Reaper.openAppstore(c.pkg || "", c.query, !!c.preferPlay); }
       else toast("Opens " + c.name + " in the Appstore on your Fire TV");
     };
@@ -1205,7 +1300,7 @@
     var it = t._item, kicker, title, desc, color, art = "", act = "Launch";
     if (it.kind === "app") {
       var a = it.app, ic = icons[a.pkg];
-      kicker = it.steam ? "Steam game" : WIN ? "Installed app" : a.tv ? "Installed app" : "Installed app · phone layout";
+      kicker = it.steam ? "Steam game" : DESK ? "Installed app" : a.tv ? "Installed app" : "Installed app · phone layout";
       title = a.label;
       desc = favs.indexOf(a.pkg) >= 0 ? "Pinned to Favorites. Press Menu to unpin." : "Press Menu on the remote to pin this to Favorites.";
       color = (ic && ic.color) || a.color || "#3B2470";
@@ -1279,6 +1374,7 @@
   function resolveRelease(s) {
     var src = s.source;
     if (src.type === "appstore") return Promise.resolve({ version: "", url: "appstore", size: 0 });
+    if (src.type === "flatpak") return Promise.resolve({ version: "", url: "flatpak:" + src.id, size: 0 });
     if (src.type === "winget") return Promise.resolve({ version: "", url: "winget:" + src.id, size: 0 });
     if (src.type === "fdroid") {
       return nativeFetch("https://f-droid.org/en/packages/" + src.pkg + "/").then(function (html) {
@@ -1403,7 +1499,8 @@
 
   function renderStore() {
     var sc = $("#page-store .scroller"); sc.innerHTML = "";
-    if (IOS) sc.appendChild(el("div", "pagehead", "<h2>App Store picks</h2><p>Emulators, streaming and media apps that are on the App Store. Tap one to open it, or to get it if you don't have it yet.</p>"));
+    if (LINUX) sc.appendChild(el("div", "pagehead", "<h2>Store</h2><p>Games, emulators and apps from Flathub. They install in the background for your account, with no password needed, and update with Update all apps.</p>"));
+    else if (IOS) sc.appendChild(el("div", "pagehead", "<h2>App Store picks</h2><p>Emulators, streaming and media apps that are on the App Store. Tap one to open it, or to get it if you don't have it yet.</p>"));
     else sc.appendChild(el("div", "pagehead",
       "<h2>Homebrew Store</h2><p>Open-source apps, emulators, free games and Fire TV tools that aren't in the Amazon Appstore. ReaperOS picks the right build for your Fire TV, downloads it, and hands it to Fire OS to install. Want something that isn't listed? Install Obtainium and add any GitHub project. Press Menu on an installed app to uninstall it.</p>"));
     CATEGORIES.forEach(function (cat) {
@@ -1418,7 +1515,7 @@
           '<div><h4>' + esc(s.name) + '</h4><div class="src">From ' + esc(s.from) + (s.needs64 ? " · 64-bit only" : "") + '</div></div></div>' +
           '<p>' + esc(s.desc) + '</p><div class="prog"><i></i></div><div class="meta"></div><div class="act">Install</div>';
         c._act = function () { cardAction(s); };
-        c._menu = function () { if (storeState[s.id].installed && NATIVE) Reaper.uninstall(WIN ? s.source.id : s._pkg); };
+        c._menu = function () { if (storeState[s.id].installed && NATIVE) Reaper.uninstall(DESK ? s.source.id : s._pkg); };
         tr.appendChild(c);
         finishArt(c, s.icons);
       });
@@ -1429,7 +1526,7 @@
     if (IOS) { return; }
     var setup = el("section", "shelf");
     setup.style.marginTop = "2.4rem";
-    setup.innerHTML = "<h3><span>" + (WIN ? "Installs & updates" : "Before your first install") + "</span></h3>";
+    setup.innerHTML = "<h3><span>" + (DESK ? "Installs & updates" : "Before your first install") + "</span></h3>";
     var vp = el("div", "viewport"), tr2 = el("div", "track"); tr2.dataset.row = "1";
     var b1 = button("Allow app installs", "Lets ReaperOS hand APKs to the Fire OS installer", function () { NATIVE ? Reaper.openSettings("unknown") : toast("Opens the Fire TV permission screen"); });
     var b0 = button("Install starter pack", "Installs the featured apps one after another", function () {
@@ -1442,7 +1539,7 @@
       STORE.forEach(function (s) { storeState[s.id].remote = null; storeState[s.id].error = ""; });
       refreshStore(true); toast("Checking for updates…");
     });
-    if (!WIN) tr2.appendChild(b1);
+    if (!DESK) tr2.appendChild(b1);
     tr2.appendChild(b2); vp.appendChild(tr2); setup.appendChild(vp);
     sc.appendChild(setup);
     refreshStore();
@@ -1649,6 +1746,7 @@
     selfUpdate.checking = false; selfUpdate.manual = false; renderUpdateButton();
   };
   function checkSelfUpdate(manual) {
+    if (LINUX) { if (manual) toast("ReaperOS updates automatically with the system."); return; }
     if (WIN) { selfUpdate.manual = !!manual; selfUpdate.checking = true; renderUpdateButton(); Reaper.checkForUpdates(); return; }
     if (!NATIVE || selfUpdate.checking) return;
     selfUpdate.checking = true; renderUpdateButton();
@@ -1691,7 +1789,7 @@
     return STORE.filter(function (s) { var st = storeState[s.id]; return st.installed && cardState(s).label === "Update"; });
   }
   function updateAll() {
-    if (WIN) {
+    if (DESK) {
       var ids = STORE.filter(function (s) { return storeState[s.id].installed; }).map(function (s) { return s.source.id; });
       if (!ids.length) { toast("Install something from the store first."); return; }
       Reaper.upgradeAll(ids); return;
@@ -1758,7 +1856,7 @@
   function renderMedia() {
     var sc = $("#page-media .scroller"); sc.innerHTML = "";
     sc.appendChild(el("div", "pagehead", "<h2>ReaperOS Player</h2><p>Plays almost anything: " + MEDIA_FORMATS +
-      (NATIVE && !IOS ? (WIN ? ". Uses the mpv engine with hardware decoding and HDR." : ". Uses VLC's engine with hardware decoding, up to 4K HDR on 4K Fire TVs.") : ".") + "</p>"));
+      (NATIVE && !IOS ? (DESK ? ". Uses the mpv engine with hardware decoding and HDR." : ". Uses VLC's engine with hardware decoding, up to 4K HDR on 4K Fire TVs.") : ".") + "</p>"));
     var sec = el("section", "shelf"), vp = el("div", "viewport"), tr = el("div", "track"); tr.dataset.row = "1";
 
     if (!NATIVE || IOS) {
@@ -1779,7 +1877,7 @@
     if (!list.length) {
       tr.appendChild(button("Refresh", "Look for new videos and music", function () { renderMedia(); setFocus(1, 0); }));
       vp.appendChild(tr); sec.appendChild(vp); sc.appendChild(sec);
-      sc.appendChild(el("div", "about", WIN
+      sc.appendChild(el("div", "about", DESK
         ? "No videos found yet. ReaperOS looks in your Videos, Music, Downloads and Desktop folders."
         : "No videos found yet. Copy videos to the Downloads or Movies folder, plug in a USB drive, or send them from your iPhone with LocalSend."));
       return;
@@ -1801,7 +1899,7 @@
   }
   function renderSettings() {
     var sc = $("#page-settings .scroller"); sc.innerHTML = "";
-    sc.appendChild(el("div", "pagehead", "<h2>Settings</h2><p>ReaperOS keeps your favorites and choices on this device.</p>"));
+    sc.appendChild(el("div", "pagehead", "<h2>Settings</h2><p>" + (LINUX ? "ReaperOS is running as your operating system, on Bazzite. System updates install automatically in the background." : "ReaperOS keeps your favorites and choices on this device.") + "</p>"));
     var sec = el("section", "shelf"), vp = el("div", "viewport"), tr = el("div", "track"); tr.dataset.row = "1";
     if (WIN) {
       tr.appendChild(button("Windows Settings", "Display, sound, controllers, accounts", function () { Reaper.openSettings("system"); }));
@@ -1812,6 +1910,15 @@
       });
       tr.appendChild(boot);
       tr.appendChild(button("Exit ReaperOS", "Back to the Windows desktop", function () { Reaper.quit(); }));
+      tr.appendChild(button("Restart PC", "Restart Windows now", function () { Reaper.power("restart"); }));
+      tr.appendChild(button("Shut down", "Turn off this PC", function () { Reaper.power("shutdown"); }));
+    } else if (LINUX) {
+      tr.appendChild(button("Shut down", "Turn off this PC", function () { Reaper.power("shutdown"); }));
+      tr.appendChild(button("Restart", "Restart this PC", function () { Reaper.power("restart"); }));
+      tr.appendChild(button("Sleep", "Put this PC to sleep", function () { Reaper.power("sleep"); }));
+      if (OS_SESSION) tr.appendChild(button("Desktop mode", "Switch to the full KDE desktop. Use Return to ReaperOS there to come back.", function () { Reaper.desktopMode(); }));
+      else tr.appendChild(button("Exit ReaperOS", "Back to the desktop", function () { Reaper.quit(); }));
+      tr.appendChild(button("System settings", "Wi-Fi, display, sound, Bluetooth and accounts", function () { Reaper.openSettings("system"); }));
     } else if (!IOS) {
       tr.appendChild(button("Fire TV settings", "Network, display, controllers, accounts", function () { NATIVE ? Reaper.openSettings("system") : toast("Opens Fire TV settings"); }));
       tr.appendChild(button("Allow app installs", "Needed for the Homebrew Store", function () { NATIVE ? Reaper.openSettings("unknown") : toast("Opens the install permission"); }));
@@ -1822,6 +1929,7 @@
       refreshApps();
     });
     if (!WIN && !IOS) tr.appendChild(sys);
+    if (LINUX) sys.querySelector("span").textContent = "Show system tools like Konsole in Your apps";
     var th = button("Theme: " + (theme === "steam" ? "Big Picture" : "ReaperOS"), "Switch between the purple reaper look and a Steam Big Picture style", function () {
       theme = theme === "steam" ? "reaper" : "steam"; save("theme", theme);
       document.body.classList.toggle("theme-steam", theme === "steam");
@@ -1834,13 +1942,13 @@
       if (WIN && selfUpdate.ready) Reaper.installUpdate();
       else if (!WIN && selfUpdate.latest > myBuild()) startSelfUpdate(); else checkSelfUpdate(true);
     });
-    upb.id = "updBtn"; if (!IOS) tr.appendChild(upb);
+    upb.id = "updBtn"; if (!IOS && !LINUX) tr.appendChild(upb);
     var au = button("Automatic updates: " + (autoUpdate ? "On" : "Off"), "Download ReaperOS and app updates automatically", function () {
       autoUpdate = !autoUpdate; save("autoUpdate", autoUpdate);
       au.querySelector("b").textContent = "Automatic updates: " + (autoUpdate ? "On" : "Off");
       if (autoUpdate) { checkSelfUpdate(false); refreshStore(true); }
     });
-    if (!IOS) tr.appendChild(au);
+    if (!IOS && !LINUX) tr.appendChild(au);
     setTimeout(renderUpdateButton, 0);
     if (NATIVE && !IOS && Reaper.setPlayerOption) {
       var opt = function (key, def) { try { return Reaper.getPlayerOption ? Reaper.getPlayerOption(key, def) : load("player." + key, def); } catch (e) { return def; } };
@@ -1850,7 +1958,7 @@
         pt = !pt; setOpt("passthrough", pt); ptb.querySelector("b").textContent = "Surround passthrough: " + (pt ? "On" : "Off");
       });
       tr.appendChild(ptb);
-      if (!WIN) {
+      if (!DESK) {
         var mfb = button("Match video frame rate: " + (mf ? "On" : "Off"), "Switch the TV to 4K and the movie's frame rate while playing", function () {
           mf = !mf; setOpt("matchFrameRate", mf); mfb.querySelector("b").textContent = "Match video frame rate: " + (mf ? "On" : "Off");
         });
@@ -1980,10 +2088,10 @@
   $$(".tab").forEach(function (t) { t._act = function () { go(t.dataset.tab); }; });
 
   function updateHelp(t) {
-    var parts = ['<span><b>' + (WIN ? "ENTER / A" : "OK") + '</b>' + (t && t.classList.contains("tab") ? "Open" : "Select") + "</span>"];
-    if (t && t._item && t._item.kind === "app") parts.push("<span><b>" + (WIN ? "M / Y" : "MENU") + "</b>" + (favs.indexOf(t._item.app.pkg) >= 0 ? "Unpin" : "Pin to Favorites") + "</span>");
+    var parts = ['<span><b>' + (DESK ? "ENTER / A" : "OK") + '</b>' + (t && t.classList.contains("tab") ? "Open" : "Select") + "</span>"];
+    if (t && t._item && t._item.kind === "app") parts.push("<span><b>" + (DESK ? "M / Y" : "MENU") + "</b>" + (favs.indexOf(t._item.app.pkg) >= 0 ? "Unpin" : "Pin to Favorites") + "</span>");
     if (t && t.classList.contains("card")) parts.push("<span><b>MENU</b>" + (t.dataset.rom ? "Open in RetroArch" : "Uninstall") + "</span>");
-    parts.push("<span><b>" + (WIN ? "ESC / B" : "BACK") + "</b>" + (state.page === "home" ? "Top of the page" : "Home") + "</span>");
+    parts.push("<span><b>" + (DESK ? "ESC / B" : "BACK") + "</b>" + (state.page === "home" ? "Top of the page" : "Home") + "</span>");
     $("#help").innerHTML = parts.join("");
   }
 
@@ -2017,13 +2125,13 @@
       case "Back":
         if (state.page !== "home") { go("home"); return true; }
         if (state.row > 1) { setFocus(1, state.lastCol[1] || 0); return true; }
-        return WIN;  // already at the top of Home: Fire TV goes back to its own home; Windows stays put
+        return DESK;  // already at the top of Home: Fire TV goes back to its own home; Windows stays put
     }
     return false;
   };
 
   // Keyboard, mouse and controller: the browser preview and the Windows app.
-  if (!NATIVE || WIN) {
+  if (!NATIVE || DESK) {
     document.addEventListener("keydown", function (e) {
       var map = { ArrowUp: "ArrowUp", ArrowDown: "ArrowDown", ArrowLeft: "ArrowLeft", ArrowRight: "ArrowRight",
         Enter: "Enter", " ": "Enter", Escape: "Back", Backspace: "Back", m: "Menu", M: "Menu" };
@@ -2148,7 +2256,7 @@
     setTimeout(function () { checkSelfUpdate(false); }, wait + 8000);
     setInterval(function () { checkSelfUpdate(false); refreshStore(true); notifiedUpdates = false; }, 6 * 3600 * 1000);
   }
-  if (WIN) save("setupDone", true);
+  if (DESK) save("setupDone", true);
   if (!load("setupDone", false)) {
     if (NATIVE) setTimeout(runFirstSetup, wait + 500);
     else if (!IOS) setTimeout(function () { toast("On your Fire TV, ReaperOS installs your apps automatically on first launch."); }, wait + 900);

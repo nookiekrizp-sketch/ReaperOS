@@ -11,3 +11,4 @@ windows/ui/
 windows/package-lock.json
 !windows/build/
 windows/mpv/
+os/system_files/usr/lib/reaperos/
