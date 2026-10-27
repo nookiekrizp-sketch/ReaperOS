@@ -7,7 +7,7 @@ def buildNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
 
 android {
     namespace 'com.reaperos.launcher'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId 'com.reaperos.launcher'
@@ -52,5 +52,5 @@ android {
 
 dependencies {
     implementation 'androidx.core:core:1.12.0'
-    implementation 'org.videolan.android:libvlc-all:3.7.6'
+    implementation 'org.videolan.android:libvlc-all:3.6.5'
 }
