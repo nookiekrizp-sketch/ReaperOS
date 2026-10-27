@@ -7,7 +7,7 @@
   "author": "ReaperOS",
   "license": "MIT",
   "scripts": {
-    "copy-ui": "node -e \"require('fs').mkdirSync('ui',{recursive:true});require('fs').copyFileSync('../app/src/main/assets/index.html','ui/index.html')\"",
+    "copy-ui": "node -e \"require('fs').rmSync('ui',{recursive:true,force:true});require('fs').cpSync('../app/src/main/assets','ui',{recursive:true})\"",
     "start": "npm run copy-ui && electron .",
     "dist": "npm run copy-ui && electron-builder --win nsis --x64 --publish never"
   },

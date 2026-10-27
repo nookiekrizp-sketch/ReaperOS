@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ReaperOS Player</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; color: #F2EEFB;
+    font-family: "Roboto", "Segoe UI", system-ui, sans-serif; }
+  #game { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
+  #bar { position: fixed; top: 0; left: 0; right: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between;
+    padding: calc(10px + env(safe-area-inset-top)) 18px 10px; background: linear-gradient(rgba(0,0,0,.85), rgba(0,0,0,0));
+    transition: opacity .6s ease; font-size: 15px; }
+  #bar.hide { opacity: 0; pointer-events: none; }
+  #bar b { font-size: 17px; }
+  #exit { border: 0; border-radius: 20px; padding: 8px 16px; background: #22E3FF; color: #0B0714; font-weight: 700; font-size: 14px; }
+  #keys { color: #A99CC7; }
+  #keys span { margin-left: 14px; }
+  #keys i { font-style: normal; color: #fff; font-weight: 700; margin-right: 4px; }
+  #err { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; display: none; max-width: 80%; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <div><button id="exit">&#9664; ReaperOS</button> &nbsp; <b id="title"></b></div>
+  <div id="keys"></div>
+</div>
+<div id="game"></div>
+<div id="err"><b>Couldn't start the game.</b><br><span id="errmsg"></span><br><br>The built-in player needs an internet connection the first time each system is used.</div>
+<script>
+(function () {
+  "use strict";
+  var params = new URLSearchParams(location.search);
+  var core = params.get("core") || "nes";
+  var rom = params.get("rom") || "";
+  var name = params.get("name") || "Game";
+  var NATIVE = !!window.Reaper;
+  var platform = "web";
+  try { if (NATIVE) platform = JSON.parse(Reaper.deviceInfo()).platform || "android"; } catch (e) { platform = "android"; }
+  document.getElementById("title").textContent = name;
+  var keys = platform === "android"
+    ? "<span><i>OK</i>A</span><span><i>&#9199;</i>B</span><span><i>&#9776;</i>Start</span><span><i>&#9194;</i>Select</span><span><i>BACK</i>Exit</span>"
+    : "<span><i>Z</i>A</span><span><i>X</i>B</span><span><i>Enter</i>Start</span><span><i>V</i>Select</span><span><i>Esc</i>Exit</span>";
+  if (!("ontouchstart" in window)) document.getElementById("keys").innerHTML = keys + "<span>Controllers work too</span>";
+  var bar = document.getElementById("bar");
+  setTimeout(function () { bar.classList.add("hide"); }, 5000);
+  document.addEventListener("mousemove", function () { bar.classList.remove("hide"); clearTimeout(bar._t); bar._t = setTimeout(function () { bar.classList.add("hide"); }, 3000); });
+
+  function exitToLauncher() { location.href = "index.html?resume=1"; }
+  document.getElementById("exit").addEventListener("click", exitToLauncher);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && e.isTrusted) { e.preventDefault(); exitToLauncher(); } }, true);
+
+  // ---- Fire TV: remote and controller buttons arrive from the app as Android key codes.
+  // They become the keyboard keys EmulatorJS listens for by default.
+  var KC = { up: 38, down: 40, left: 37, right: 39, A: 90, B: 88, X: 65, Y: 83, start: 13, select: 86, L: 81, R: 69 };
+  var ANDROID = {
+    19: "up", 20: "down", 21: "left", 22: "right",
+    23: "A", 66: "A", 96: "A",            // OK / Enter / controller A
+    85: "B", 97: "B",                      // Play-Pause / controller B
+    99: "X", 100: "Y", 102: "L", 103: "R",
+    82: "start", 108: "start",             // Menu / controller Start
+    89: "select", 109: "select", 90: "X"   // Rewind / Select, Fast-forward = X
+  };
+  var held = {};
+  function sendKey(btn, down) {
+    var code = KC[btn]; if (!code) return;
+    if (down && held[btn]) return;
+    held[btn] = down;
+    var ev = new KeyboardEvent(down ? "keydown" : "keyup", { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, "keyCode", { get: function () { return code; } });
+    Object.defineProperty(ev, "which", { get: function () { return code; } });
+    (document.activeElement || document).dispatchEvent(ev);
+    document.dispatchEvent(ev);
+  }
+  window.reaperKey = function (name, repeat, raw) {
+    // Only the remote's own Back (4) or Escape (111) leaves the game; controller B (97) is a game button.
+    if (raw === 4 || raw === 111 || (raw === undefined && name === "Back")) { exitToLauncher(); return true; }
+    var btn = ANDROID[raw]; if (btn) sendKey(btn, true);
+    return true;
+  };
+  window.reaperKeyUp = function (name, raw) { var btn = ANDROID[raw]; if (btn) sendKey(btn, false); };
+
+  // ---- Load the game: from the app itself when installed, otherwise from this site.
+  function boot(gameUrl) {
+    window.EJS_player = "#game";
+    window.EJS_core = core;
+    window.EJS_gameName = name;
+    window.EJS_gameUrl = gameUrl;
+    window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
+    window.EJS_startOnLoaded = true;
+    window.EJS_color = "#22E3FF";
+    window.EJS_backgroundColor = "#000000";
+    window.EJS_volume = 0.8;
+    var s = document.createElement("script");
+    s.src = "https://cdn.emulatorjs.org/stable/data/loader.js";
+    s.onerror = function () { fail("The emulator didn't load. Check the internet connection and try again."); };
+    document.body.appendChild(s);
+  }
+  function fail(msg) { document.getElementById("errmsg").textContent = msg; document.getElementById("err").style.display = "block"; }
+
+  try {
+    if (NATIVE && Reaper.readRom) {
+      var b64 = Reaper.readRom(rom);
+      if (!b64) return fail("The game file is missing.");
+      var bin = atob(b64), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      boot(URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" })));
+    } else {
+      boot(rom);
+    }
+  } catch (e) { fail(String(e && e.message || e)); }
+})();
+</script>
+</body>
+</html>

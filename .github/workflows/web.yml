@@ -26,7 +26,7 @@ jobs:
       - name: Assemble site
         run: |
           mkdir -p _site
-          cp app/src/main/assets/index.html _site/
+          cp -r app/src/main/assets/. _site/
           cp web/* _site/
           touch _site/.nojekyll
 

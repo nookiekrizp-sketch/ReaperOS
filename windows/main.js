@@ -294,6 +294,38 @@ function setupUpdater() {
   updater.on("error", (e) => js(`window.reaperUpdate && reaperUpdate("error", ${q(e && e.message)})`));
 }
 
+// ------------------------------------------------------------------ built-in web player
+
+let webWin = null;
+function openWebWindow(url, ua) {
+  if (!/^https:\/\//i.test(url)) return;
+  if (webWin && !webWin.isDestroyed()) webWin.close();
+  webWin = new BrowserWindow({
+    fullscreen: true, autoHideMenuBar: true, backgroundColor: "#000000", show: false,
+    icon: path.join(__dirname, "build", "icon.png"),
+    webPreferences: { partition: "persist:reaperweb", contextIsolation: true, sandbox: true }
+  });
+  webWin.removeMenu();
+  if (ua) webWin.webContents.setUserAgent(ua);
+  webWin.once("ready-to-show", () => webWin.show());
+  // Pop-ups (sign-in windows and the like) open in the same player.
+  webWin.webContents.setWindowOpenHandler(({ url: u }) => {
+    if (/^https:\/\//i.test(u)) { webWin.loadURL(u); }
+    return { action: "deny" };
+  });
+  // Esc (when no video is full screen) or Alt+F4 returns to ReaperOS.
+  let htmlFull = false;   // a video playing full screen inside the page
+  webWin.on("enter-html-full-screen", () => { htmlFull = true; });
+  webWin.on("leave-html-full-screen", () => { htmlFull = false; });
+  webWin.webContents.on("before-input-event", (e, input) => {
+    if (input.type !== "keyDown") return;
+    if (input.key === "Escape" && !htmlFull) { e.preventDefault(); webWin.close(); }
+    if (input.key === "F11") { webWin.setFullScreen(!webWin.isFullScreen()); e.preventDefault(); }
+  });
+  webWin.on("closed", () => { webWin = null; if (win && !win.isDestroyed()) win.focus(); });
+  webWin.loadURL(url);
+}
+
 // ------------------------------------------------------------------ bridge
 
 const syncHandlers = {
@@ -313,7 +345,13 @@ const syncHandlers = {
   },
   launch: (pkg) => launchApp(String(pkg || "")),
   playInRetroArch: (rom, core) => playInRetroArch(rom, core),
-  getLoginItem: () => app.getLoginItemSettings().openAtLogin
+  getLoginItem: () => app.getLoginItemSettings().openAtLogin,
+  // Bundled games for the built-in player
+  readRom: (rel) => {
+    const p = path.normalize(path.join(__dirname, "ui", String(rel || "")));
+    if (!p.startsWith(path.join(__dirname, "ui"))) return "";
+    try { return fs.readFileSync(p).toString("base64"); } catch (e) { return ""; }
+  }
 };
 
 const asyncHandlers = {
@@ -352,6 +390,8 @@ const asyncHandlers = {
   },
   installUpdate: () => { if (updater) updater.quitAndInstall(false, true); },
   setLoginItem: (on) => app.setLoginItemSettings({ openAtLogin: !!on, args: ["--startup"] }),
+  // Built-in player window for services' websites (Xbox Cloud Gaming, GeForce NOW, YouTube...).
+  openWeb: (url, ua) => openWebWindow(String(url), ua ? String(ua) : ""),
   quit: () => app.quit()
 };
 

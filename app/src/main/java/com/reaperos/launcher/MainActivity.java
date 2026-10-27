@@ -89,6 +89,8 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setAllowFileAccess(true);
+        s.setAllowFileAccessFromFileURLs(true);
+        s.setAllowUniversalAccessFromFileURLs(true);
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
 
@@ -128,18 +130,21 @@ public class MainActivity extends Activity {
     /** Remote buttons are forwarded straight to the interface so navigation stays predictable. */
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
-        String name = keyName(e.getKeyCode());
+        final int code = e.getKeyCode();
+        String name = keyName(code);
         if (name == null) return super.dispatchKeyEvent(e);
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             final String n = name;
             final boolean repeat = e.getRepeatCount() > 0;
             web.evaluateJavascript(
-                    "window.reaperKey ? reaperKey('" + n + "'," + repeat + ") : false",
+                    "window.reaperKey ? reaperKey('" + n + "'," + repeat + "," + code + ") : false",
                     value -> {
                         if ("Back".equals(n) && !repeat && !"true".equals(value)) {
                             moveTaskToBack(true);
                         }
                     });
+        } else if (e.getAction() == KeyEvent.ACTION_UP) {
+            web.evaluateJavascript("window.reaperKeyUp && reaperKeyUp('" + name + "'," + code + ")", null);
         }
         return true;
     }
@@ -163,6 +168,10 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_BUTTON_L1: return "PageLeft";
             case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
             case KeyEvent.KEYCODE_BUTTON_R1: return "PageRight";
+            case KeyEvent.KEYCODE_BUTTON_X: return "X";
+            case KeyEvent.KEYCODE_BUTTON_START: return "Start";
+            case KeyEvent.KEYCODE_BUTTON_SELECT: return "Select";
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: return "PlayPause";
             default: return null;
         }
     }
@@ -610,6 +619,34 @@ public class MainActivity extends Activity {
             } catch (Exception ex) {
                 return launch("com.retroarch") ? "fallback" : "not_installed";
             }
+        }
+
+        /** A game file bundled inside ReaperOS (assets/roms), as base64 for the built-in player. */
+        @JavascriptInterface
+        public String readRom(String path) {
+            if (path == null || path.contains("..")) return "";
+            try {
+                InputStream in = getAssets().open(path);
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                byte[] buf = new byte[65536];
+                int n;
+                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                in.close();
+                return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+            } catch (Exception ex) {
+                return "";
+            }
+        }
+
+        /** Opens a service's website in ReaperOS's own full-screen player. */
+        @JavascriptInterface
+        public void openWeb(final String url, final String ua) {
+            ui.post(() -> {
+                Intent i = new Intent(MainActivity.this, WebPlayerActivity.class);
+                i.putExtra(WebPlayerActivity.EXTRA_URL, url);
+                i.putExtra(WebPlayerActivity.EXTRA_UA, ua == null ? "" : ua);
+                startActivity(i);
+            });
         }
 
         @JavascriptInterface

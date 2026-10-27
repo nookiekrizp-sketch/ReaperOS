@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("Reaper", {
   canInstall: () => true,
   playInRetroArch: sync("playInRetroArch"),
   getLoginItem: sync("getLoginItem"),
+  readRom: sync("readRom"),
   // answered later through window.reaper* callbacks
   requestIcon: async("requestIcon"),
   fetch: async("fetch"),
@@ -27,5 +28,6 @@ contextBridge.exposeInMainWorld("Reaper", {
   checkForUpdates: async("checkForUpdates"),
   installUpdate: async("installUpdate"),
   setLoginItem: async("setLoginItem"),
+  openWeb: async("openWeb"),
   quit: async("quit")
 });

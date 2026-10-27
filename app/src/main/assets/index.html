@@ -619,6 +619,10 @@
 
 
   // Movies, TV and anime: official apps, opened directly or from the platform's app store.
+  // Services with a "web" address can also play inside ReaperOS's own player when the app isn't installed.
+  var UA_TV = "Mozilla/5.0 (PS4; Leanback Shell) Gecko/20100101 Firefox/65.0 LeanbackShell/01.00.01.75 Sony PS4/ (PS4, , no, CH)";
+  var UA_DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+  var UA_EDGE = UA_DESKTOP + " Edg/130.0.0.0";
   var MOVIES = [
     { id: "netflix", name: "Netflix", glyph: "N", color: "#E50914", match: /^netflix/i, query: "Netflix", icons: ["https://www.google.com/s2/favicons?domain=netflix.com&sz=256"], kicker: "Movies & TV",
       desc: "Movies, series and Netflix originals, including a big anime catalog." },
@@ -655,6 +659,21 @@
   ];
 
 
+  var EMBED = {
+    youtube: { web: "https://www.youtube.com/tv", ua: UA_TV },
+    tubi: { web: "https://tubitv.com/home", ua: UA_DESKTOP },
+    pluto: { web: "https://pluto.tv/live-tv", ua: UA_DESKTOP },
+    plex: { web: "https://app.plex.tv/desktop", ua: UA_DESKTOP },
+    retrocrush: { web: "https://www.retrocrush.tv", ua: UA_DESKTOP },
+    crunchyroll: { web: "https://www.crunchyroll.com", ua: UA_DESKTOP }
+  };
+  MOVIES.concat(ANIME).forEach(function (m) { if (EMBED[m.id]) { m.web = EMBED[m.id].web; m.ua = EMBED[m.id].ua; } });
+  function canEmbed(c) { return !!c.web && NATIVE && !IOS; }
+  function openEmbedded(c) {
+    toast("Opening " + c.name + " in ReaperOS\u2026");
+    Reaper.openWeb(c.web, c.ua || "");
+  }
+
   // ---------------------------------------------------------------- iOS catalog
   // iOS can't install apps for us, so tiles open the app (by URL scheme when one is known)
   // and fall back to its App Store page.
@@ -662,8 +681,8 @@
     return "itms-apps://search.itunes.apple.com/WebObjects/MZSearch.woa/wa/search?media=software&term=" + encodeURIComponent(q);
   }
   function openIOS(c) {
-    if (c.web) { window.open(c.web, "_blank"); return; }
     var store = appStoreSearch(c.query || c.name);
+    if (!c.scheme && c.web) { window.open(c.web, "_blank"); return; }
     if (!c.scheme) { window.location.href = store; return; }
     var left = false;
     var onHide = function () { if (document.visibilityState === "hidden") left = true; };
@@ -725,12 +744,15 @@
       { id: "bigpicture", name: "Steam Big Picture", glyph: "S", color: "#1B2838", match: /^steam$/i, launchUrl: "steam://open/bigpicture",
         winget: "Valve.Steam", icons: ["https://www.google.com/s2/favicons?domain=store.steampowered.com&sz=256"], kicker: "Steam",
         desc: "Opens Steam straight into Big Picture mode, Valve's controller-first interface." },
-      { id: "xcloud", name: "Xbox", glyph: "X", color: "#107C10", match: /^xbox$/i, winget: "msstore:9MV0B5HZVK9Z",
+      { id: "xcloud", name: "Xbox", glyph: "X", color: "#107C10", match: /^xbox$/i, winget: "msstore:9MV0B5HZVK9Z", web: "https://www.xbox.com/play", ua: UA_EDGE,
         icons: ["https://www.google.com/s2/favicons?domain=xbox.com&sz=256"], kicker: "PC & cloud gaming",
         desc: "Your PC Game Pass library and Xbox Cloud Gaming." },
-      { id: "gfn", name: "GeForce NOW", glyph: "G", color: "#5E9E00", match: /geforce ?now/i, winget: "Nvidia.GeForceNow",
+      { id: "gfn", name: "GeForce NOW", glyph: "G", color: "#5E9E00", match: /geforce ?now/i, winget: "Nvidia.GeForceNow", web: "https://play.geforcenow.com", ua: UA_DESKTOP,
         icons: ["https://www.google.com/s2/favicons?domain=nvidia.com&sz=256"], kicker: "Cloud gaming",
         desc: "Play your Steam and Epic games on NVIDIA's cloud rigs." },
+      { id: "luna", name: "Amazon Luna", glyph: "L", color: "#7B2FF7", match: /\bluna\b/i, web: "https://luna.amazon.com", ua: UA_DESKTOP,
+        icons: ["https://www.google.com/s2/favicons?domain=luna.amazon.com&sz=256"], kicker: "Cloud gaming",
+        desc: "Amazon's game streaming, playing right inside ReaperOS." },
       { id: "steamlink", name: "Steam Link", glyph: "S", color: "#2A475E", match: /steam ?link/i, winget: "Valve.SteamLink",
         icons: ["https://www.google.com/s2/favicons?domain=steampowered.com&sz=256"], kicker: "Streaming",
         desc: "Stream games from another PC running Steam." },
@@ -1057,7 +1079,8 @@
     t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + r.color + ',#120A22 90%)"></div>' +
       '<div class="ic glyph" style="background:rgba(0,0,0,.28);font-size:1.3rem">' + esc(r.sys === "NES" ? "NES" : "GB") + '</div>' +
       '<div class="name">' + esc(r.name) + "</div>";
-    t._act = function () { playRom(r); };
+    t._act = function () { playBuiltIn(r); };
+    t._menu = function () { if (NATIVE && !IOS) { if (romSaved[r.id]) playRom(r); else downloadRom(r); } };
     return t;
   }
 
@@ -1069,12 +1092,13 @@
     if (inst && NATIVE) { t.dataset.pkg = inst.pkg; if (!icons[inst.pkg]) Reaper.requestIcon(inst.pkg); }
     t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + c.color + ',#120A22 90%)"></div>' +
       '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(c.glyph) + '</div><div class="name">' + esc(c.name) + '</div>' +
-      (inst || IOS ? "" : '<div class="get">Get app</div>');
+      (inst || IOS ? "" : canEmbed(c) ? '<div class="get">Plays here</div>' : '<div class="get">Get app</div>');
     t._act = function () {
       if (IOS) { openIOS(c); return; }
       var a = cloudApp(c);
       if (WIN && a && c.launchUrl) { Reaper.openUrl(c.launchUrl); return; }
       if (a) { launchApp(a); return; }
+      if (canEmbed(c)) { openEmbedded(c); return; }
       if (WIN && c.winget) { toast("Installing " + c.name + " with winget\u2026"); Reaper.install("cloud:" + c.id, "winget:" + c.winget); return; }
       if (NATIVE) { toast("Opening " + c.name + " in the app store…"); Reaper.openAppstore(c.pkg || "", c.query, !!c.preferPlay); }
       else toast("Opens " + c.name + " in the Appstore on your Fire TV");
@@ -1134,8 +1158,7 @@
     var steamGamesList = steamLibrary();
     if (steamGamesList.length) sc.appendChild(shelf("Steam library", steamGamesList.length, steamGamesList.map(steamTile)));
     if (!IOS) sc.appendChild(shelf("Your apps", apps.length, apps.map(appTile), "No apps found."));
-    var myGames = ROMS.filter(function (r) { return romSaved[r.id]; });
-    if (myGames.length) sc.appendChild(shelf("Your games", myGames.length, myGames.map(romTile)));
+    sc.appendChild(shelf("Games \u00b7 play here", ROMS.length, ROMS.map(romTile)));
     sc.appendChild(shelf("Movies & TV", MOVIES.length, MOVIES.map(linkTile)));
     sc.appendChild(shelf("Anime", ANIME.length, ANIME.map(linkTile)));
     sc.appendChild(shelf("PC & cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
@@ -1159,12 +1182,12 @@
       color = (ic && ic.color) || a.color || "#3B2470";
       if (ic) art = '<img class="' + (ic.banner ? "wide" : "") + '" src="' + ic.src + '">';
     } else if (it.kind === "rom") {
-      var rr = it.rom; kicker = rr.sys + " \u00b7 free homebrew"; title = rr.name; desc = rr.desc; color = rr.color; act = "Play in RetroArch";
+      var rr = it.rom; kicker = rr.sys + " \u00b7 built-in player"; title = rr.name; desc = rr.desc; color = rr.color; act = "Play";
       art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:3.6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(rr.sys === "NES" ? "NES" : "GB") + "</div>";
     } else if (it.kind === "cloud") {
       var c = it.cloud, ca = cloudApp(c); kicker = c.kicker; title = c.name; color = c.color;
-      desc = ca || IOS ? c.desc : "Not installed yet. Press OK to get the app.";
-      act = ca || IOS ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : "Play") : "Get app";
+      desc = ca || IOS ? c.desc : canEmbed(c) ? c.desc + " Plays right here in ReaperOS; install the app anytime for the full experience." : "Not installed yet. Press OK to get the app.";
+      act = ca || IOS || canEmbed(c) ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : "Play") : "Get app";
       art = artFor(t, c.glyph);
     } else {
       var s = it.store, inst = installedVersion(s);
@@ -1468,19 +1491,19 @@
   // ---------------------------------------------------------------- free homebrew games
   // Freely distributed homebrew made for retro consoles, saved where emulators can find them.
   var ROMS = [
-    { id: "nova", name: "Nova the Squirrel", sys: "NES", core: "fceumm", folder: "ROMs/NES", file: "nova.nes", color: "#E67E22",
+    { id: "nova", ejs: "nes", local: "roms/nova.nes", name: "Nova the Squirrel", sys: "NES", core: "fceumm", folder: "ROMs/NES", file: "nova.nes", color: "#E67E22",
       url: "https://github.com/NovaSquirrel/NovaTheSquirrel/releases/download/v1.0.6a/nova.nes",
       desc: "A full-length platformer about a squirrel who can copy enemy abilities." },
-    { id: "thwaite", name: "Thwaite", sys: "NES", core: "fceumm", folder: "ROMs/NES", file: "thwaite.nes", color: "#C0392B",
+    { id: "thwaite", ejs: "nes", local: "roms/thwaite.nes", name: "Thwaite", sys: "NES", core: "fceumm", folder: "ROMs/NES", file: "thwaite.nes", color: "#C0392B",
       url: "https://github.com/pinobatch/thwaite-nes/releases/download/v0.04/thwaite.nes",
       desc: "Missile Command-style defense of a medieval village. One or two players." },
-    { id: "croom", name: "Concentration Room", sys: "NES", core: "fceumm", folder: "ROMs/NES", file: "croom.nes", color: "#16A085",
+    { id: "croom", ejs: "nes", local: "roms/croom.nes", name: "Concentration Room", sys: "NES", core: "fceumm", folder: "ROMs/NES", file: "croom.nes", color: "#16A085",
       url: "https://github.com/pinobatch/croom-nes/releases/download/v0.02a/croom.nes",
       desc: "A memory card-matching game with a spooky lab twist." },
-    { id: "libbet", name: "Libbet and the Magic Floor", sys: "Game Boy", core: "gambatte", folder: "ROMs/GB", file: "libbet.gb", color: "#7F8C3A",
+    { id: "libbet", ejs: "gb", local: "roms/libbet.gb", name: "Libbet and the Magic Floor", sys: "Game Boy", core: "gambatte", folder: "ROMs/GB", file: "libbet.gb", color: "#7F8C3A",
       url: "https://github.com/pinobatch/libbet/releases/download/v0.08/libbet.gb",
       desc: "Puzzle game: roll across every tile of a basement floor to restore it." },
-    { id: "ucity", name: "µCity", sys: "Game Boy Color", core: "gambatte", folder: "ROMs/GBC", file: "ucity.gbc", color: "#2980B9",
+    { id: "ucity", ejs: "gb", local: "roms/ucity.gbc", name: "µCity", sys: "Game Boy Color", core: "gambatte", folder: "ROMs/GBC", file: "ucity.gbc", color: "#2980B9",
       url: "https://github.com/AntonioND/ucity/releases/download/v1.3/ucity.gbc",
       desc: "A full city-building simulator, SimCity-style, on a Game Boy Color." }
   ];
@@ -1494,16 +1517,21 @@
     var st = romState[r.id];
     if (st.busy) return st.pct >= 0 ? "Downloading " + st.pct + "%" : "Downloading…";
     if (st.error) return "Retry";
-    if (IOS) return "Save to Files";
-    return romSaved[r.id] ? "Play in RetroArch" : "Download";
+    return "Play";
   }
   function updateRom(id) {
     var c = $('.card[data-rom="' + id + '"]'); if (!c) return;
     var r = ROMS.filter(function (x) { return x.id === id; })[0], st = romState[id];
     c.querySelector(".act").textContent = romLabel(r);
-    c.querySelector(".meta").textContent = st.error ? st.error : (romSaved[id] ? "Saved in " + romSaved[id] + " · Menu re-downloads" : r.sys + " · plays in RetroArch");
+    c.querySelector(".meta").textContent = st.error ? st.error : r.sys + " \u00b7 built in, plays right here" + (NATIVE && !IOS ? " \u00b7 Menu: RetroArch" : "");
     c.classList.toggle("busy", !!st.busy);
     c.querySelector(".prog i").style.width = Math.max(0, st.pct || 0) + "%";
+  }
+  // Plays a bundled game in ReaperOS's own emulator page; no other app needed.
+  function playBuiltIn(r) {
+    var url = "emulator.html?core=" + encodeURIComponent(r.ejs) + "&rom=" + encodeURIComponent(r.local) + "&name=" + encodeURIComponent(r.name);
+    try { sessionStorage.setItem("reaper.lastFocus", JSON.stringify(focusKey())); } catch (e) {}
+    location.href = url;
   }
   function downloadRom(r) {
     var st = romState[r.id];
@@ -1557,15 +1585,15 @@
   };
   function romSection() {
     var sec = el("section", "shelf");
-    sec.innerHTML = "<h3><span>Free homebrew for your emulators</span><small>" + ROMS.length + " games</small></h3>";
+    sec.innerHTML = "<h3><span>Free homebrew games \u00b7 built in</span><small>" + ROMS.length + " games</small></h3>";
     var vp = el("div", "viewport"), tr = el("div", "cards"); tr.dataset.row = "1";
     ROMS.forEach(function (r) {
       var c = el("div", "card f"); c.dataset.rom = r.id;
       c.innerHTML = '<div class="head"><div class="logo" style="background:' + r.color + ';font-size:1.3rem">' + esc(r.sys === "NES" ? "NES" : "GB") + '</div>' +
         '<div><h4>' + esc(r.name) + '</h4><div class="src">' + esc(r.sys) + ' homebrew · free</div></div></div>' +
         '<p>' + esc(r.desc) + '</p><div class="prog"><i></i></div><div class="meta"></div><div class="act">Download</div>';
-      c._act = function () { downloadRom(r); };
-      c._menu = function () { redownloadRom(r); };
+      c._act = function () { playBuiltIn(r); };
+      c._menu = function () { if (NATIVE && !IOS) { if (romSaved[r.id]) playRom(r); else downloadRom(r); } };
       tr.appendChild(c);
     });
     vp.appendChild(tr); sec.appendChild(vp);
@@ -1824,7 +1852,7 @@
   function updateHelp(t) {
     var parts = ['<span><b>' + (WIN ? "ENTER / A" : "OK") + '</b>' + (t && t.classList.contains("tab") ? "Open" : "Select") + "</span>"];
     if (t && t._item && t._item.kind === "app") parts.push("<span><b>" + (WIN ? "M / Y" : "MENU") + "</b>" + (favs.indexOf(t._item.app.pkg) >= 0 ? "Unpin" : "Pin to Favorites") + "</span>");
-    if (t && t.classList.contains("card")) parts.push("<span><b>MENU</b>" + (t.dataset.rom ? "Re-download" : "Uninstall") + "</span>");
+    if (t && t.classList.contains("card")) parts.push("<span><b>MENU</b>" + (t.dataset.rom ? "Open in RetroArch" : "Uninstall") + "</span>");
     parts.push("<span><b>" + (WIN ? "ESC / B" : "BACK") + "</b>" + (state.page === "home" ? "Top of the page" : "Home") + "</span>");
     $("#help").innerHTML = parts.join("");
   }
@@ -1972,13 +2000,18 @@
 
   // ---------------------------------------------------------------- start
   var started = Date.now();
-  playJingle();
+  var RESUMING = /[?&]resume=1/.test(location.search);
+  if (RESUMING) { $("#splash").classList.add("gone"); try { history.replaceState(null, "", location.pathname); } catch (e) {} }
+  else playJingle();
   refreshApps();
   $("#page-home").classList.add("on");
   $$(".tab")[0].classList.add("active");
   renderHome(false);
   setFocus(1, 0, true);
-  var wait = Math.max(0, 2600 - (Date.now() - started));   // let the reaper have its moment
+  var wait = RESUMING ? 0 : Math.max(0, 2600 - (Date.now() - started));
+  if (RESUMING) {
+    try { var lf = JSON.parse(sessionStorage.getItem("reaper.lastFocus") || "null"); if (lf) restoreFocus(lf); } catch (e) {}
+  }   // let the reaper have its moment
   setTimeout(function () { $("#splash").classList.add("gone"); }, wait);
   setTimeout(function () { refreshStore(); }, wait + 600); // warm the store quietly
   if (NATIVE && autoUpdate) {
