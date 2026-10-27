@@ -328,7 +328,15 @@ public class MainActivity extends Activity {
         };
         String[] kinds = {"video", "audio"};
         for (int k = 0; k < sources.length; k++) {
-            String[] cols = {
+            String[] cols = k == 0 ? new String[]{
+                    android.provider.MediaStore.MediaColumns.DATA,
+                    android.provider.MediaStore.MediaColumns.DISPLAY_NAME,
+                    android.provider.MediaStore.MediaColumns.SIZE,
+                    "duration",
+                    android.provider.MediaStore.MediaColumns.DATE_MODIFIED,
+                    "width",
+                    "height"
+            } : new String[]{
                     android.provider.MediaStore.MediaColumns.DATA,
                     android.provider.MediaStore.MediaColumns.DISPLAY_NAME,
                     android.provider.MediaStore.MediaColumns.SIZE,
@@ -351,6 +359,7 @@ public class MainActivity extends Activity {
                     o.put("duration", c.getLong(3));
                     o.put("date", c.getLong(4));
                     o.put("kind", kinds[k]);
+                    if (k == 0) { o.put("width", c.getInt(5)); o.put("height", c.getInt(6)); }
                     File parent = new File(path).getParentFile();
                     o.put("folder", parent != null ? parent.getName() : "");
                     arr.put(o);
@@ -714,6 +723,17 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String listMedia() { return listMediaJson(); }
+
+        /** ReaperOS Player options: "passthrough" (Dolby/DTS to a receiver) and "matchFrameRate". */
+        @JavascriptInterface
+        public void setPlayerOption(String key, boolean on) {
+            getSharedPreferences("reaper_player", MODE_PRIVATE).edit().putBoolean(key, on).apply();
+        }
+
+        @JavascriptInterface
+        public boolean getPlayerOption(String key, boolean fallback) {
+            return getSharedPreferences("reaper_player", MODE_PRIVATE).getBoolean(key, fallback);
+        }
 
         /** Plays a video or music file in ReaperOS Player (VLC's engine). */
         @JavascriptInterface

@@ -41,7 +41,14 @@ jobs:
           echo "/opt/gradle-8.7/bin" >> "$GITHUB_PATH"
 
       - name: Build signed APK
-        run: gradle assembleRelease --no-daemon --stacktrace --warning-mode=none
+        run: |
+          set +e
+          gradle assembleRelease --no-daemon --warning-mode=none 2>&1 | tee build.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" != "0" ]; then
+            grep -E "error:|^e: |What went wrong|> .*failed|Manifest merger|requires" -A2 build.log | head -40 | while IFS= read -r line; do echo "::error::$line"; done
+          fi
+          exit $status
 
       - name: Rename APK
         run: cp app/build/outputs/apk/release/app-release.apk ReaperOS.apk

@@ -328,12 +328,17 @@ function mpvPath() {
   return fs.existsSync(dev) ? dev : "mpv";
 }
 
+const playerOptions = { passthrough: false };
 function playMedia(file, title) {
   const args = [
+    "--target-colorspace-hint=yes",          // HDR output on HDR displays
+    "--video-sync=display-resample",         // smooth motion at any refresh rate
     "--fullscreen", "--force-window=yes", "--input-gamepad=yes", "--save-position-on-quit",
     "--osd-font-size=42", "--osd-bar=yes", "--keep-open=no", "--hwdec=auto-safe",
-    "--title=ReaperOS Player - " + (title || path.basename(file)), file
+    "--title=ReaperOS Player - " + (title || path.basename(file))
   ];
+  if (playerOptions.passthrough) args.push("--audio-spdif=ac3,eac3,dts,dts-hd,truehd");
+  args.push(file);
   try {
     const p = spawn(mpvPath(), args, { windowsHide: false });
     p.on("error", () => toast("ReaperOS Player couldn't start. Reinstall ReaperOS to restore it."));
@@ -395,6 +400,7 @@ const syncHandlers = {
   getLoginItem: () => app.getLoginItemSettings().openAtLogin,
   // Bundled games for the built-in player
   listMedia: () => JSON.stringify(listMedia()),
+  getPlayerOption: (key, def) => (key in playerOptions ? playerOptions[key] : def),
   readRom: (rel) => {
     const p = path.normalize(path.join(__dirname, "ui", String(rel || "")));
     if (!p.startsWith(path.join(__dirname, "ui"))) return "";
@@ -442,6 +448,7 @@ const asyncHandlers = {
   openWeb: (url, ua) => openWebWindow(String(url), ua ? String(ua) : ""),
   requestMediaPermission: () => js("window.reaperMediaPermission && reaperMediaPermission(true)"),
   playMedia: (file, title) => playMedia(String(file), title ? String(title) : ""),
+  setPlayerOption: (key, on) => { playerOptions[String(key)] = !!on; },
   quit: () => app.quit()
 };
 

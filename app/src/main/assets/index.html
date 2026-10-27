@@ -1728,6 +1728,7 @@
     t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + color + ',#120A22 90%)"></div>' +
       '<div class="ic glyph" style="background:rgba(0,0,0,.3)">' + (isVideo ? "&#9654;" : "&#9835;") + '</div>' +
       (it.duration ? '<div class="dur">' + fmtDur(it.duration) + "</div>" : "") +
+      ((it.width >= 3800 || it.height >= 2100) ? '<div class="get">4K</div>' : "") +
       '<div class="name">' + esc(it.name) + "</div>";
     t._act = function () { playMediaItem(it); };
     return t;
@@ -1757,7 +1758,7 @@
   function renderMedia() {
     var sc = $("#page-media .scroller"); sc.innerHTML = "";
     sc.appendChild(el("div", "pagehead", "<h2>ReaperOS Player</h2><p>Plays almost anything: " + MEDIA_FORMATS +
-      (NATIVE && !IOS ? (WIN ? ". Uses the mpv engine." : ". Uses VLC's engine, with hardware decoding where your Fire TV supports it.") : ".") + "</p>"));
+      (NATIVE && !IOS ? (WIN ? ". Uses the mpv engine with hardware decoding and HDR." : ". Uses VLC's engine with hardware decoding, up to 4K HDR on 4K Fire TVs.") : ".") + "</p>"));
     var sec = el("section", "shelf"), vp = el("div", "viewport"), tr = el("div", "track"); tr.dataset.row = "1";
 
     if (!NATIVE || IOS) {
@@ -1841,6 +1842,21 @@
     });
     if (!IOS) tr.appendChild(au);
     setTimeout(renderUpdateButton, 0);
+    if (NATIVE && !IOS && Reaper.setPlayerOption) {
+      var opt = function (key, def) { try { return Reaper.getPlayerOption ? Reaper.getPlayerOption(key, def) : load("player." + key, def); } catch (e) { return def; } };
+      var setOpt = function (key, v) { save("player." + key, v); Reaper.setPlayerOption(key, v); };
+      var pt = opt("passthrough", false), mf = opt("matchFrameRate", true);
+      var ptb = button("Surround passthrough: " + (pt ? "On" : "Off"), "Send Dolby and DTS audio untouched to a soundbar or receiver", function () {
+        pt = !pt; setOpt("passthrough", pt); ptb.querySelector("b").textContent = "Surround passthrough: " + (pt ? "On" : "Off");
+      });
+      tr.appendChild(ptb);
+      if (!WIN) {
+        var mfb = button("Match video frame rate: " + (mf ? "On" : "Off"), "Switch the TV to 4K and the movie's frame rate while playing", function () {
+          mf = !mf; setOpt("matchFrameRate", mf); mfb.querySelector("b").textContent = "Match video frame rate: " + (mf ? "On" : "Off");
+        });
+        tr.appendChild(mfb);
+      }
+    }
     var mus = button("Load screen sound: " + (musicOn ? "On" : "Off"), "The scythe slash when ReaperOS opens", function () {
       musicOn = !musicOn; save("music", musicOn);
       mus.querySelector("b").textContent = "Load screen sound: " + (musicOn ? "On" : "Off");

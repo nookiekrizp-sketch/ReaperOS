@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("Reaper", {
   readRom: sync("readRom"),
   hasMediaPermission: () => true,
   listMedia: sync("listMedia"),
+  getPlayerOption: sync("getPlayerOption"),
   // answered later through window.reaper* callbacks
   requestIcon: async("requestIcon"),
   fetch: async("fetch"),
@@ -33,5 +34,6 @@ contextBridge.exposeInMainWorld("Reaper", {
   openWeb: async("openWeb"),
   requestMediaPermission: async("requestMediaPermission"),
   playMedia: async("playMedia"),
+  setPlayerOption: async("setPlayerOption"),
   quit: async("quit")
 });

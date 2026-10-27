@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -54,6 +55,7 @@ public class VideoPlayerActivity extends Activity {
     private String path;
     private SharedPreferences prefs;
     private boolean resumed = false;
+    private boolean modeSet = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,6 +80,7 @@ public class VideoPlayerActivity extends Activity {
         args.add("--audio-time-stretch");
         args.add("--network-caching=1500");
         args.add("--subsdec-encoding=UTF-8");
+        if (prefs.getBoolean("passthrough", false)) args.add("--spdif");   // Dolby / DTS straight to the receiver
         libVLC = new LibVLC(this, args);
         player = new MediaPlayer(libVLC);
         player.attachViews(videoLayout, null, true, false);
@@ -86,6 +89,9 @@ public class VideoPlayerActivity extends Activity {
                 case MediaPlayer.Event.Playing:
                     if (!resumed) { resumed = true; resumePosition(); }
                     status("");
+                    break;
+                case MediaPlayer.Event.Vout:
+                    if (event.getVoutCount() > 0) onVideoReady();
                     break;
                 case MediaPlayer.Event.EndReached:
                     prefs.edit().remove(path).apply();
@@ -182,6 +188,63 @@ public class VideoPlayerActivity extends Activity {
             status("Resumed from " + fmt(saved));
             showOverlay(false);
         }
+    }
+
+    // ---------------------------------------------------------------- 4K / frame-rate matching
+
+    /** Once the video's size and frame rate are known: show them and match the TV's output mode. */
+    private void onVideoReady() {
+        Media.VideoTrack vt = null;
+        try { vt = player.getCurrentVideoTrack(); } catch (Exception ignored) { }
+        if (vt == null) return;
+        int w = vt.width, h = vt.height;
+        float fps = vt.frameRateDen > 0 ? (float) vt.frameRateNum / vt.frameRateDen : 0f;
+        String label = (w >= 3800 || h >= 2100) ? "4K" : (w >= 1900 || h >= 1060) ? "1080p" : (h > 0 ? h + "p" : "");
+        StringBuilder info = new StringBuilder(label);
+        if (vt.codec != null && vt.codec.length() > 0) info.append(" \u00b7 ").append(vt.codec.trim().toUpperCase(Locale.US));
+        if (fps > 0) info.append(" \u00b7 ").append(String.format(Locale.US, "%.3f", fps).replaceAll("\\.?0+$", "")).append(" fps");
+        titleView.setText(titleView.getText() + "   " + info);
+        if (prefs.getBoolean("matchFrameRate", true)) matchDisplayMode(w, h, fps);
+        showOverlay(false);
+    }
+
+    /**
+     * Picks the TV output mode that best fits the video: the right resolution (so 4K plays at 4K)
+     * and a refresh rate that's a whole multiple of the frame rate (no judder at 24 fps).
+     */
+    private void matchDisplayMode(int w, int h, float fps) {
+        if (modeSet || android.os.Build.VERSION.SDK_INT < 23) return;
+        try {
+            Display d = getWindowManager().getDefaultDisplay();
+            Display.Mode current = d.getMode();
+            Display.Mode best = null;
+            double bestScore = -1;
+            boolean want4k = w >= 3800 || h >= 2100;
+            for (Display.Mode m : d.getSupportedModes()) {
+                int mh = Math.min(m.getPhysicalWidth(), m.getPhysicalHeight());
+                boolean is4k = mh >= 2100;
+                if (want4k && !is4k) continue;
+                if (!want4k && mh < 1000) continue;
+                double score = 0;
+                if (fps > 0) {
+                    double ratio = m.getRefreshRate() / fps;
+                    double err = Math.abs(ratio - Math.round(ratio));
+                    if (Math.round(ratio) < 1 || err > 0.02) continue;   // not a clean multiple
+                    score += 100 - Math.round(ratio) * 5;               // prefer 24 Hz for 24 fps over 48/72
+                }
+                score += is4k == want4k ? 50 : 0;
+                score += mh == Math.min(current.getPhysicalWidth(), current.getPhysicalHeight()) ? 5 : 0;
+                if (score > bestScore) { bestScore = score; best = m; }
+            }
+            if (best != null && best.getModeId() != current.getModeId()) {
+                WindowManager.LayoutParams lp = getWindow().getAttributes();
+                lp.preferredDisplayModeId = best.getModeId();
+                getWindow().setAttributes(lp);
+                status(String.format(Locale.US, "TV output: %dp at %.0f Hz",
+                        Math.min(best.getPhysicalWidth(), best.getPhysicalHeight()), best.getRefreshRate()));
+            }
+            modeSet = true;
+        } catch (Exception ignored) { }
     }
 
     // ---------------------------------------------------------------- tracks
