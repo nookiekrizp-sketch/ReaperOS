@@ -23,6 +23,7 @@
     "productName": "ReaperOS",
     "artifactName": "ReaperOS-Setup-${version}.${ext}",
     "files": ["main.js", "preload.js", "ui/**", "package.json"],
+    "extraResources": [{ "from": "mpv", "to": "mpv" }],
     "directories": { "output": "dist", "buildResources": "build" },
     "win": { "icon": "build/icon.png", "target": [{ "target": "nsis", "arch": ["x64"] }] },
     "nsis": {

@@ -10,3 +10,4 @@ windows/dist/
 windows/ui/
 windows/package-lock.json
 !windows/build/
+windows/mpv/

@@ -6,6 +6,8 @@ A Bazzite-style TV launcher for Amazon Fire TV, with a reaper load screen, your 
 - **Home:** a hero banner that follows your selection, Favorites (press **Menu** on any app to pin it), all your installed apps with their real icons, Cloud Gaming shortcuts, and Homebrew quick links.
 - **First launch:** ReaperOS automatically installs its core apps (SmartTube, Stremio, Kodi, Moonlight, RetroArch, Obtainium, plus GameNative on 64-bit Fire TVs). Fire OS asks you to press Install for each one. You can rerun this anytime from Homebrew Store → Install starter pack.
 - **Movies & TV and Anime rows:** Netflix, Prime Video, Disney+, HBO Max, Hulu, Peacock, Paramount+, Apple TV, YouTube, Tubi, Pluto TV, Plex, Crunchyroll, HIDIVE and RetroCrush. Installed apps open directly; missing ones open their page in the Amazon Appstore (or Microsoft Store on Windows).
+- **Music & social row:** Spotify, Apple Music and Discord (Discord also runs inside ReaperOS when its app isn't installed).
+- **ReaperOS Player (Media tab):** plays nearly any video or music file on the device or a USB drive (MKV, MP4, AVI, HEVC, AV1, VP9, DTS, Dolby, FLAC, subtitles) using VLC's engine. Remote: OK pause, left/right seek, up audio track, down subtitles, Back exit. It remembers where you stopped.
 - **PC & cloud gaming:** Xbox, GeForce NOW, Amazon Luna, Boosteroid and Steam Big Picture (via Valve's Steam Link) tiles open the real apps. If one isn't installed, the tile opens its Amazon Appstore page (GeForce NOW and Steam Link open in Aurora Store, since Amazon doesn't carry them).
 - **Homebrew Store:** 48 open-source apps in six rows (streaming & media, game streaming & PC games, 18 emulators, 12 free games, alternate app stores, tools & Fire TV tweaks), from F-Droid, GitHub and Stremio.com. ReaperOS picks the build that matches your Fire TV's chip and Fire OS version, and checks each download before installing so 64-bit-only apps never fail halfway. For anything not listed, install Obtainium and add any GitHub project.
 - **Built-in games:** five freely distributed NES and Game Boy homebrew games ship inside ReaperOS and play in its own emulator (EmulatorJS), with no other app needed. Remote: OK = A, Play/Pause = B, Menu = Start, Rewind = Select, Back = exit; controllers work too. Press Menu on a game to open it in RetroArch instead. See `app/src/main/assets/roms/CREDITS.md`.
@@ -49,6 +51,7 @@ ReaperOS also runs on Windows as a full-screen, controller-friendly launcher (th
 - **Free homebrew games** saved to `Documents/ReaperOS/ROMs` and launched in RetroArch.
 - **Controls:** arrow keys / Enter / Esc / M, or any Xbox or PlayStation controller. F11 toggles full screen.
 - **Boot screen** in a Windows XP-style homage; **Start with Windows** option in Settings to use it like a console.
+- **ReaperOS Player** on Windows uses the bundled mpv engine for nearly every codec; it finds media in Videos, Music, Downloads and Desktop.
 - **Automatic updates** from the `windows-latest` release.
 
 Installer: `https://github.com/nookiekrizp-sketch/ReaperOS/releases/download/windows-latest/ReaperOS-Setup.exe`

@@ -294,6 +294,53 @@ function setupUpdater() {
   updater.on("error", (e) => js(`window.reaperUpdate && reaperUpdate("error", ${q(e && e.message)})`));
 }
 
+// ------------------------------------------------------------------ ReaperOS Player (mpv)
+
+const VIDEO_EXT = /\.(mkv|mp4|m4v|avi|mov|wmv|flv|webm|ts|m2ts|mts|mpg|mpeg|vob|3gp|ogv|rmvb)$/i;
+const AUDIO_EXT = /\.(mp3|flac|m4a|aac|ogg|opus|wav|wma|alac|ape|aiff|dsf)$/i;
+
+function listMedia() {
+  const roots = ["videos", "music", "downloads", "desktop"].map((n) => { try { return app.getPath(n); } catch (e) { return null; } }).filter(Boolean);
+  const out = [];
+  const walk = (dir, depth) => {
+    if (depth > 3 || out.length > 800) return;
+    let entries = [];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
+    for (const e of entries) {
+      if (e.name.startsWith(".")) continue;
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) { walk(p, depth + 1); continue; }
+      const kind = VIDEO_EXT.test(e.name) ? "video" : AUDIO_EXT.test(e.name) ? "audio" : null;
+      if (!kind) continue;
+      let st = null; try { st = fs.statSync(p); } catch (err) { continue; }
+      out.push({ path: p, name: e.name, size: st.size, duration: 0, date: Math.floor(st.mtimeMs / 1000), kind, folder: path.basename(dir) });
+    }
+  };
+  roots.forEach((r) => walk(r, 0));
+  out.sort((a, b) => b.date - a.date);
+  return out;
+}
+
+function mpvPath() {
+  const bundled = path.join(process.resourcesPath || "", "mpv", "mpv.exe");
+  if (app.isPackaged && fs.existsSync(bundled)) return bundled;
+  const dev = path.join(__dirname, "mpv", "mpv.exe");
+  return fs.existsSync(dev) ? dev : "mpv";
+}
+
+function playMedia(file, title) {
+  const args = [
+    "--fullscreen", "--force-window=yes", "--input-gamepad=yes", "--save-position-on-quit",
+    "--osd-font-size=42", "--osd-bar=yes", "--keep-open=no", "--hwdec=auto-safe",
+    "--title=ReaperOS Player - " + (title || path.basename(file)), file
+  ];
+  try {
+    const p = spawn(mpvPath(), args, { windowsHide: false });
+    p.on("error", () => toast("ReaperOS Player couldn't start. Reinstall ReaperOS to restore it."));
+    p.on("exit", () => { if (win && !win.isDestroyed()) win.focus(); });
+  } catch (e) { toast("ReaperOS Player couldn't start."); }
+}
+
 // ------------------------------------------------------------------ built-in web player
 
 let webWin = null;
@@ -347,6 +394,7 @@ const syncHandlers = {
   playInRetroArch: (rom, core) => playInRetroArch(rom, core),
   getLoginItem: () => app.getLoginItemSettings().openAtLogin,
   // Bundled games for the built-in player
+  listMedia: () => JSON.stringify(listMedia()),
   readRom: (rel) => {
     const p = path.normalize(path.join(__dirname, "ui", String(rel || "")));
     if (!p.startsWith(path.join(__dirname, "ui"))) return "";
@@ -392,6 +440,8 @@ const asyncHandlers = {
   setLoginItem: (on) => app.setLoginItemSettings({ openAtLogin: !!on, args: ["--startup"] }),
   // Built-in player window for services' websites (Xbox Cloud Gaming, GeForce NOW, YouTube...).
   openWeb: (url, ua) => openWebWindow(String(url), ua ? String(ua) : ""),
+  requestMediaPermission: () => js("window.reaperMediaPermission && reaperMediaPermission(true)"),
+  playMedia: (file, title) => playMedia(String(file), title ? String(title) : ""),
   quit: () => app.quit()
 };
 

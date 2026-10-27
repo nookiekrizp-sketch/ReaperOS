@@ -156,6 +156,15 @@
     body.platform-touch #splash .reaper { width: 40rem; height: 20rem; }
   }
 
+  /* ------------------------------------------------ media */
+  .tile .dur { position: absolute; top: .55rem; left: .7rem; font-size: .8rem; font-weight: 700; color: var(--dim);
+    background: rgba(11,7,20,.7); padding: .15rem .5rem; border-radius: 1rem; }
+  #vplayer { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 60; background: #000; display: none; }
+  #vplayer.on { display: block; }
+  #vplayer video { width: 100%; height: 100%; }
+  #vplayerClose { position: absolute; top: calc(1rem + env(safe-area-inset-top)); right: 1.4rem; z-index: 2; border: 0; border-radius: 2rem;
+    padding: .7rem 1.3rem; font-size: 1.1rem; font-weight: 700; background: rgba(255,255,255,.9); color: #0B0714; }
+
   /* ------------------------------------------------ top bar */
   #top {
     position: fixed; top: 0; left: 0; right: 0; z-index: 10; height: 6rem;
@@ -406,6 +415,7 @@
     <span>REAPER<b>OS</b></span>
   </div>
   <div class="tab f" data-tab="home">Home</div>
+  <div class="tab f" data-tab="media">Media</div>
   <div class="tab f" data-tab="store">Homebrew Store</div>
   <div class="tab f" data-tab="settings">Settings</div>
   <div class="spacer"></div>
@@ -414,7 +424,10 @@
 </div>
 
 <div class="page" id="page-home"><div class="scroller"></div></div>
+<div class="page" id="page-media"><div class="scroller"></div></div>
 <div class="page" id="page-store"><div class="scroller"></div></div>
+<div id="vplayer"><video id="vplayerVideo" controls playsinline></video><button id="vplayerClose">&#10005; Close</button></div>
+<input type="file" id="mediaPick" accept="video/*,audio/*,.mkv,.avi,.mov,.m4v,.flac" style="display:none">
 <div class="page" id="page-settings"><div class="scroller"></div></div>
 
 <div id="setup">
@@ -674,6 +687,20 @@
     Reaper.openWeb(c.web, c.ua || "");
   }
 
+
+  var SOCIAL = [
+    { id: "spotify", name: "Spotify", glyph: "S", color: "#1DB954", match: /spotify/i, query: "Spotify", scheme: "spotify://",
+      icons: ["https://www.google.com/s2/favicons?domain=spotify.com&sz=256"], kicker: "Music",
+      desc: "Music, podcasts and audiobooks." },
+    { id: "applemusic", name: "Apple Music", glyph: "A", color: "#FA243C", match: /apple music/i, query: "Apple Music", scheme: "music://",
+      icons: ["https://www.google.com/s2/favicons?domain=music.apple.com&sz=256"], kicker: "Music",
+      desc: "Apple's music library, lossless and Dolby Atmos tracks, and your playlists." },
+    { id: "discord", name: "Discord", glyph: "D", color: "#5865F2", match: /discord/i, query: "Discord", scheme: "discord://",
+      web: "https://discord.com/app", ua: UA_DESKTOP,
+      icons: ["https://www.google.com/s2/favicons?domain=discord.com&sz=256"], kicker: "Chat",
+      desc: "Chat with your friends and servers." }
+  ];
+
   // ---------------------------------------------------------------- iOS catalog
   // iOS can't install apps for us, so tiles open the app (by URL scheme when one is known)
   // and fall back to its App Store page.
@@ -740,6 +767,7 @@
   // On Windows everything installs through winget, Windows' built-in package manager.
   function WG(id) { return { type: "winget", id: id }; }
   if (WIN) {
+    SOCIAL[0].winget = "Spotify.Spotify";
     CLOUD = [
       { id: "bigpicture", name: "Steam Big Picture", glyph: "S", color: "#1B2838", match: /^steam$/i, launchUrl: "steam://open/bigpicture",
         winget: "Valve.Steam", icons: ["https://www.google.com/s2/favicons?domain=store.steampowered.com&sz=256"], kicker: "Steam",
@@ -1161,6 +1189,7 @@
     sc.appendChild(shelf("Games \u00b7 play here", ROMS.length, ROMS.map(romTile)));
     sc.appendChild(shelf("Movies & TV", MOVIES.length, MOVIES.map(linkTile)));
     sc.appendChild(shelf("Anime", ANIME.length, ANIME.map(linkTile)));
+    sc.appendChild(shelf("Music & social", SOCIAL.length, SOCIAL.map(linkTile)));
     sc.appendChild(shelf("PC & cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
     var hb = STORE.filter(function (s) { return s.featured || installedVersion(s); });
     sc.appendChild(shelf(IOS ? "Games & emulators" : "Homebrew", hb.length, hb.map(storeTile)));
@@ -1181,13 +1210,15 @@
       desc = favs.indexOf(a.pkg) >= 0 ? "Pinned to Favorites. Press Menu to unpin." : "Press Menu on the remote to pin this to Favorites.";
       color = (ic && ic.color) || a.color || "#3B2470";
       if (ic) art = '<img class="' + (ic.banner ? "wide" : "") + '" src="' + ic.src + '">';
+    } else if (it.kind === "media") {
+      return;
     } else if (it.kind === "rom") {
       var rr = it.rom; kicker = rr.sys + " \u00b7 built-in player"; title = rr.name; desc = rr.desc; color = rr.color; act = "Play";
       art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:3.6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(rr.sys === "NES" ? "NES" : "GB") + "</div>";
     } else if (it.kind === "cloud") {
       var c = it.cloud, ca = cloudApp(c); kicker = c.kicker; title = c.name; color = c.color;
       desc = ca || IOS ? c.desc : canEmbed(c) ? c.desc + " Plays right here in ReaperOS; install the app anytime for the full experience." : "Not installed yet. Press OK to get the app.";
-      act = ca || IOS || canEmbed(c) ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : "Play") : "Get app";
+      act = ca || IOS || canEmbed(c) ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : SOCIAL.indexOf(c) >= 0 ? "Open" : "Play") : "Get app";
       art = artFor(t, c.glyph);
     } else {
       var s = it.store, inst = installedVersion(s);
@@ -1680,6 +1711,88 @@
     toast(n + " app update" + (n === 1 ? " is" : "s are") + " ready. Homebrew Store → Update all apps.");
   }
 
+
+  // ---------------------------------------------------------------- ReaperOS Player (media)
+  // Fire TV: VLC's engine. Windows: the bundled mpv player. iPhone/iPad and browsers: the built-in video player.
+  var MEDIA_FORMATS = "MKV, MP4, AVI, MOV, HEVC/H.265, AV1, VP9, DTS, Dolby, FLAC and subtitle files";
+  function fmtDur(ms) {
+    if (!ms) return "";
+    var s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    return (h ? h + ":" + (m < 10 ? "0" : "") : "") + m + ":" + (sec < 10 ? "0" : "") + sec;
+  }
+  function mediaTile(it) {
+    var t = el("div", "tile f");
+    var isVideo = it.kind === "video";
+    var color = isVideo ? "#5B2C83" : "#1F6E5A";
+    t._item = { kind: "media", media: it };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + color + ',#120A22 90%)"></div>' +
+      '<div class="ic glyph" style="background:rgba(0,0,0,.3)">' + (isVideo ? "&#9654;" : "&#9835;") + '</div>' +
+      (it.duration ? '<div class="dur">' + fmtDur(it.duration) + "</div>" : "") +
+      '<div class="name">' + esc(it.name) + "</div>";
+    t._act = function () { playMediaItem(it); };
+    return t;
+  }
+  function playMediaItem(it) {
+    if (NATIVE && !IOS && Reaper.playMedia) { Reaper.playMedia(it.path, it.name); return; }
+    if (it.url) openWebVideo(it.url, it.name);
+  }
+  function openWebVideo(url, name) {
+    var box = $("#vplayer"), v = $("#vplayerVideo");
+    v.src = url; box.classList.add("on");
+    var p = v.play(); if (p && p.catch) p.catch(function () {});
+    v.onerror = function () { toast("This browser can't play that format. Try VLC from the App Store for MKV and other formats."); };
+  }
+  function closeWebVideo() { var v = $("#vplayerVideo"); v.pause(); v.removeAttribute("src"); v.load(); $("#vplayer").classList.remove("on"); }
+  $("#vplayerClose").addEventListener("click", closeWebVideo);
+  $("#mediaPick").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    openWebVideo(URL.createObjectURL(f), f.name);
+    e.target.value = "";
+  });
+  window.reaperMediaPermission = function (ok) {
+    if (!ok) toast("ReaperOS needs permission to show your videos and music.");
+    if (state.page === "media") renderMedia();
+  };
+
+  function renderMedia() {
+    var sc = $("#page-media .scroller"); sc.innerHTML = "";
+    sc.appendChild(el("div", "pagehead", "<h2>ReaperOS Player</h2><p>Plays almost anything: " + MEDIA_FORMATS +
+      (NATIVE && !IOS ? (WIN ? ". Uses the mpv engine." : ". Uses VLC's engine, with hardware decoding where your Fire TV supports it.") : ".") + "</p>"));
+    var sec = el("section", "shelf"), vp = el("div", "viewport"), tr = el("div", "track"); tr.dataset.row = "1";
+
+    if (!NATIVE || IOS) {
+      tr.appendChild(button("Play a video from Files", "Pick a video or song on this device", function () { $("#mediaPick").click(); }));
+      vp.appendChild(tr); sec.appendChild(vp); sc.appendChild(sec);
+      sc.appendChild(el("div", "about", "On iPhone and iPad the built-in player handles MP4, MOV and HEVC. For MKV, AVI and other formats, VLC from the Store tab plays everything."));
+      return;
+    }
+    if (Reaper.hasMediaPermission && !Reaper.hasMediaPermission()) {
+      tr.appendChild(button("Show my videos and music", "Allow ReaperOS to read the media on this device and USB drives", function () { Reaper.requestMediaPermission(); }));
+      vp.appendChild(tr); sec.appendChild(vp); sc.appendChild(sec);
+      return;
+    }
+    var list = [];
+    try { list = JSON.parse(Reaper.listMedia()) || []; } catch (e) { list = []; }
+    var videos = list.filter(function (x) { return x.kind === "video"; });
+    var music = list.filter(function (x) { return x.kind === "audio"; });
+    if (!list.length) {
+      tr.appendChild(button("Refresh", "Look for new videos and music", function () { renderMedia(); setFocus(1, 0); }));
+      vp.appendChild(tr); sec.appendChild(vp); sc.appendChild(sec);
+      sc.appendChild(el("div", "about", WIN
+        ? "No videos found yet. ReaperOS looks in your Videos, Music, Downloads and Desktop folders."
+        : "No videos found yet. Copy videos to the Downloads or Movies folder, plug in a USB drive, or send them from your iPhone with LocalSend."));
+      return;
+    }
+    if (videos.length) sc.appendChild(shelf("Recent videos", Math.min(videos.length, 30), videos.slice(0, 30).map(mediaTile)));
+    var folders = {};
+    videos.forEach(function (v) { (folders[v.folder || "Other"] = folders[v.folder || "Other"] || []).push(v); });
+    Object.keys(folders).sort(function (a, b) { return folders[b].length - folders[a].length; }).slice(0, 6).forEach(function (f) {
+      if (folders[f].length < 2) return;
+      sc.appendChild(shelf(f, folders[f].length, folders[f].slice(0, 60).map(mediaTile)));
+    });
+    if (music.length) sc.appendChild(shelf("Music", Math.min(music.length, 60), music.slice(0, 60).map(mediaTile)));
+  }
+
   // ---------------------------------------------------------------- settings
   function button(title, sub, fn) {
     var b = el("div", "btn f", "<b>" + esc(title) + "</b><span>" + esc(sub) + "</span>");
@@ -1842,6 +1955,7 @@
     $$(".tab").forEach(function (t) { t.classList.toggle("active", t.dataset.tab === page); });
     if (page === "home") renderHome(false);
     if (page === "store") renderStore();
+    if (page === "media") renderMedia();
     if (page === "settings") renderSettings();
     var sc = $(".scroller", pageEl()); sc.style.transform = ""; sc._y = 0;
     setFocus(getRows().length > 1 ? 1 : 0, 0, true);

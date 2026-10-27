@@ -15,6 +15,8 @@ android {
         targetSdk 34
         versionCode buildNumber
         versionName "1.0.${buildNumber}"
+        // VLC's engine ships native code per chip; Fire TVs use these two.
+        ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
     }
 
     // A fixed key, so every new build installs as an update instead of a conflict.
@@ -50,4 +52,5 @@ android {
 
 dependencies {
     implementation 'androidx.core:core:1.12.0'
+    implementation 'org.videolan.android:libvlc-all:3.7.6'
 }

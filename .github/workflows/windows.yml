@@ -22,6 +22,18 @@ jobs:
         with:
           node-version: '22'
 
+      # ReaperOS Player on Windows uses mpv (plays nearly every codec), bundled into the installer.
+      - name: Fetch mpv
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          url=$(gh api repos/shinchiro/mpv-winbuild-cmake/releases/latest --jq '[.assets[] | select(.name | test("^mpv-x86_64-[0-9]{8}-git-[0-9a-f]+\\.7z$"))][0].browser_download_url')
+          echo "mpv: $url"
+          curl -fsSL -o mpv.7z "$url"
+          mkdir -p mpv && 7z x mpv.7z -ompv -y > /dev/null
+          ls mpv
+          test -f mpv/mpv.exe
+
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 

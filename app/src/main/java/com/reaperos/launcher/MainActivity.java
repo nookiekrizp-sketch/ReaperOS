@@ -305,11 +305,73 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------- game files
 
     private static final int REQ_STORAGE = 42;
+    private static final int REQ_MEDIA = 43;
+
+    private String[] mediaPermissions() {
+        if (Build.VERSION.SDK_INT >= 33) return new String[]{"android.permission.READ_MEDIA_VIDEO", "android.permission.READ_MEDIA_AUDIO"};
+        return new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE};
+    }
+
+    private boolean hasMediaAccess() {
+        if (Build.VERSION.SDK_INT < 23) return true;
+        for (String p : mediaPermissions()) if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) return false;
+        return true;
+    }
+
+    /** Videos and music the system knows about (internal storage and USB drives), newest first. */
+    private String listMediaJson() {
+        JSONArray arr = new JSONArray();
+        if (!hasMediaAccess()) return arr.toString();
+        Uri[] sources = {
+                android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        };
+        String[] kinds = {"video", "audio"};
+        for (int k = 0; k < sources.length; k++) {
+            String[] cols = {
+                    android.provider.MediaStore.MediaColumns.DATA,
+                    android.provider.MediaStore.MediaColumns.DISPLAY_NAME,
+                    android.provider.MediaStore.MediaColumns.SIZE,
+                    "duration",
+                    android.provider.MediaStore.MediaColumns.DATE_MODIFIED
+            };
+            android.database.Cursor c = null;
+            try {
+                c = getContentResolver().query(sources[k], cols, null, null,
+                        android.provider.MediaStore.MediaColumns.DATE_MODIFIED + " DESC");
+                int n = 0;
+                while (c != null && c.moveToNext() && n < 400) {
+                    String path = c.getString(0);
+                    if (path == null) continue;
+                    if (k == 1 && (path.contains("/Notifications/") || path.contains("/Ringtones/") || path.contains("/Alarms/"))) continue;
+                    JSONObject o = new JSONObject();
+                    o.put("path", path);
+                    o.put("name", c.getString(1));
+                    o.put("size", c.getLong(2));
+                    o.put("duration", c.getLong(3));
+                    o.put("date", c.getLong(4));
+                    o.put("kind", kinds[k]);
+                    File parent = new File(path).getParentFile();
+                    o.put("folder", parent != null ? parent.getName() : "");
+                    arr.put(o);
+                    n++;
+                }
+            } catch (Exception ignored) {
+            } finally {
+                if (c != null) c.close();
+            }
+        }
+        return arr.toString();
+    }
     private String[] pendingGame;
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == REQ_MEDIA) {
+            js("window.reaperMediaPermission && reaperMediaPermission(" + hasMediaAccess() + ")");
+            return;
+        }
         if (requestCode != REQ_STORAGE || pendingGame == null) return;
         final String[] job = pendingGame;
         pendingGame = null;
@@ -636,6 +698,32 @@ public class MainActivity extends Activity {
             } catch (Exception ex) {
                 return "";
             }
+        }
+
+        @JavascriptInterface
+        public boolean hasMediaPermission() { return hasMediaAccess(); }
+
+        @JavascriptInterface
+        public void requestMediaPermission() {
+            if (Build.VERSION.SDK_INT < 23 || hasMediaAccess()) {
+                js("window.reaperMediaPermission && reaperMediaPermission(true)");
+                return;
+            }
+            ui.post(() -> requestPermissions(mediaPermissions(), REQ_MEDIA));
+        }
+
+        @JavascriptInterface
+        public String listMedia() { return listMediaJson(); }
+
+        /** Plays a video or music file in ReaperOS Player (VLC's engine). */
+        @JavascriptInterface
+        public void playMedia(final String path, final String title) {
+            ui.post(() -> {
+                Intent i = new Intent(MainActivity.this, VideoPlayerActivity.class);
+                i.putExtra(VideoPlayerActivity.EXTRA_PATH, path);
+                i.putExtra(VideoPlayerActivity.EXTRA_TITLE, title == null ? "" : title);
+                startActivity(i);
+            });
         }
 
         /** Opens a service's website in ReaperOS's own full-screen player. */

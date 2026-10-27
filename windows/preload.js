@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld("Reaper", {
   playInRetroArch: sync("playInRetroArch"),
   getLoginItem: sync("getLoginItem"),
   readRom: sync("readRom"),
+  hasMediaPermission: () => true,
+  listMedia: sync("listMedia"),
   // answered later through window.reaper* callbacks
   requestIcon: async("requestIcon"),
   fetch: async("fetch"),
@@ -29,5 +31,7 @@ contextBridge.exposeInMainWorld("Reaper", {
   installUpdate: async("installUpdate"),
   setLoginItem: async("setLoginItem"),
   openWeb: async("openWeb"),
+  requestMediaPermission: async("requestMediaPermission"),
+  playMedia: async("playMedia"),
   quit: async("quit")
 });
