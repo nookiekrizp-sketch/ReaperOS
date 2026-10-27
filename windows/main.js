@@ -145,14 +145,19 @@ function steamRoot() {
 function steamGames() {
   const root = steamRoot();
   if (!root) return [];
-  const libs = new Set([path.join(root, "steamapps")]);
+  // Steam can list the same folder more than once with different spellings (C:/ vs c:\\), so
+  // folders are compared after normalizing, and each game appears once.
+  const libs = new Map();
+  const addLib = (p) => { const n = path.resolve(p); libs.set(n.toLowerCase(), n); };
+  addLib(path.join(root, "steamapps"));
   try {
     const vdf = fs.readFileSync(path.join(root, "steamapps", "libraryfolders.vdf"), "utf8");
-    for (const m of vdf.matchAll(/"path"\s+"([^"]+)"/g)) libs.add(path.join(m[1].replace(/\\\\/g, "\\"), "steamapps"));
+    for (const m of vdf.matchAll(/"path"\s+"([^"]+)"/g)) addLib(path.join(m[1].replace(/\\\\/g, "\\"), "steamapps"));
   } catch (e) { /* single library */ }
   const SKIP = new Set(["228980", "1070560", "1391110", "1493710", "1628350", "2180100"]); // redistributables, runtimes, Proton
   const games = [];
-  for (const lib of libs) {
+  const seenIds = new Set();
+  for (const lib of libs.values()) {
     let files = [];
     try { files = fs.readdirSync(lib).filter((f) => /^appmanifest_\d+\.acf$/.test(f)); } catch (e) { continue; }
     for (const f of files) {
@@ -161,6 +166,8 @@ function steamGames() {
         const id = (/"appid"\s+"(\d+)"/.exec(acf) || [])[1];
         const name = (/"name"\s+"([^"]+)"/.exec(acf) || [])[1];
         if (!id || !name || SKIP.has(id) || /redistributable|proton|steamworks|steam linux runtime/i.test(name)) continue;
+        if (seenIds.has(id)) continue;
+        seenIds.add(id);
         games.push({ id, name });
       } catch (e) { /* skip */ }
     }
