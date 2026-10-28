@@ -282,11 +282,12 @@ def modders():
 # Official studio and trailer channels: only videos with "trailer" or "teaser" in the title.
 TRAILER_CHANNELS = [
     ("RottenTomatoesTRAILERS", "Rotten Tomatoes Trailers"),
-    ("warnerbrospictures", "Warner Bros. Pictures"),
+    ("warnerbros", "Warner Bros."),
     ("UniversalPictures", "Universal Pictures"),
     ("SonyPictures", "Sony Pictures"),
     ("ParamountPictures", "Paramount Pictures"),
-    ("WaltDisneyStudios", "Walt Disney Studios"),
+    ("disney", "Disney"),
+    ("Pixar", "Pixar"),
     ("marvel", "Marvel Entertainment"),
     ("20thCenturyStudios", "20th Century Studios"),
     ("LionsgateMovies", "Lionsgate Movies"),
