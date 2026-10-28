@@ -35,7 +35,8 @@ jobs:
       - name: Refresh charts (IMDb, Billboard Hot 100, modder YouTubers)
         continue-on-error: true
         run: |
-          pip install --quiet billboard.py
+          pip install --quiet playwright beautifulsoup4
+          python3 -m playwright install --with-deps chromium > /dev/null
           curl -fsSL -o prev-charts.json https://nookiekrizp-sketch.github.io/ReaperOS/charts.json || echo '{}' > prev-charts.json
           python3 tools/charts.py _site/charts.json prev-charts.json 2> charts.log || true
           cat charts.log

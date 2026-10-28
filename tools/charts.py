@@ -40,6 +40,34 @@ def log(*a):
     print(*a, file=sys.stderr, flush=True)
 
 
+_browser = None
+def page_html(url, wait_for=None):
+    """Loads a page in headless Chromium (handles sites that block plain requests)."""
+    global _browser
+    from playwright.sync_api import sync_playwright
+    if _browser is None:
+        _browser = sync_playwright().start().chromium.launch()
+    ctx = _browser.new_context(user_agent=UA, locale="en-US", viewport={"width": 1366, "height": 900})
+    pg = ctx.new_page()
+    try:
+        pg.goto(url, wait_until="domcontentloaded", timeout=60000)
+        if wait_for:
+            try:
+                pg.wait_for_selector(wait_for, state="attached", timeout=30000)
+            except Exception:
+                pass
+        html = pg.content()
+    finally:
+        ctx.close()
+    return html
+
+
+def snippet(html):
+    t = re.sub(r"<script.*?</script>|<style.*?</style>", " ", html, flags=re.S)
+    t = re.sub(r"<[^>]+>", " ", t)
+    return re.sub(r"\s+", " ", t)[:200]
+
+
 # ------------------------------------------------------------------ IMDb
 def imdb_size(url, w=300):
     # IMDb image URLs end in ._V1_<ops>.jpg; ask for a poster-sized copy.
@@ -49,7 +77,7 @@ def imdb_size(url, w=300):
 
 
 def imdb_popular():
-    html = get("https://www.imdb.com/chart/moviemeter/")
+    html = page_html("https://www.imdb.com/chart/moviemeter/", "script#__NEXT_DATA__")
     m = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html, re.S)
     out, seen = [], set()
     if m:
@@ -92,18 +120,41 @@ def imdb_popular():
                             "rating": (it.get("aggregateRating") or {}).get("ratingValue"),
                             "poster": imdb_size(it.get("image")), "plot": it.get("description", ""),
                             "genres": [g for g in (it.get("genre") or "").split(", ") if g][:3], "runtime": None})
+    if not out:
+        log("imdb page:", len(html), snippet(html))
     return out[:50]
 
 
 # ------------------------------------------------------------------ Billboard
 def hot100():
-    import billboard  # pip install billboard.py
-    chart = billboard.ChartData("hot-100")
+    from bs4 import BeautifulSoup
+    html = page_html("https://www.billboard.com/charts/hot-100/", "h3#title-of-a-story")
+    soup = BeautifulSoup(html, "html.parser")
+    m = re.search(r"Week of ([A-Z][a-z]+ \d{1,2}, \d{4})", soup.get_text(" "))
+    date = parse_date(m.group(1)) if m else None
     out = []
-    for e in chart.entries:
-        out.append({"rank": e.rank, "title": e.title, "artist": e.artist, "image": getattr(e, "image", None) or "",
-                    "last": e.lastPos or None, "peak": e.peakPos, "weeks": e.weeks, "isNew": bool(getattr(e, "isNew", False))})
-    return {"date": chart.date, "entries": out}
+    for row in soup.select("div.o-chart-results-list-row-container"):
+        h = row.select_one("h3#title-of-a-story")
+        if not h:
+            continue
+        title = h.get_text(" ", strip=True)
+        labels = [x.get_text(" ", strip=True) for x in row.select("span.c-label")]
+        # first label is the rank, then the artist, then last week / peak / weeks (also repeated for mobile)
+        artist = next((x for x in labels if x and not re.fullmatch(r"[\d\-]+|NEW|RE-\s*ENTRY", x, re.I)), "")
+        nums = [x for x in labels[labels.index(artist) + 1:] if re.fullmatch(r"\d+|-", x)] if artist in labels else []
+        img = row.select_one("img")
+        src = ""
+        if img:
+            src = img.get("data-lazy-src") or img.get("src") or ""
+            if "lazyload-fallback" in src or src.startswith("data:"):
+                src = ""
+        def n(i):
+            return int(nums[i]) if len(nums) > i and nums[i].isdigit() else None
+        out.append({"rank": len(out) + 1, "title": title, "artist": artist, "image": src,
+                    "last": n(0), "peak": n(1) or len(out) + 1, "weeks": n(2) or 1, "isNew": bool(re.search(r"\bNEW\b", " ".join(labels[:3])))})
+    if not out:
+        log("billboard page:", len(html), snippet(html))
+    return {"date": date, "entries": out[:100]}
 
 
 # ------------------------------------------------------------------ YouTube
@@ -257,9 +308,10 @@ def game_timers():
 
 def movie_timers():
     """Upcoming US movie releases from IMDb's release calendar."""
-    html = get("https://www.imdb.com/calendar/?region=US&type=MOVIE")
+    html = page_html("https://www.imdb.com/calendar/?region=US&type=MOVIE", "script#__NEXT_DATA__")
     m = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html, re.S)
     if not m:
+        log("calendar page:", len(html), snippet(html))
         raise ValueError("no page data")
     data = json.loads(m.group(1))
     out, seen = [], set()
