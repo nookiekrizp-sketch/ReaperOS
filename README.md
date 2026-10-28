@@ -47,7 +47,8 @@ ReaperOS also runs on Windows as a full-screen, controller-friendly launcher (th
 
 - **Steam library** row with each game's cover art, read from your Steam folders; games launch through Steam.
 - **Your apps** from the Start menu, including Microsoft Store apps like Xbox.
-- **PC & cloud gaming:** Steam Big Picture, Xbox, GeForce NOW, Steam Link and Moonlight. Missing ones install with winget.
+- **PC & cloud gaming:** GTA V · FiveM, Steam Big Picture, Xbox, GeForce NOW, Steam Link and Moonlight. Missing ones install with winget.
+- **GTA V multiplayer:** FiveM (GTA V servers) and RedM (Red Dead Redemption 2 servers) install with winget, plus the Rockstar Games Launcher. They need your own copy of the game. FiveM is Windows-only, so it isn't in the Fire TV, iPhone or ReaperOS OS (Linux) versions.
 - **Store:** launchers (Steam, Epic, GOG Galaxy, Heroic, Playnite, Sunshine), emulators (RetroArch, PPSSPP, DuckStation, PCSX2, Dolphin, Cemu, xemu, ScummVM), media apps and tools, all installed through winget.
 - **Free homebrew games** saved to `Documents/ReaperOS/ROMs` and launched in RetroArch.
 - **Controls:** arrow keys / Enter / Esc / M, or any Xbox or PlayStation controller. F11 toggles full screen.

@@ -945,6 +945,12 @@
         desc: "Open-source launcher for your Epic, GOG and Amazon games." },
       { id: "playnite", cat: "launchers", name: "Playnite", glyph: "P", color: "#3B4A63", pkg: "Playnite.Playnite", source: WG("Playnite.Playnite"), match: /playnite/i,
         desc: "One library for every launcher and emulator, with a full-screen mode." },
+      { id: "fivem", cat: "launchers", featured: true, name: "FiveM", glyph: "5", color: "#F40552", pkg: "Cfx.re.FiveM", source: WG("Cfx.re.FiveM"), match: /^fivem/i,
+        desc: "GTA V multiplayer roleplay servers. Needs your own GTA V (Steam, Epic or Rockstar)." },
+      { id: "redm", cat: "launchers", name: "RedM", glyph: "R", color: "#9E1B1B", pkg: "Cfx.re.RedM", source: WG("Cfx.re.RedM"), match: /^redm/i,
+        desc: "Red Dead Redemption 2 roleplay servers, from the makers of FiveM. Needs your own RDR2." },
+      { id: "rockstar", cat: "launchers", name: "Rockstar Games Launcher", glyph: "R", color: "#FCAF17", pkg: "RockstarGames.Launcher", source: WG("RockstarGames.Launcher"), match: /rockstar games launcher/i,
+        desc: "Rockstar's launcher, for GTA V and Red Dead Redemption 2 bought from Rockstar." },
       { id: "sunshine", cat: "launchers", name: "Sunshine", glyph: "S", color: "#E8A33D", pkg: "LizardByte.Sunshine", source: WG("LizardByte.Sunshine"), match: /sunshine/i,
         desc: "Turns this PC into a game-streaming host for Moonlight on your Fire TV, phone or tablet." },
 
@@ -977,6 +983,9 @@
     STORE.forEach(function (s) { s.from = "winget"; s.icons = []; });
   }
 
+  if (WIN) CLOUD.unshift({ id: "fivem", name: "GTA V \u00b7 FiveM", glyph: "5", color: "#F40552", match: /^fivem$/i, winget: "Cfx.re.FiveM",
+    icons: ["https://www.google.com/s2/favicons?domain=fivem.net&sz=256"], kicker: "GTA V multiplayer",
+    desc: "Join GTA V roleplay and custom servers with FiveM. Needs your own copy of GTA V on Steam, Epic or Rockstar." });
   if (DESK) CLOUD.push(BATOCERA);
 
   var DEMO_APPS = [
