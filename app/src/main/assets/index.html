@@ -58,6 +58,43 @@
   #splash .sparks { transform-origin: 150px 46px; opacity: 0; transform: scale(.2); }
   #splash .sp1 { animation: spark .35s ease-out .42s 1 forwards; }
   #splash .sp2 { animation: spark .4s ease-out 1.0s 1 forwards; }
+
+  /* the snack: catch at 1.0s, three bites at 1.4 / 1.7 / 2.0s, happy at 2.15s */
+  #splash .snack { opacity: 0; transform-box: fill-box; transform-origin: center; animation: snackFly .4s cubic-bezier(.3,.7,.4,1) 1.0s forwards; }
+  #splash .snack-bite { transform-origin: 165px 46.5px; animation: bite 2.1s linear forwards; }
+  #splash .body { transform-origin: 50px 90px; animation: chomp .8s ease-out 1.38s; }
+  #splash .crumbs { opacity: 0; }
+  #splash .crumbs.c1 { animation: crumbs .55s ease-in 1.4s forwards; }
+  #splash .crumbs.c2 { animation: crumbs .55s ease-in 1.7s forwards; }
+  #splash .crumbs.c3 { animation: crumbs .55s ease-in 2.0s forwards; }
+  #splash .eye.r-eye { animation: glow 1.6s ease-in-out infinite, eyesOff .08s linear 2.12s forwards; }
+  #splash .happy { opacity: 0; animation: happyOn .12s ease-out 2.15s forwards; }
+  #splash .sparkles { opacity: 0; transform-origin: 50px 35px; animation: sparkle .7s ease-out 2.18s forwards; }
+  @keyframes snackFly {
+    0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+    100% { opacity: 1; transform: translate(-79px, 10px) rotate(-8deg) scale(1.45); }
+  }
+  @keyframes bite {
+    0%, 66.5% { transform: scaleX(1); }
+    67.5%, 80.8% { transform: scaleX(.67); }
+    81.8%, 95% { transform: scaleX(.34); }
+    96%, 100% { transform: scaleX(0); }
+  }
+  @keyframes chomp {
+    0%, 20%, 50%, 58%, 88%, 100% { transform: translateY(0) scaleY(1); }
+    6%, 44%, 80% { transform: translateY(1.2px) scaleY(.975); }
+  }
+  @keyframes crumbs {
+    0% { opacity: 1; transform: translate(0, 0); }
+    100% { opacity: 0; transform: translate(3px, 14px); }
+  }
+  @keyframes eyesOff { to { opacity: 0; } }
+  @keyframes happyOn { to { opacity: 1; } }
+  @keyframes sparkle {
+    0% { opacity: 0; transform: scale(.3); }
+    40% { opacity: 1; transform: scale(1.1); }
+    100% { opacity: 0; transform: scale(1.3); }
+  }
   @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2.5px); } }
   @keyframes splitTop { to { transform: translate(-5px,-7px) rotate(-9deg); } }
   @keyframes splitBot { to { transform: translate(6px,7px) rotate(8deg); } }
@@ -392,10 +429,31 @@
       <path fill="#B9A6E0" d="M76.5,93 L80,92 L68.5,12 L65,12.8 Z"/>
       <path fill="#EDE8FA" d="M67,12 C53,2 30,4 16,19 C31,13 48,13 63.5,21.5 Z"/>
     </g>
-    <path fill="#0A0612" d="M50,17 C34,17 26,31 26,47 C26,61 22,75 15,90 L85,90 C78,75 74,61 74,47 C74,31 66,17 50,17 Z"/>
-    <path fill="#000" d="M50,30 C41,30 36,38 36,48 C36,58 42,65 50,65 C58,65 64,58 64,48 C64,38 59,30 50,30 Z"/>
-    <circle class="eye" cx="44.2" cy="47.5" r="2.8" fill="#22E3FF"/>
-    <circle class="eye" cx="55.8" cy="47.5" r="2.8" fill="#22E3FF"/>
+    <g class="body">
+      <path fill="#0A0612" d="M50,17 C34,17 26,31 26,47 C26,61 22,75 15,90 L85,90 C78,75 74,61 74,47 C74,31 66,17 50,17 Z"/>
+      <path fill="#000" d="M50,30 C41,30 36,38 36,48 C36,58 42,65 50,65 C58,65 64,58 64,48 C64,38 59,30 50,30 Z"/>
+      <circle class="eye r-eye" cx="44.2" cy="47.5" r="2.8" fill="#22E3FF"/>
+      <circle class="eye r-eye" cx="55.8" cy="47.5" r="2.8" fill="#22E3FF"/>
+      <path class="happy" d="M41.4,48.6 Q44.2,44.6 47,48.6" fill="none" stroke="#22E3FF" stroke-width="1.7" stroke-linecap="round"/>
+      <path class="happy" d="M53,48.6 Q55.8,44.6 58.6,48.6" fill="none" stroke="#22E3FF" stroke-width="1.7" stroke-linecap="round"/>
+    </g>
+    <!-- the snack: one RAM stick the reaper catches and eats -->
+    <g class="snack">
+      <g class="snack-bite">
+        <rect x="135" y="43" width="30" height="7" rx="1" fill="#1E8C47"/>
+        <rect x="135" y="43" width="30" height="7" rx="1" fill="none" stroke="#38C46A" stroke-width=".5"/>
+        <rect x="138.6" y="44" width="6.6" height="3" rx=".4" fill="#141414"/><rect x="146.6" y="44" width="6.6" height="3" rx=".4" fill="#141414"/><rect x="154.6" y="44" width="6.6" height="3" rx=".4" fill="#141414"/>
+        <line x1="136.5" y1="49.1" x2="163.5" y2="49.1" stroke="#E8C24A" stroke-width="1.6" stroke-dasharray=".7 .55"/>
+      </g>
+    </g>
+    <g class="crumbs c1"><rect x="58" y="57" width="1.6" height="1.6" fill="#38C46A"/><rect x="61" y="56" width="1.2" height="1.2" fill="#E8C24A"/><rect x="59.5" y="59" width="1.4" height="1.4" fill="#1E8C47"/></g>
+    <g class="crumbs c2"><rect x="57.5" y="58" width="1.4" height="1.4" fill="#E8C24A"/><rect x="60.5" y="57" width="1.6" height="1.6" fill="#38C46A"/><rect x="62" y="59.5" width="1.2" height="1.2" fill="#1E8C47"/></g>
+    <g class="crumbs c3"><rect x="58.5" y="56.5" width="1.6" height="1.6" fill="#1E8C47"/><rect x="61.5" y="58.5" width="1.4" height="1.4" fill="#38C46A"/><rect x="57" y="60" width="1.2" height="1.2" fill="#E8C24A"/></g>
+    <g class="sparkles">
+      <path d="M30,30 l1.2,3 3,1.2 -3,1.2 -1.2,3 -1.2,-3 -3,-1.2 3,-1.2 z" fill="#22E3FF"/>
+      <path d="M71,24 l1,2.4 2.4,1 -2.4,1 -1,2.4 -1,-2.4 -2.4,-1 2.4,-1 z" fill="#EDE8FA"/>
+      <path d="M69,40 l.8,2 2,.8 -2,.8 -.8,2 -.8,-2 -2,-.8 2,-.8 z" fill="#22E3FF"/>
+    </g>
   </svg>
   <h1>REAPER<b>OS</b></h1>
   <div class="tag">Harvesting your memory</div>
@@ -2092,7 +2150,7 @@
         tr.appendChild(mfb);
       }
     }
-    var mus = button("Load screen sound: " + (musicOn ? "On" : "Off"), "The scythe slash when ReaperOS opens", function () {
+    var mus = button("Load screen sound: " + (musicOn ? "On" : "Off"), "The scythe slash and crunch when ReaperOS opens", function () {
       musicOn = !musicOn; save("music", musicOn);
       mus.querySelector("b").textContent = "Load screen sound: " + (musicOn ? "On" : "Off");
       if (musicOn) synthJingle();
@@ -2355,7 +2413,35 @@
     shing(t0 + 0.42, 1850, 0.32, 1.1);
     whoosh(t0 + 0.78, 0.26, 500, 5200, 0.75);  // second slash
     shing(t0 + 1.0, 2350, 0.26, 1.4);
-    setTimeout(function () { try { ctx.close(); } catch (e) {} }, 3200);
+
+    // crunch: a short gritty noise burst with a low thump, like biting into something brittle
+    function crunch(at, vol) {
+      for (var k = 0; k < 3; k++) {
+        var src = ctx.createBufferSource(); src.buffer = noise;
+        var bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1400 + k * 900; bp.Q.value = 0.9;
+        var g = ctx.createGain(), t = at + k * 0.018;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol * (1 - k * 0.25), t + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+        src.connect(bp); bp.connect(g); g.connect(master); src.start(t, Math.random() * 0.4); src.stop(t + 0.09);
+      }
+      var o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = "sine"; o.frequency.setValueAtTime(140, at); o.frequency.exponentialRampToValueAtTime(55, at + 0.08);
+      og.gain.setValueAtTime(0.0001, at); og.gain.exponentialRampToValueAtTime(vol * 0.7, at + 0.005); og.gain.exponentialRampToValueAtTime(0.0001, at + 0.1);
+      o.connect(og); og.connect(master); o.start(at); o.stop(at + 0.12);
+    }
+    crunch(t0 + 1.4, 0.75);
+    crunch(t0 + 1.7, 0.7);
+    crunch(t0 + 2.0, 0.8);
+
+    // a bright little "delicious" chime as the eyes light up
+    [1568, 2093, 2637].forEach(function (f, k) {
+      var o = ctx.createOscillator(), g = ctx.createGain(), t = t0 + 2.17 + k * 0.07;
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.55);
+    });
+    setTimeout(function () { try { ctx.close(); } catch (e) {} }, 3600);
   }
 
   // Web app: offline cache and instant updates when served over https (GitHub Pages).
@@ -2373,7 +2459,7 @@
   $$(".tab")[0].classList.add("active");
   renderHome(false);
   setFocus(1, 0, true);
-  var wait = RESUMING ? 0 : Math.max(0, 2600 - (Date.now() - started));
+  var wait = RESUMING ? 0 : Math.max(0, 3100 - (Date.now() - started));
   if (RESUMING) {
     try { var lf = JSON.parse(sessionStorage.getItem("reaper.lastFocus") || "null"); if (lf) restoreFocus(lf); } catch (e) {}
   }   // let the reaper have its moment
