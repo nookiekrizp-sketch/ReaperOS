@@ -207,11 +207,19 @@ function desktopMode() {
   return r.status === 0;
 }
 
+// Batocera: status -> found / missing / no-efi / no-loader / error. boot -> adds a one-time boot entry.
+const BATO_CODES = { 0: "found", 3: "missing", 4: "no-efi", 5: "no-loader", 6: "error" };
+function batocera(action) {
+  const r = spawnSync("sudo", ["-n", "/usr/libexec/reaperos-batocera", action], { encoding: "utf8", timeout: 30000 });
+  if (r.error) return { status: "unsupported" };
+  return { status: BATO_CODES[r.status] || (r.status === 1 ? "unsupported" : "error"), detail: (r.stdout || r.stderr || "").trim() };
+}
+
 function openSettings() {
   return detached("systemsettings", []) || detached("kcmshell6", ["kcm_landingpage"]);
 }
 
 module.exports = {
   loadApps, launch, iconFor, steamRoot, refreshFlatpak, installArgs, ensureFlathub,
-  playInRetroArch, power, desktopMode, openSettings, inSession
+  playInRetroArch, power, desktopMode, openSettings, inSession, batocera
 };

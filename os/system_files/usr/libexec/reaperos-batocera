@@ -1,0 +1,62 @@
+#!/bin/bash
+# Finds a Batocera install (USB stick or partition) and starts it once on the next restart.
+# Normal restarts afterwards come back to ReaperOS.
+# Usage (as root, via sudo): reaperos-batocera status|boot
+# Exit codes: 0 ok, 3 no Batocera drive, 4 PC not booted in UEFI mode, 5 no Batocera boot file, 6 couldn't add boot entry
+set -euo pipefail
+
+LABEL="Batocera (ReaperOS)"
+
+[ -d /sys/firmware/efi ] || { echo "no-efi"; exit 4; }
+
+# Batocera's boot partition is FAT, labeled BATOCERA (hard-drive installs are sometimes renamed, e.g. BATOPC).
+find_dev() {
+  lsblk -rpno NAME,LABEL,FSTYPE | awk '$2 ~ /^BATO/ && $3 == "vfat" { print $1; exit }'
+}
+
+# Prints the EFI loader path with backslashes, e.g. \EFI\batocera\bootx64.efi
+find_loader() {
+  local dev="$1" root="" mnt="" f=""
+  root=$(lsblk -no MOUNTPOINT "$dev" | head -n1)
+  if [ -z "$root" ]; then
+    mnt=$(mktemp -d)
+    if mount -o ro "$dev" "$mnt" 2>/dev/null; then root="$mnt"; fi
+  fi
+  if [ -n "$root" ]; then
+    f=$(cd "$root" && find . -maxdepth 3 -ipath './efi/batocera/bootx64.efi' | head -n1)
+    [ -n "$f" ] || f=$(cd "$root" && find . -maxdepth 3 -ipath './efi/boot/bootx64.efi' | head -n1)
+  fi
+  if [ -n "$mnt" ]; then umount "$mnt" 2>/dev/null || true; rmdir "$mnt"; fi
+  [ -n "$f" ] && echo "${f#.}" | tr '/' '\\'
+}
+
+dev=$(find_dev)
+[ -n "$dev" ] || { echo "missing"; exit 3; }
+loader=$(find_loader "$dev" || true)
+[ -n "$loader" ] || { echo "no-loader $dev"; exit 5; }
+
+case "${1:-}" in
+  status)
+    echo "found $dev"
+    ;;
+  boot)
+    disk="/dev/$(lsblk -no PKNAME "$dev" | head -n1)"
+    part=$(cat "/sys/class/block/$(basename "$dev")/partition")
+    # Replace any entry made earlier (the stick may be in a different port now).
+    for n in $(efibootmgr | grep -F " $LABEL" | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\).*/\1/p'); do
+      efibootmgr -q -b "$n" -B
+    done
+    efibootmgr -q --create --disk "$disk" --part "$part" --label "$LABEL" --loader "$loader"
+    num=$(efibootmgr | grep -F " $LABEL" | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\).*/\1/p' | head -n1)
+    [ -n "$num" ] || { echo "no-entry"; exit 6; }
+    # Keep the normal boot order; Batocera starts only on the next boot.
+    order=$(efibootmgr | sed -n 's/^BootOrder: //p' | tr ',' '\n' | grep -vix "$num" | paste -sd, -)
+    [ -n "$order" ] && efibootmgr -q -o "$order"
+    efibootmgr -q -n "$num"
+    echo "ready $num"
+    ;;
+  *)
+    echo "usage: $0 status|boot" >&2
+    exit 2
+    ;;
+esac

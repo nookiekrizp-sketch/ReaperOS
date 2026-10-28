@@ -362,6 +362,59 @@ function playMedia(file, title) {
   } catch (e) { toast("ReaperOS Player couldn't start."); }
 }
 
+
+// Batocera on Windows: finds the Batocera drive (FAT, label starting with BATO) and asks the
+// PC's firmware to start it once on the next restart. Exit codes match the Linux script.
+const BATO_PS = String.raw`
+param([string]$Action = "status")
+$ErrorActionPreference = "Stop"
+$drive = [System.IO.DriveInfo]::GetDrives() | Where-Object {
+  $_.IsReady -and $_.VolumeLabel -like "BATO*" -and $_.DriveFormat -like "FAT*" } | Select-Object -First 1
+if (-not $drive) { exit 3 }
+$root = $drive.RootDirectory.FullName.TrimEnd("\")
+$loader = $null
+foreach ($p in "\EFI\batocera\bootx64.efi", "\EFI\BOOT\bootx64.efi") { if (Test-Path ($root + $p)) { $loader = $p; break } }
+if (-not $loader) { exit 5 }
+if ($Action -eq "status") { exit 0 }
+try { $fw = bcdedit /enum firmware } catch { exit 4 }
+if ($LASTEXITCODE -ne 0) { exit 4 }
+# Remove an entry made earlier, so the drive letter is current.
+$blocks = ($fw -join [Environment]::NewLine) -split '(?:\r?\n)\s*(?:\r?\n)'
+foreach ($b in $blocks) {
+  if ($b -match "Batocera \(ReaperOS\)") {
+    $m = [regex]::Match($b, "\{[0-9a-fA-F-]{36}\}")
+    if ($m.Success) { bcdedit /delete $m.Value | Out-Null }
+  }
+}
+$out = bcdedit /copy "{bootmgr}" /d "Batocera (ReaperOS)"
+$id = [regex]::Match(($out -join " "), "\{[0-9a-fA-F-]{36}\}").Value
+if (-not $id) { exit 6 }
+bcdedit /set $id device ("partition=" + $root) | Out-Null
+bcdedit /set $id path $loader | Out-Null
+bcdedit /set "{fwbootmgr}" displayorder $id /addlast | Out-Null
+bcdedit /set "{fwbootmgr}" bootsequence $id | Out-Null
+if ($LASTEXITCODE -ne 0) { exit 6 }
+exit 0
+`;
+const BATO_WIN_CODES = { 0: "found", 3: "missing", 4: "no-efi", 5: "no-loader", 6: "error" };
+
+function batoceraWindows(action) {
+  return new Promise((resolve) => {
+    const file = path.join(os.tmpdir(), "reaperos-batocera.ps1");
+    try { fs.writeFileSync(file, BATO_PS, "utf8"); } catch (e) { return resolve({ status: "error" }); }
+    let cmd;
+    if (action === "boot") {
+      // Changing the boot entries needs administrator rights, so Windows shows its permission prompt.
+      cmd = `try { $p = Start-Process powershell -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','"${file}"','boot'; exit $p.ExitCode } catch { exit 1223 }`;
+    } else {
+      cmd = `& '${file}' status; exit $LASTEXITCODE`;
+    }
+    const p = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", cmd], { windowsHide: true });
+    p.on("error", () => resolve({ status: "error" }));
+    p.on("close", (code) => resolve({ status: code === 1223 ? "cancelled" : (BATO_WIN_CODES[code] || "error") }));
+  });
+}
+
 // ------------------------------------------------------------------ built-in web player
 
 let webWin = null;
@@ -475,6 +528,20 @@ const asyncHandlers = {
     if (isLinux) { if (!L.power(String(action))) toast("Couldn't " + action + "."); return; }
     const args = { shutdown: ["/s", "/t", "0"], restart: ["/r", "/t", "0"] }[String(action)];
     if (args) spawn("shutdown", args, { detached: true, stdio: "ignore", windowsHide: true }).unref();
+  },
+  // Batocera: check for a Batocera drive, or set it to start once and restart.
+  batoceraStatus: async () => {
+    const r = isLinux ? L.batocera("status") : isWin ? await batoceraWindows("status") : { status: "unsupported" };
+    js(`window.reaperBatocera && reaperBatocera(${q(r.status)})`);
+  },
+  batoceraBoot: async () => {
+    const r = isLinux ? L.batocera("boot") : isWin ? await batoceraWindows("boot") : { status: "unsupported" };
+    if (r.status !== "found") { js(`window.reaperBatocera && reaperBatocera(${q(r.status)}, true)`); return; }
+    js(`window.reaperBatocera && reaperBatocera("restarting", true)`);
+    setTimeout(() => {
+      if (isLinux) L.power("restart");
+      else spawn("shutdown", ["/r", "/t", "0"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+    }, 1500);
   },
   // ReaperOS OS: next sign-in goes to the KDE desktop, then this session ends.
   desktopMode: () => {

@@ -851,10 +851,52 @@
       F("org.localsend.localsend_app", "tools", "LocalSend", "L", "#13A89E", "Send files between this PC, your iPhone and your Fire TV."),
       F("com.obsproject.Studio", "tools", "OBS Studio", "O", "#302E31", "Record and stream your gameplay."),
       F("com.github.tchx84.Flatseal", "tools", "Flatseal", "F", "#4A86CF", "Change what each app is allowed to access."),
-      F("io.github.flattool.Warehouse", "tools", "Warehouse", "W", "#6D4C41", "Manage and clean up installed apps.")
+      F("io.github.flattool.Warehouse", "tools", "Warehouse", "W", "#6D4C41", "Manage and clean up installed apps."),
+      F("io.gitlab.adhami3310.Impression", "tools", "Impression", "I", "#E66100", "Write Batocera or any OS image to a USB stick.")
     ];
     STORE.forEach(function (s) { s.from = "Flathub"; s.icons = ["https://dl.flathub.org/media/" + s.pkg.split(".").join("/") + "/stable/icons/128x128/" + s.pkg + ".png"]; });
   }
+
+
+  // ---------------------------------------------------------------- Batocera (switch OS)
+  // Batocera is its own retro-gaming OS. ReaperOS finds a Batocera USB stick or partition
+  // and starts it once on the next restart; restarting normally comes back to ReaperOS.
+  var BATOCERA = { id: "batocera", batocera: true, name: "Batocera", glyph: "B", color: "#C0392B",
+    icons: ["https://www.google.com/s2/favicons?domain=batocera.org&sz=256"], kicker: "Retro gaming OS",
+    desc: "Restart into Batocera from a USB stick or partition. Restart again to come back to ReaperOS." };
+  var batoArmed = 0;
+  function batoceraFlow() {
+    if (!NATIVE || !Reaper.batoceraStatus) { toast("Restarting into Batocera works in ReaperOS for PC."); return; }
+    if (batoArmed && Date.now() - batoArmed < 8000) {
+      batoArmed = 0;
+      toast("Setting up Batocera…");
+      Reaper.batoceraBoot();
+      return;
+    }
+    toast("Looking for Batocera…");
+    Reaper.batoceraStatus();
+  }
+  window.reaperBatocera = function (status, fromBoot) {
+    if (status === "found" && !fromBoot) {
+      batoArmed = Date.now();
+      toast("Batocera found. Press OK again to restart into it. Your next normal restart comes back to ReaperOS.");
+    } else if (status === "restarting") {
+      toast("Restarting into Batocera…");
+    } else if (status === "missing") {
+      toast("No Batocera drive found. Opening Batocera's downloads; flash it to a USB stick with " + (WIN ? "balenaEtcher" : "Impression") + " from the Store.");
+      Reaper.openUrl("https://batocera.org/download");
+    } else if (status === "no-loader") {
+      toast("Found a Batocera drive, but not its boot file. Try re-flashing the USB stick.");
+    } else if (status === "no-efi") {
+      toast("This PC starts in legacy BIOS mode. Pick the Batocera stick from your PC's boot menu instead.");
+    } else if (status === "cancelled") {
+      toast("Batocera restart cancelled.");
+    } else if (status === "unsupported") {
+      toast("Restarting into Batocera isn't set up on this system.");
+    } else {
+      toast("Couldn't set up Batocera. You can still pick it from your PC's boot menu.");
+    }
+  };
 
   // ---------------------------------------------------------------- Windows catalog
   // On Windows everything installs through winget, Windows' built-in package manager.
@@ -923,11 +965,15 @@
 
       { id: "localsend", cat: "tools", name: "LocalSend", glyph: "L", color: "#13A89E", pkg: "LocalSend.LocalSend", source: WG("LocalSend.LocalSend"), match: /localsend/i,
         desc: "Send files between this PC, your iPhone and your Fire TV over Wi-Fi." },
+      { id: "etcher", cat: "tools", name: "balenaEtcher", glyph: "E", color: "#2FB9F6", pkg: "Balena.Etcher", source: WG("Balena.Etcher"), match: /etcher/i,
+        desc: "Write Batocera or any OS image to a USB stick." },
       { id: "unigetui", cat: "tools", name: "UniGetUI", glyph: "U", color: "#0067C0", pkg: "MartiCliment.UniGetUI", source: WG("MartiCliment.UniGetUI"), match: /unigetui|wingetui/i,
         desc: "A full app store for everything winget, Scoop and Chocolatey can install." }
     ];
     STORE.forEach(function (s) { s.from = "winget"; s.icons = []; });
   }
+
+  if (DESK) CLOUD.push(BATOCERA);
 
   var DEMO_APPS = [
     { pkg: "demo.netflix", label: "Netflix", tv: true, color: "#B20710" },
@@ -1214,8 +1260,9 @@
     if (inst && NATIVE) { t.dataset.pkg = inst.pkg; if (!icons[inst.pkg]) Reaper.requestIcon(inst.pkg); }
     t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + c.color + ',#120A22 90%)"></div>' +
       '<div class="ic glyph" style="background:rgba(0,0,0,.28)">' + esc(c.glyph) + '</div><div class="name">' + esc(c.name) + '</div>' +
-      (inst || IOS ? "" : canEmbed(c) ? '<div class="get">Plays here</div>' : '<div class="get">Get app</div>');
+      (c.batocera ? '<div class="get">Switch OS</div>' : inst || IOS ? "" : canEmbed(c) ? '<div class="get">Plays here</div>' : '<div class="get">Get app</div>');
     t._act = function () {
+      if (c.batocera) { batoceraFlow(); return; }
       if (IOS) { openIOS(c); return; }
       var a = cloudApp(c);
       if (DESK && a && c.launchUrl) { Reaper.openUrl(c.launchUrl); return; }
@@ -1313,7 +1360,8 @@
     } else if (it.kind === "cloud") {
       var c = it.cloud, ca = cloudApp(c); kicker = c.kicker; title = c.name; color = c.color;
       desc = ca || IOS ? c.desc : canEmbed(c) ? c.desc + " Plays right here in ReaperOS; install the app anytime for the full experience." : "Not installed yet. Press OK to get the app.";
-      act = ca || IOS || canEmbed(c) ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : SOCIAL.indexOf(c) >= 0 ? "Open" : "Play") : "Get app";
+      if (c.batocera) { desc = c.desc; }
+      act = c.batocera ? "Restart into Batocera" : ca || IOS || canEmbed(c) ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : SOCIAL.indexOf(c) >= 0 ? "Open" : "Play") : "Get app";
       art = artFor(t, c.glyph);
     } else {
       var s = it.store, inst = installedVersion(s);
@@ -1912,6 +1960,7 @@
       tr.appendChild(button("Exit ReaperOS", "Back to the Windows desktop", function () { Reaper.quit(); }));
       tr.appendChild(button("Restart PC", "Restart Windows now", function () { Reaper.power("restart"); }));
       tr.appendChild(button("Shut down", "Turn off this PC", function () { Reaper.power("shutdown"); }));
+      tr.appendChild(button("Restart into Batocera", "Boot a Batocera USB stick once (asks for administrator permission)", function () { batoceraFlow(); }));
     } else if (LINUX) {
       tr.appendChild(button("Shut down", "Turn off this PC", function () { Reaper.power("shutdown"); }));
       tr.appendChild(button("Restart", "Restart this PC", function () { Reaper.power("restart"); }));
@@ -1919,6 +1968,7 @@
       if (OS_SESSION) tr.appendChild(button("Desktop mode", "Switch to the full KDE desktop. Use Return to ReaperOS there to come back.", function () { Reaper.desktopMode(); }));
       else tr.appendChild(button("Exit ReaperOS", "Back to the desktop", function () { Reaper.quit(); }));
       tr.appendChild(button("System settings", "Wi-Fi, display, sound, Bluetooth and accounts", function () { Reaper.openSettings("system"); }));
+      tr.appendChild(button("Restart into Batocera", "Boot a Batocera USB stick or partition once", function () { batoceraFlow(); }));
     } else if (!IOS) {
       tr.appendChild(button("Fire TV settings", "Network, display, controllers, accounts", function () { NATIVE ? Reaper.openSettings("system") : toast("Opens Fire TV settings"); }));
       tr.appendChild(button("Allow app installs", "Needed for the Homebrew Store", function () { NATIVE ? Reaper.openSettings("unknown") : toast("Opens the install permission"); }));

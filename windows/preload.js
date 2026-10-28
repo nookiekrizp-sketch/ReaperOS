@@ -37,5 +37,7 @@ contextBridge.exposeInMainWorld("Reaper", {
   setPlayerOption: async("setPlayerOption"),
   power: async("power"),
   desktopMode: async("desktopMode"),
+  batoceraStatus: async("batoceraStatus"),
+  batoceraBoot: async("batoceraBoot"),
   quit: async("quit")
 });

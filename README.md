@@ -71,6 +71,7 @@ ReaperOS is also a full operating system for gaming PCs, built on [Bazzite](http
 - **Store from Flathub:** Heroic, Lutris, Bottles, ProtonUp-Qt, RetroArch, RetroDECK, PCSX2, RPCS3, Dolphin, Cemu, Azahar, Stremio, Kodi, Plex, Spotify, Discord and more, installed per user with no password prompts.
 - **Steam library, Your apps, Media player (mpv), built-in games, cloud gaming** all work as in the Windows version. Netflix and other copy-protected services open in the system browser.
 - **Power controls:** Shut down, Restart and Sleep in Settings.
+- **Batocera:** a **Batocera** tile (PC & cloud gaming) and **Settings → Restart into Batocera** start a Batocera USB stick or partition once; the next normal restart returns to ReaperOS. ReaperOS finds the drive by its `BATOCERA` label (or any FAT label starting with `BATO`) and its `EFI/batocera` or `EFI/BOOT` boot file. If none is found it opens [batocera.org/download](https://batocera.org/download); flash the image with **Impression** from the Store. Batocera doesn't support Secure Boot, so turn that off in your firmware if Batocera won't start. The Windows version does the same with an administrator prompt (and offers balenaEtcher).
 - **Updates:** the image is rebuilt daily on top of the newest Bazzite, and your PC picks it up automatically.
 
 ### Installing

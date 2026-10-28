@@ -1,3 +1,5 @@
 # Lets administrators switch between the ReaperOS session and the desktop without a password.
 # The script only accepts "reaperos" or "desktop".
 %wheel ALL=(root) NOPASSWD: /usr/libexec/reaperos-set-session reaperos, /usr/libexec/reaperos-set-session desktop
+# Lets administrators restart into a Batocera USB stick or partition once (it only adds a one-time boot entry).
+%wheel ALL=(root) NOPASSWD: /usr/libexec/reaperos-batocera status, /usr/libexec/reaperos-batocera boot
