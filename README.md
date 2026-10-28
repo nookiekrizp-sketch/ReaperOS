@@ -18,6 +18,7 @@ A Bazzite-style TV launcher for Amazon Fire TV, with a reaper load screen, your 
 - **Load screen:** the reaper slashes a soul made of RAM sticks, catches one and eats it in three crunchy bites, then lights up with happy eyes; the synthesized slash, crunch and chime play in time with each moment of the animation.
 - **Podcasts:** Apple Podcasts, Spotify, YouTube Music, Pocket Casts, iHeartRadio, TuneIn and Amazon Music, each playing inside ReaperOS when the app is not installed; AntennaPod (Fire TV) and Kasts/Podcasts (ReaperOS OS) in the store.
 - **Weather & local news:** live weather in the top bar and a Weather row (now, next 12 hours, 7 days, National Weather Service alerts, live radar) from Open-Meteo; a Local news row with NewsON, Local Now, Haystack News and today's local headlines. Location is found automatically or set by ZIP code in Settings.
+- **Movie trailers:** the newest official trailers from studio YouTube channels; on Popular on IMDb and the movie countdown, Menu plays a movie's trailer.
 - **Live rows (refreshed every 6 hours):** Popular on IMDb, the Billboard Hot 100 (plays in Spotify, YouTube Music or Apple Music), new videos from game-modding YouTubers, and release countdowns for anime episodes and premieres (AniList), upcoming games (Steam) and US movie releases (IMDb). A GitHub job (`tools/charts.py`, run by `web.yml`) publishes `charts.json` to GitHub Pages; if a source changes its site, the last good data stays up.
 
 ## Getting the APK

@@ -1668,7 +1668,7 @@
       '<div class="ctext"><b>' + esc(m.title) + "</b><span>" + (m.rating ? '<i class="star">\u2605</i> ' + m.rating + " \u00b7 " : "") + (m.year || "") + "</span></div>" +
       '<div class="badge imdb">#' + (i + 1) + "</div>";
     t._act = function () { openMovie(m); };
-    return t;
+    return addTrailerKey(t, m.title);
   }
   function songTile(e) {
     var t = el("div", "tile f");
@@ -1695,6 +1695,24 @@
     });
     return list.sort(function (a, b) { return (b.published || "").localeCompare(a.published || ""); });
   }
+  function trailerList() {
+    return ((charts && charts.trailers) || []).map(function (v) {
+      return { id: v.id, title: v.title, published: v.published, channel: v.channel, kicker: "Movie trailer", about: "Official trailer from " + v.channel };
+    });
+  }
+  function normTitle(t) { return String(t || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim(); }
+  function findTrailer(title) {
+    var n = normTitle(title); if (n.length < 4) return null;
+    var re = new RegExp("(^| )" + n.replace(/ /g, " ") + "( |$)");
+    return trailerList().filter(function (v) { return re.test(normTitle(v.title)); })[0] || null;
+  }
+  function addTrailerKey(t, title) {
+    var tr = findTrailer(title); if (!tr) return t;
+    t._menu = function () { playVideo(tr); };
+    t._menuLabel = "Watch trailer";
+    t.appendChild(el("div", "get", "\u25B6 Trailer"));
+    return t;
+  }
   function chartHero(it) {
     if (/Timer$/.test(it.type)) return timerHero(it);
     var r = { color: "#3B2470", art: "" };
@@ -1713,7 +1731,7 @@
         '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:6rem;font-weight:800;background:rgba(0,0,0,.28)">' + e.rank + "</div>";
     } else {
       var v = it.v;
-      r.kicker = "Modder YouTubers \u00b7 " + v.channel; r.title = v.title;
+      r.kicker = (v.kicker || "Modder YouTubers") + " \u00b7 " + v.channel; r.title = v.title;
       r.desc = v.about + (v.published ? ". Posted " + new Date(v.published).toLocaleDateString() + "." : "."); r.color = "#B01818"; r.act = "Watch";
       r.art = '<img class="wide" src="https://i.ytimg.com/vi/' + v.id + '/hqdefault.jpg" style="object-fit:cover;aspect-ratio:16/9">';
     }
@@ -1754,6 +1772,10 @@
                 : d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" });
   }
   function timerTile(x, type) {
+    var t0 = timerTileBase(x, type);
+    return type === "movie" ? addTrailerKey(t0, x.title) : t0;
+  }
+  function timerTileBase(x, type) {
     var t = el("div", "tile f timer" + (type === "game" ? " hasban" : ""));
     var target = timerTarget(x);
     t._item = { kind: "chart", type: type + "Timer", x: x };
@@ -2052,6 +2074,8 @@
     var gt = timerList("game_timers");
     if (gt.length) sc.appendChild(shelf("Game release countdown", gt.length, gt.map(function (x) { return timerTile(x, "game"); })));
     sc.appendChild(shelf("Movies & TV", MOVIES.length, MOVIES.map(linkTile)));
+    var trl = trailerList();
+    if (trl.length) sc.appendChild(shelf("Movie trailers \u00b7 newest first", trl.length, trl.map(videoTile)));
     var pop = chartData("imdb");
     if (pop.length) sc.appendChild(shelf("Popular on IMDb", pop.length, pop.map(movieTile)));
     var mt = timerList("movie_timers");
@@ -2097,7 +2121,9 @@
       desc = (ago(nn.at) ? "Published " + ago(nn.at) + ". " : "") + "Opens the full story inside ReaperOS.";
       art = '<div class="ic glyph" style="width:13rem;height:13rem;display:flex;align-items:center;justify-content:center;font-size:7rem">\u{1F4F0}</div>';
     } else if (it.kind === "chart") {
-      var ch = chartHero(it); kicker = ch.kicker; title = ch.title; desc = ch.desc; color = ch.color; art = ch.art; act = ch.act; descHtml = ch.descHtml;
+      var ch = chartHero(it);
+      if (t._menuLabel && !TOUCH) ch.desc += " Press " + (DESK ? "M" : "Menu") + " to watch the trailer.";
+      if (t._menuLabel && !TOUCH && ch.descHtml) ch.descHtml += " Press " + (DESK ? "M" : "Menu") + " to watch the trailer."; kicker = ch.kicker; title = ch.title; desc = ch.desc; color = ch.color; art = ch.art; act = ch.act; descHtml = ch.descHtml;
     } else if (it.kind === "rom") {
       var rr = it.rom; kicker = rr.sys + " \u00b7 built-in player"; title = rr.name; desc = rr.desc; color = rr.color; act = "Play";
       art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:3.6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(rr.sys === "NES" ? "NES" : "GB") + "</div>";
@@ -2947,6 +2973,7 @@
   function updateHelp(t) {
     var parts = ['<span><b>' + (DESK ? "ENTER / A" : "OK") + '</b>' + (t && t.classList.contains("tab") ? "Open" : "Select") + "</span>"];
     if (t && t._item && t._item.kind === "app") parts.push("<span><b>" + (DESK ? "M / Y" : "MENU") + "</b>" + (favs.indexOf(t._item.app.pkg) >= 0 ? "Unpin" : "Pin to Favorites") + "</span>");
+    if (t && t._menuLabel) parts.push("<span><b>" + (DESK ? "M / Y" : "MENU") + "</b>" + t._menuLabel + "</span>");
     if (t && t.classList.contains("card")) parts.push("<span><b>MENU</b>" + (t.dataset.rom ? "Open in RetroArch" : "Uninstall") + "</span>");
     parts.push("<span><b>" + (DESK ? "ESC / B" : "BACK") + "</b>" + (state.page === "home" ? "Top of the page" : "Home") + "</span>");
     $("#help").innerHTML = parts.join("");

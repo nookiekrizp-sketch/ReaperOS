@@ -174,7 +174,7 @@ def is_short(vid):
         return False
 
 
-def channel(handle):
+def channel(handle, want=3, keep=None):
     html = get("https://www.youtube.com/@" + handle)
     m = (re.search(r'"externalId":"(UC[\w-]{22})"', html)
          or re.search(r'<link rel="canonical" href="https://www\.youtube\.com/channel/(UC[\w-]{22})"', html)
@@ -192,10 +192,12 @@ def channel(handle):
         title = en.findtext("a:title", "", ns)
         if not vid or "#shorts" in title.lower():
             continue
+        if keep and not keep(title):
+            continue
         if is_short(vid):
             continue
         vids.append({"id": vid, "title": title, "published": en.findtext("a:published", "", ns)})
-        if len(vids) >= 3:
+        if len(vids) >= want:
             break
     return cid, vids
 
@@ -211,6 +213,46 @@ def modders():
             log("youtube skip", handle, e)
         time.sleep(0.5)
     return out
+
+
+# Official studio and trailer channels: only videos with "trailer" or "teaser" in the title.
+TRAILER_CHANNELS = [
+    ("RottenTomatoesTRAILERS", "Rotten Tomatoes Trailers"),
+    ("warnerbrospictures", "Warner Bros. Pictures"),
+    ("UniversalPictures", "Universal Pictures"),
+    ("SonyPictures", "Sony Pictures"),
+    ("ParamountPictures", "Paramount Pictures"),
+    ("WaltDisneyStudios", "Walt Disney Studios"),
+    ("marvel", "Marvel Entertainment"),
+    ("20thCenturyStudios", "20th Century Studios"),
+    ("LionsgateMovies", "Lionsgate Movies"),
+    ("A24", "A24"),
+    ("FocusFeatures", "Focus Features"),
+    ("neonrated", "NEON"),
+    ("Netflix", "Netflix"),
+    ("PrimeVideo", "Prime Video"),
+]
+
+
+def trailers():
+    is_trailer = lambda t: re.search(r"\b(trailer|teaser)\b", t, re.I) and not re.search(r"\breaction\b", t, re.I)
+    out, seen = [], set()
+    for handle, name in TRAILER_CHANNELS:
+        try:
+            cid, vids = channel(handle, want=4, keep=is_trailer)
+            for v in vids:
+                key = re.sub(r"[^a-z0-9]", "", v["title"].lower())[:40]
+                if key in seen:
+                    continue
+                seen.add(key)
+                v["channel"] = name
+                out.append(v)
+            log("trailers ok", handle, len(vids))
+        except Exception as e:
+            log("trailers skip", handle, e)
+        time.sleep(0.5)
+    out.sort(key=lambda v: v["published"], reverse=True)
+    return out[:50]
 
 
 # ------------------------------------------------------------------ release timers
@@ -362,7 +404,7 @@ def main():
         except Exception:
             prev = {}
     out = {"updated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")}
-    for key, fn in (("imdb", imdb_popular), ("hot100", hot100), ("modders", modders),
+    for key, fn in (("imdb", imdb_popular), ("hot100", hot100), ("modders", modders), ("trailers", trailers),
                      ("anime_timers", anime_timers), ("game_timers", game_timers), ("movie_timers", movie_timers)):
         try:
             val = fn()

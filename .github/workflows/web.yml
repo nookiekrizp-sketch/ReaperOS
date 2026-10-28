@@ -41,7 +41,7 @@ jobs:
           python3 tools/charts.py _site/charts.json prev-charts.json 2> charts.log || true
           cat charts.log
           SUMMARY=$(python3 -c "import json;d=json.load(open('_site/charts.json'));print(', '.join('%s=%s'%(k,len(v['entries']) if isinstance(v,dict) else len(v) if isinstance(v,list) else v) for k,v in d.items()))" 2>&1)
-          echo "::notice title=charts::$SUMMARY%0A$(grep -v 'youtube ok' charts.log | head -30 | cut -c1-220 | sed ':a;N;$!ba;s/\n/%0A/g')"
+          echo "::notice title=charts::$SUMMARY%0A$(grep -v 'youtube ok\|trailers ok' charts.log | head -30 | cut -c1-220 | sed ':a;N;$!ba;s/\n/%0A/g')"
 
       - uses: actions/configure-pages@v5
 
