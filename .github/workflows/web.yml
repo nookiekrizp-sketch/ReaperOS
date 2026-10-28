@@ -35,13 +35,18 @@ jobs:
       - name: Refresh charts (IMDb, Billboard Hot 100, modder YouTubers)
         continue-on-error: true
         run: |
-          pip install --quiet playwright beautifulsoup4
-          python3 -m playwright install --with-deps chromium > /dev/null
+          set +e
+          touch charts.log
+          pip install --quiet playwright beautifulsoup4 > pip.log 2>&1 || echo "pip install failed: $(tail -2 pip.log | tr '\n' ' ')" >> charts.log
+          python3 -m playwright install --with-deps chromium > pw.log 2>&1 || echo "browser install failed: $(tail -3 pw.log | tr '\n' ' ')" >> charts.log
           curl -fsSL -o prev-charts.json https://nookiekrizp-sketch.github.io/ReaperOS/charts.json || echo '{}' > prev-charts.json
-          python3 tools/charts.py _site/charts.json prev-charts.json 2> charts.log || true
+          python3 tools/charts.py _site/charts.json prev-charts.json 2>> charts.log || echo "charts.py exited with $?: $(tail -2 charts.log | tr '\n' ' ')" >> charts.log
+          # never publish without data: fall back to the last good file
+          python3 -c "import json;json.load(open('_site/charts.json'))" 2>/dev/null || cp prev-charts.json _site/charts.json
           cat charts.log
-          SUMMARY=$(python3 -c "import json;d=json.load(open('_site/charts.json'));print(', '.join('%s=%s'%(k,len(v['entries']) if isinstance(v,dict) else len(v) if isinstance(v,list) else v) for k,v in d.items()))" 2>&1)
-          echo "::notice title=charts::$SUMMARY%0A$(grep -v 'youtube ok\|trailers ok' charts.log | head -45 | cut -c1-200 | sed ':a;N;$!ba;s/\n/%0A/g')"
+          SUMMARY=$(python3 -c "import json;d=json.load(open('_site/charts.json'));print(', '.join('%s=%s'%(k,len(v['entries']) if isinstance(v,dict) and 'entries' in v else len(v) if isinstance(v,(list,dict)) else v) for k,v in d.items()))" 2>&1)
+          echo "::notice title=charts::$SUMMARY%0A$(grep -v 'youtube ok\|trailers ok\|imdb page' charts.log | head -45 | cut -c1-200 | sed ':a;N;$!ba;s/\n/%0A/g')"
+          exit 0
 
       - uses: actions/configure-pages@v5
 
