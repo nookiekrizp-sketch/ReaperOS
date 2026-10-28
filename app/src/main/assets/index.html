@@ -226,6 +226,34 @@
   .clock { text-align: right; line-height: 1.15; }
   .clock .t { font-size: 1.9rem; font-weight: 700; }
   .clock .d { font-size: .9rem; color: var(--dim); letter-spacing: .15rem; text-transform: uppercase; }
+  .wx { display: flex; align-items: center; margin-right: 1.6rem; font-size: 1.6rem; font-weight: 700; white-space: nowrap; }
+  .wx i { font-style: normal; font-size: 1.9rem; margin-right: .45rem; }
+  .wx small { font-size: .85rem; font-weight: 600; color: var(--dim); margin-left: .6rem; max-width: 10rem; overflow: hidden; text-overflow: ellipsis; letter-spacing: .05rem; }
+  body.platform-touch .wx small { display: none; }
+  body.platform-touch .wx { font-size: 1.2rem; margin-right: .8rem; }
+  /* weather + news tiles */
+  .tile.wxt .bgc { background: linear-gradient(160deg, #1E4E8C, #120A22 90%); }
+  .tile.wxt.night .bgc { background: linear-gradient(160deg, #1A1F4A, #120A22 90%); }
+  .tile.wxt.alert .bgc { background: linear-gradient(160deg, #A3122A, #2A0610 90%); }
+  .tile .wxi { position: absolute; left: .9rem; top: .5rem; font-size: 2.9rem; line-height: 1; }
+  .tile .wxbig { position: absolute; right: .9rem; top: .6rem; font-size: 2.5rem; font-weight: 800; }
+  .tile .wxsub { position: absolute; left: .9rem; right: .9rem; bottom: 2.4rem; font-size: .95rem; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile.wxt .name { opacity: 1; }
+  .tile.newst .bgc { background: linear-gradient(160deg, #233046, #120A22 90%); }
+  .tile .src { position: absolute; left: .9rem; top: .7rem; right: .9rem; font-size: .8rem; font-weight: 800; letter-spacing: .08rem; text-transform: uppercase; color: var(--cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .hl { position: absolute; left: .9rem; right: .9rem; top: 2rem; font-size: 1.05rem; font-weight: 700; line-height: 1.25; max-height: 5.3rem; overflow: hidden; }
+  .tile .ago { position: absolute; left: .9rem; bottom: .6rem; font-size: .85rem; color: var(--dim); }
+  /* ZIP pad */
+  #zippad { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(5,3,10,.82); }
+  #zippad.on { display: flex; }
+  #zippad .box { background: var(--panel); border-radius: 1.6rem; padding: 2.4rem 3rem; text-align: center; width: 34rem; }
+  #zippad h2 { font-size: 1.8rem; margin-bottom: .4rem; }
+  #zippad p { color: var(--dim); font-size: 1.05rem; margin-bottom: 1.2rem; }
+  #zippad .zipval { font-size: 3rem; font-weight: 800; letter-spacing: .8rem; min-height: 4rem; color: var(--cyan); font-variant-numeric: tabular-nums; }
+  #zippad .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-top: 1rem; }
+  #zippad .k { background: var(--panel2); border-radius: 1rem; padding: .9rem 0; font-size: 1.6rem; font-weight: 700; cursor: pointer; border: .2rem solid transparent; }
+  #zippad .k.wide { grid-column: span 3; font-size: 1.15rem; }
+  #zippad .k.sel { background: var(--cyan); color: var(--bg); }
   .net { width: .8rem; height: .8rem; border-radius: 50%; background: var(--green); margin-right: .6rem; }
   .net.off { background: var(--red); }
 
@@ -607,6 +635,7 @@
   <div class="tab f" data-tab="store">Homebrew Store</div>
   <div class="tab f" data-tab="settings">Settings</div>
   <div class="spacer"></div>
+  <div class="wx" id="wxTop"></div>
   <div class="net" id="net"></div>
   <div class="clock"><div class="t" id="clockT">--:--</div><div class="d" id="clockD"></div></div>
 </div>
@@ -615,6 +644,14 @@
 <div class="page" id="page-media"><div class="scroller"></div></div>
 <div class="page" id="page-store"><div class="scroller"></div></div>
 <div id="vplayer"><video id="vplayerVideo" controls playsinline></video><button id="vplayerClose">&#10005; Close</button></div>
+<div id="zippad">
+  <div class="box">
+    <h2>Weather &amp; local news location</h2>
+    <p>Enter a US ZIP code, or let ReaperOS find you automatically.</p>
+    <div class="zipval" id="zipVal"></div>
+    <div class="keys" id="zipKeys"></div>
+  </div>
+</div>
 <input type="file" id="mediaPick" accept="video/*,audio/*,.mkv,.avi,.mov,.m4v,.flac" style="display:none">
 <div class="page" id="page-settings"><div class="scroller"></div></div>
 
@@ -1756,6 +1793,226 @@
     return r;
   }
 
+  // ---------------------------------------------------------------- weather + local news
+  // Location: found automatically from this device's internet connection, or a ZIP code from Settings.
+  // Weather: Open-Meteo (free, no account). US alerts: National Weather Service. Local headlines: Google News.
+  var loc = load("loc", null);          // { mode: "auto"|"zip", city, region, country, lat, lon, zip, at }
+  var wx = load("wx", null), news = load("localNews", null);
+  function locName() { return loc ? loc.city + (loc.region ? ", " + loc.region : "") : ""; }
+  function imperial() { return !loc || /^(US|LR|MM|PR|GU|VI)$/.test(loc.country || "US"); }
+  function getJson(url) { return nativeFetch(url).then(function (t) { return JSON.parse(t); }); }
+  function findLocation(force) {
+    if (loc && loc.mode === "zip") return Promise.resolve(loc);
+    if (loc && !force && Date.now() - (loc.at || 0) < 12 * 3600000) return Promise.resolve(loc);
+    return getJson("https://get.geojs.io/v1/ip/geo.json").then(function (g) {
+      return { city: g.city, region: g.region, country: g.country_code, lat: +g.latitude, lon: +g.longitude };
+    }).catch(function () {
+      return getJson("https://ipapi.co/json/").then(function (g) {
+        return { city: g.city, region: g.region_code || g.region, country: g.country_code, lat: +g.latitude, lon: +g.longitude };
+      });
+    }).then(function (l) {
+      if (!l || isNaN(l.lat)) throw new Error("no location");
+      if (l.country === "US" && l.region && US_STATES[l.region]) l.region = US_STATES[l.region];
+      l.mode = "auto"; l.at = Date.now(); loc = l; save("loc", loc); return loc;
+    });
+  }
+  var US_STATES = { Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA", Colorado: "CO", Connecticut: "CT", Delaware: "DE",
+    "District of Columbia": "DC", Florida: "FL", Georgia: "GA", Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA", Kansas: "KS",
+    Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD", Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS",
+    Missouri: "MO", Montana: "MT", Nebraska: "NE", Nevada: "NV", "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY",
+    "North Carolina": "NC", "North Dakota": "ND", Ohio: "OH", Oklahoma: "OK", Oregon: "OR", Pennsylvania: "PA", "Rhode Island": "RI",
+    "South Carolina": "SC", "South Dakota": "SD", Tennessee: "TN", Texas: "TX", Utah: "UT", Vermont: "VT", Virginia: "VA", Washington: "WA",
+    "West Virginia": "WV", Wisconsin: "WI", Wyoming: "WY", "Puerto Rico": "PR" };
+
+  // WMO weather codes -> picture and words
+  function wxInfo(code, day) {
+    var c = +code, n = day === false;
+    if (c === 0) return [n ? "\u{1F319}" : "☀️", "Clear"];
+    if (c === 1) return [n ? "\u{1F319}" : "\u{1F324}️", "Mostly clear"];
+    if (c === 2) return [n ? "☁️" : "⛅", "Partly cloudy"];
+    if (c === 3) return ["☁️", "Cloudy"];
+    if (c === 45 || c === 48) return ["\u{1F32B}️", "Fog"];
+    if (c >= 51 && c <= 57) return ["\u{1F326}️", c >= 56 ? "Freezing drizzle" : "Drizzle"];
+    if (c >= 61 && c <= 67) return ["\u{1F327}️", c >= 66 ? "Freezing rain" : c === 65 ? "Heavy rain" : "Rain"];
+    if (c >= 71 && c <= 77) return ["\u{1F328}️", c === 75 ? "Heavy snow" : "Snow"];
+    if (c >= 80 && c <= 82) return ["\u{1F326}️", "Showers"];
+    if (c === 85 || c === 86) return ["\u{1F328}️", "Snow showers"];
+    if (c >= 95) return ["⛈️", c > 95 ? "Thunderstorms with hail" : "Thunderstorms"];
+    return ["\u{1F321}️", "Weather"];
+  }
+  function deg(v) { return v == null ? "--" : Math.round(v) + "°"; }
+  function refreshWeather(force) {
+    return findLocation(force).then(function (l) {
+      var imp = imperial();
+      var url = "https://api.open-meteo.com/v1/forecast?latitude=" + l.lat.toFixed(3) + "&longitude=" + l.lon.toFixed(3) +
+        "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m,is_day,precipitation" +
+        "&hourly=temperature_2m,weather_code,precipitation_probability,is_day" +
+        "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset" +
+        "&timezone=auto&forecast_days=7" + (imp ? "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch" : "");
+      var alerts = l.country === "US"
+        ? getJson("https://api.weather.gov/alerts/active?point=" + l.lat.toFixed(4) + "," + l.lon.toFixed(4)).then(function (a) {
+            return (a.features || []).map(function (f) { var p = f.properties; return { event: p.event, headline: p.headline, desc: (p.description || "").slice(0, 400), ends: p.ends || p.expires, severity: p.severity }; });
+          }, function () { return []; })
+        : Promise.resolve([]);
+      return Promise.all([getJson(url), alerts]).then(function (r) {
+        wx = { at: Date.now(), imp: imp, place: locName(), f: r[0], alerts: r[1] };
+        save("wx", wx); paintWeatherTop();
+        if (state.page === "home") renderHome(true);
+      });
+    }).catch(function () {});
+  }
+  function paintWeatherTop() {
+    var box = $("#wxTop"); if (!box) return;
+    if (!wx || !wx.f || !wx.f.current) { box.innerHTML = ""; return; }
+    var c = wx.f.current, i = wxInfo(c.weather_code, c.is_day === 1);
+    box.innerHTML = "<i>" + i[0] + "</i>" + deg(c.temperature_2m) + "<small>" + esc(wx.place || "") + "</small>";
+    box.title = i[1];
+  }
+  function wxTile(kind, d) {
+    var t = el("div", "tile f wxt" + (d.night ? " night" : "") + (kind === "alert" ? " alert" : ""));
+    t._item = { kind: "wx", type: kind, d: d };
+    t.innerHTML = '<div class="bgc"></div><div class="wxi">' + d.icon + "</div>" + (d.big ? '<div class="wxbig">' + d.big + "</div>" : "") +
+      '<div class="wxsub">' + esc(d.sub || "") + '</div><div class="name">' + esc(d.name) + "</div>";
+    t._act = function () {
+      if (kind === "radar") { openOut("https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=default&metricTemp=default&metricWind=default&zoom=7&overlay=radar&product=radar&level=surface&lat=" + loc.lat.toFixed(3) + "&lon=" + loc.lon.toFixed(3), UA_DESKTOP); return; }
+      if (kind === "alert") { openOut("https://forecast.weather.gov/MapClick.php?lat=" + loc.lat.toFixed(4) + "&lon=" + loc.lon.toFixed(4), UA_DESKTOP); return; }
+      openOut("https://forecast.weather.gov/MapClick.php?lat=" + loc.lat.toFixed(4) + "&lon=" + loc.lon.toFixed(4), UA_DESKTOP);
+    };
+    if (loc && loc.country !== "US" && kind !== "radar") t._act = function () { openOut("https://www.windy.com/" + loc.lat.toFixed(3) + "/" + loc.lon.toFixed(3), UA_DESKTOP); };
+    return t;
+  }
+  function weatherTiles() {
+    if (!wx || !wx.f || !wx.f.current) return [];
+    var f = wx.f, c = f.current, u = f.current_units || {}, tiles = [];
+    (wx.alerts || []).slice(0, 3).forEach(function (a) {
+      tiles.push(wxTile("alert", { icon: "⚠️", name: a.event, sub: a.ends ? "Until " + new Date(a.ends).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : "Active now",
+        title: a.event, desc: a.headline + (a.desc ? ". " + a.desc.replace(/\s+/g, " ") : "") }));
+    });
+    var now = wxInfo(c.weather_code, c.is_day === 1);
+    var today = f.daily || {};
+    tiles.push(wxTile("now", { icon: now[0], big: deg(c.temperature_2m), night: c.is_day === 0, name: "Now · " + now[1],
+      sub: "Feels " + deg(c.apparent_temperature) + " · " + Math.round(c.wind_speed_10m) + " " + (u.wind_speed_10m || (wx.imp ? "mp/h" : "km/h")).replace("mp/h", "mph"),
+      title: deg(c.temperature_2m) + " and " + now[1].toLowerCase(),
+      desc: "Feels like " + deg(c.apparent_temperature) + ". Humidity " + c.relative_humidity_2m + "%. Wind " + Math.round(c.wind_speed_10m) + (wx.imp ? " mph" : " km/h") + "." +
+        (today.temperature_2m_max ? " Today: high " + deg(today.temperature_2m_max[0]) + ", low " + deg(today.temperature_2m_min[0]) + ", " + (today.precipitation_probability_max[0] || 0) + "% chance of rain or snow." : "") +
+        (today.sunset ? " Sunset " + new Date(today.sunset[0]).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + "." : "") }));
+    // next 12 hours, every 3 hours
+    var h = f.hourly || {}, start = 0, nowMs = Date.now();
+    if (h.time) { while (start < h.time.length && new Date(h.time[start]).getTime() < nowMs) start++; }
+    for (var k = start + 2; h.time && k < start + 14 && k < h.time.length; k += 3) {
+      var hi = wxInfo(h.weather_code[k], h.is_day ? h.is_day[k] === 1 : true), when = new Date(h.time[k]).toLocaleTimeString([], { hour: "numeric" });
+      tiles.push(wxTile("hour", { icon: hi[0], big: deg(h.temperature_2m[k]), night: h.is_day && h.is_day[k] === 0, name: when + " · " + hi[1],
+        sub: (h.precipitation_probability[k] || 0) + "% chance of rain", title: when + ": " + deg(h.temperature_2m[k]) + ", " + hi[1].toLowerCase(),
+        desc: (h.precipitation_probability[k] || 0) + "% chance of rain or snow." }));
+    }
+    (today.time || []).forEach(function (day, i) {
+      if (i === 0) return;
+      var di = wxInfo(today.weather_code[i], true), dn = new Date(day + "T12:00:00").toLocaleDateString([], { weekday: "long" });
+      tiles.push(wxTile("day", { icon: di[0], big: deg(today.temperature_2m_max[i]), name: (i === 1 ? "Tomorrow" : dn) + " · " + di[1],
+        sub: "Low " + deg(today.temperature_2m_min[i]) + " · " + (today.precipitation_probability_max[i] || 0) + "% rain",
+        title: (i === 1 ? "Tomorrow" : dn) + ": " + di[1].toLowerCase(), desc: "High " + deg(today.temperature_2m_max[i]) + ", low " + deg(today.temperature_2m_min[i]) + ". " + (today.precipitation_probability_max[i] || 0) + "% chance of rain or snow." }));
+    });
+    tiles.push(wxTile("radar", { icon: "\u{1F5FA}️", name: "Live radar", sub: "Rain, snow and storms near " + (loc ? loc.city : "you"),
+      title: "Live weather radar", desc: "An animated radar map centered on " + locName() + ", from Windy." }));
+    return tiles;
+  }
+
+  // Local news: TV newscasts (NewsON, Local Now, Haystack) plus today's local headlines.
+  var NEWS_APPS = [
+    { id: "newson", name: "NewsON", glyph: "N", color: "#0A5FD8", match: /newson/i, query: "NewsON", web: "https://www.newson.us", ua: UA_DESKTOP,
+      icons: fav("newson.us"), kicker: "Local TV news", desc: "Live and recent newscasts from 275+ local TV stations, free." },
+    { id: "localnow", name: "Local Now", glyph: "L", color: "#FF5A1F", match: /local ?now/i, query: "Local Now", web: "https://localnow.com", ua: UA_DESKTOP,
+      icons: fav("localnow.com"), kicker: "Local news & weather", desc: "Free local news, weather and traffic for your city, plus free live channels." },
+    { id: "haystack", name: "Haystack News", glyph: "H", color: "#1B1B1B", match: /haystack/i, query: "Haystack News", web: "https://www.haystack.tv", ua: UA_DESKTOP,
+      icons: fav("haystack.tv"), kicker: "Local & world news", desc: "Free personalized newscasts with local, national and world stories." }
+  ];
+  function newsFeedUrl() {
+    var place = loc ? loc.city + (loc.region ? ", " + loc.region : "") : "";
+    var us = !loc || loc.country === "US";
+    return "https://news.google.com/rss/headlines/section/geo/" + encodeURIComponent(place) +
+      (us ? "?hl=en-US&gl=US&ceid=US:en" : "?hl=en&gl=" + loc.country + "&ceid=" + loc.country + ":en");
+  }
+  function refreshNews(force) {
+    if (!NATIVE || IOS) return;          // the headline feed is only readable by the apps (browsers block it)
+    if (!force && news && Date.now() - news.at < 30 * 60000 && news.place === locName()) return;
+    findLocation(false).then(function () { return nativeFetch(newsFeedUrl()); }).then(function (xml) {
+      var doc = new DOMParser().parseFromString(xml, "text/xml"), items = [];
+      Array.prototype.slice.call(doc.querySelectorAll("item"), 0, 30).forEach(function (it) {
+        var src = it.querySelector("source"), title = (it.querySelector("title") || {}).textContent || "";
+        var source = src ? src.textContent : "";
+        if (source && title.slice(-(source.length + 3)) === " - " + source) title = title.slice(0, -(source.length + 3));
+        items.push({ title: title, link: (it.querySelector("link") || {}).textContent || "", source: source, at: Date.parse((it.querySelector("pubDate") || {}).textContent || "") || 0 });
+      });
+      if (!items.length) return;
+      news = { at: Date.now(), place: locName(), items: items }; save("localNews", news);
+      if (state.page === "home") renderHome(true);
+    }).catch(function () {});
+  }
+  function ago(ms) {
+    var m = Math.round((Date.now() - ms) / 60000);
+    if (!ms || m < 0) return ""; if (m < 60) return m + " min ago"; if (m < 1440) return Math.round(m / 60) + " hr ago"; return Math.round(m / 1440) + " days ago";
+  }
+  function newsTile(n) {
+    var t = el("div", "tile f newst");
+    t._item = { kind: "news", n: n };
+    t.innerHTML = '<div class="bgc"></div><div class="src">' + esc(n.source || "Local news") + '</div><div class="hl">' + esc(n.title) + '</div><div class="ago">' + ago(n.at) + "</div>";
+    t._act = function () { toast("Opening the story…"); openOut(n.link, UA_DESKTOP); };
+    return t;
+  }
+  function headlinesLink() {
+    return { id: "localheadlines", name: "Local headlines", glyph: "\u{1F4F0}", color: "#233046", icons: [], kicker: "Local news", match: /a^/,
+      web: "https://news.google.com/search?q=" + encodeURIComponent(locName()) + "&hl=en-US&gl=US&ceid=US:en",
+      desc: "Today's stories about " + (locName() || "your area") + " from local papers and TV stations, in Google News." };
+  }
+
+  // ZIP code pad (works with a remote, controller, keyboard or touch)
+  var zipOn = false, zipEntry = "", zipSel = 0;
+  var ZIP_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", "OK", "Find me automatically", "Cancel"];
+  function showZip() { zipOn = true; zipEntry = loc && loc.mode === "zip" ? loc.zip : ""; zipSel = 0; $("#zippad").classList.add("on"); paintZip(); }
+  function hideZip() { zipOn = false; $("#zippad").classList.remove("on"); }
+  function paintZip() {
+    $("#zipVal").textContent = (zipEntry + "     ").slice(0, 5).replace(/ /g, "_");
+    var keys = $("#zipKeys"); keys.innerHTML = "";
+    ZIP_KEYS.forEach(function (k, i) {
+      var b = el("div", "k" + (i >= 12 ? " wide" : "") + (i === zipSel ? " sel" : ""), esc(k));
+      b.addEventListener("click", function () { zipSel = i; zipPress(k); });
+      keys.appendChild(b);
+    });
+  }
+  function zipPress(k) {
+    if (/^\d$/.test(k)) { if (zipEntry.length < 5) zipEntry += k; }
+    else if (k === "⌫") zipEntry = zipEntry.slice(0, -1);
+    else if (k === "Cancel") { hideZip(); return; }
+    else if (k === "Find me automatically") { loc = null; save("loc", null); hideZip(); toast("Finding your location…"); applyLocation(true); return; }
+    else if (k === "OK") {
+      if (zipEntry.length !== 5) { toast("Enter all 5 digits."); return; }
+      getJson("https://api.zippopotam.us/us/" + zipEntry).then(function (z) {
+        var pl = z.places[0];
+        loc = { mode: "zip", zip: zipEntry, city: pl["place name"], region: pl["state abbreviation"], country: "US", lat: +pl.latitude, lon: +pl.longitude, at: Date.now() };
+        save("loc", loc); hideZip(); toast("Location set to " + locName()); applyLocation(true);
+      }, function () { toast("Couldn't find ZIP code " + zipEntry + "."); });
+      return;
+    }
+    paintZip();
+  }
+  function zipKey(key) {
+    var cols = 3;
+    if (key === "Back") { hideZip(); return; }
+    if (key === "Enter") { zipPress(ZIP_KEYS[zipSel]); return; }
+    if (/^\d$/.test(key)) { zipPress(key); return; }
+    if (key === "Delete") { zipPress("⌫"); return; }
+    if (key === "ArrowLeft" && zipSel < 12 && zipSel % cols) zipSel--;
+    if (key === "ArrowRight" && zipSel < 12 && zipSel % cols < 2) zipSel++;
+    if (key === "ArrowDown") zipSel = zipSel < 9 ? zipSel + 3 : zipSel < 12 ? 12 : 13;
+    if (key === "ArrowUp") zipSel = zipSel === 13 ? 12 : zipSel === 12 ? 10 : zipSel >= 3 ? zipSel - 3 : zipSel;
+    paintZip();
+  }
+  function applyLocation(force) {
+    wx = null; news = null; save("wx", null); save("localNews", null); paintWeatherTop();
+    refreshWeather(force); refreshNews(true);
+    if (state.page === "settings") renderSettings(); else if (state.page === "home") renderHome(true);
+  }
+
   // ---------------------------------------------------------------- home
   function shelf(title, count, tiles, emptyText) {
     var sec = el("section", "shelf");
@@ -1783,6 +2040,12 @@
     var steamGamesList = steamLibrary();
     if (steamGamesList.length) sc.appendChild(shelf("Steam library", steamGamesList.length, steamGamesList.map(steamTile)));
     if (!IOS) sc.appendChild(shelf("Your apps", apps.length, apps.map(appTile), "No apps found."));
+    var wt = weatherTiles();
+    if (wt.length) sc.appendChild(shelf("Weather \u00b7 " + (wx.place || "near you"), null, wt));
+    var nt = NEWS_APPS.map(linkTile);
+    if (news && news.items && news.items.length) nt = nt.concat(news.items.map(newsTile));
+    else if (locName()) nt.push(linkTile(headlinesLink()));
+    sc.appendChild(shelf("Local news" + (locName() ? " \u00b7 " + locName() : ""), null, nt));
     sc.appendChild(shelf("Games \u00b7 play here", ROMS.length, ROMS.map(romTile)));
     var mv = modderVideos();
     if (mv.length) sc.appendChild(shelf("Modder YouTubers \u00b7 new videos", mv.length, mv.map(videoTile)));
@@ -1825,6 +2088,14 @@
       if (ic) art = '<img class="' + (ic.banner ? "wide" : "") + '" src="' + ic.src + '">';
     } else if (it.kind === "media") {
       return;
+    } else if (it.kind === "wx") {
+      kicker = "Weather \u00b7 " + (wx && wx.place || ""); title = it.d.title; desc = it.d.desc; act = it.type === "radar" ? "Open radar" : "Full forecast";
+      color = it.type === "alert" ? "#C0182F" : it.d.night ? "#2A2F7A" : "#2F7BD8";
+      art = '<div class="ic glyph" style="width:13rem;height:13rem;display:flex;align-items:center;justify-content:center;font-size:8rem">' + it.d.icon + "</div>";
+    } else if (it.kind === "news") {
+      var nn = it.n; kicker = "Local news \u00b7 " + (nn.source || ""); title = nn.title; color = "#2B4A7A"; act = "Read";
+      desc = (ago(nn.at) ? "Published " + ago(nn.at) + ". " : "") + "Opens the full story inside ReaperOS.";
+      art = '<div class="ic glyph" style="width:13rem;height:13rem;display:flex;align-items:center;justify-content:center;font-size:7rem">\u{1F4F0}</div>';
     } else if (it.kind === "chart") {
       var ch = chartHero(it); kicker = ch.kicker; title = ch.title; desc = ch.desc; color = ch.color; art = ch.art; act = ch.act; descHtml = ch.descHtml;
     } else if (it.kind === "rom") {
@@ -1834,7 +2105,7 @@
       var c = it.cloud, ca = cloudApp(c); kicker = c.kicker; title = c.name; color = c.color;
       desc = ca || IOS ? c.desc : canEmbed(c) ? c.desc + " Plays right here in ReaperOS; install the app anytime for the full experience." : "Not installed yet. Press OK to get the app.";
       if (c.batocera) { desc = c.desc; }
-      act = c.batocera ? "Restart into Batocera" : ca || IOS || canEmbed(c) ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : PODCASTS.indexOf(c) >= 0 ? "Listen" : SOCIAL.indexOf(c) >= 0 ? "Open" : "Play") : "Get app";
+      act = c.batocera ? "Restart into Batocera" : ca || IOS || canEmbed(c) ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : PODCASTS.indexOf(c) >= 0 ? "Listen" : NEWS_APPS.indexOf(c) >= 0 || c.id === "localheadlines" ? "Watch the news" : SOCIAL.indexOf(c) >= 0 ? "Open" : "Play") : "Get app";
       art = artFor(t, c.glyph);
     } else {
       var s = it.store, inst = installedVersion(s);
@@ -2550,6 +2821,7 @@
         tr.appendChild(mfb);
       }
     }
+    tr.appendChild(button("Weather & news location: " + (loc ? locName() : "Automatic"), loc && loc.mode === "zip" ? "Set by ZIP code " + loc.zip + ". Press to change." : "Found automatically from your internet connection. Press to enter a ZIP code.", showZip));
     var mus = button("Load screen sound: " + (musicOn ? "On" : "Off"), "The scythe slash and crunch when ReaperOS opens", function () {
       musicOn = !musicOn; save("music", musicOn);
       mus.querySelector("b").textContent = "Load screen sound: " + (musicOn ? "On" : "Off");
@@ -2689,6 +2961,7 @@
       if (repeat && now - lastMove < 90) return true;   // smooth held-button scrolling
       lastMove = now;
     }
+    if (zipOn) { if (!repeat || /^Arrow/.test(key)) zipKey(key); return true; }
     if (setupOn) {
       if (key === "Enter" && !repeat) { hideSetup(); toast("Still installing in the background."); }
       if (key === "Back" && !repeat) {
@@ -2720,7 +2993,10 @@
     document.addEventListener("keydown", function (e) {
       var map = { ArrowUp: "ArrowUp", ArrowDown: "ArrowDown", ArrowLeft: "ArrowLeft", ArrowRight: "ArrowRight",
         Enter: "Enter", " ": "Enter", Escape: "Back", Backspace: "Back", m: "Menu", M: "Menu" };
-      var k = map[e.key]; if (!k) return;
+      var k = map[e.key];
+      if (zipOn && /^[0-9]$/.test(e.key)) k = e.key;
+      if (zipOn && e.key === "Backspace") k = "Delete";
+      if (!k) return;
       e.preventDefault(); window.reaperKey(k, e.repeat);
     });
     // Gamepads (Xbox, PlayStation, Switch Pro...) through the standard Gamepad API.
@@ -2790,6 +3066,9 @@
   })();
   setTimeout(function () { refreshStore(); }, wait + 600); // warm the store quietly
   setTimeout(function () { refreshCharts(); refreshImdbHere(); }, wait + 1500);
+  paintWeatherTop();
+  setTimeout(function () { refreshWeather(false); refreshNews(false); }, wait + 300);
+  setInterval(function () { refreshWeather(false); refreshNews(false); }, 20 * 60000);
   setInterval(function () { refreshCharts(); refreshImdbHere(); }, 3 * 3600 * 1000);
   if (NATIVE && autoUpdate) {
     setTimeout(function () { checkSelfUpdate(false); }, wait + 8000);
