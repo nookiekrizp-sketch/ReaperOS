@@ -1,6 +1,6 @@
 // ReaperOS for Windows: hosts the shared ReaperOS interface full-screen and answers its
 // "Reaper" bridge calls with Windows equivalents (Start menu apps, Steam, winget, RetroArch).
-const { app, BrowserWindow, ipcMain, shell, nativeImage } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, nativeImage, session } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -487,7 +487,11 @@ const asyncHandlers = {
     js(`window.reaperIcon && reaperIcon(${q(pkg)}, ${JSON.stringify(data)})`);
   },
   fetch: async (id, url) => {
-    try { const body = await getText(url); js(`window.reaperFetched && reaperFetched(${q(id)}, true, ${q(body)})`); }
+    try {
+      // IMDb only serves browsers: fetch it through Chromium's own network stack, like ReaperOS's web windows.
+      const body = /^https:\/\/([a-z0-9-]+\.)*imdb\.com\//.test(String(url))
+        ? await (await session.fromPartition("persist:reaperweb").fetch(String(url), { headers: { "Accept-Language": "en-US,en;q=0.9" } })).text()
+        : await getText(url); js(`window.reaperFetched && reaperFetched(${q(id)}, true, ${q(body)})`); }
     catch (e) { js(`window.reaperFetched && reaperFetched(${q(id)}, false, ${q(e.message)})`); }
   },
   install: (id, spec) => {

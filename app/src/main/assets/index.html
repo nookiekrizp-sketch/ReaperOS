@@ -1515,6 +1515,59 @@
       if (state.page === "home") renderHome(true);
     }, function () {});
   }
+  // IMDb only serves browsers at home (it asks cloud servers to solve a puzzle), so Fire TV and PCs read it directly.
+  var imdbLocal = load("imdbLocal", null);
+  function imdbSize(u) { return u && u.indexOf("._V1_") > 0 ? u.replace(/\._V1_.*?\.(jpg|png|webp)$/, "._V1_UX300_.$1") : (u || ""); }
+  function isoDate(v) {
+    if (!v) return null;
+    if (typeof v === "object" && v.year && v.month && v.day) return v.year + "-" + two(v.month) + "-" + two(v.day);
+    if (typeof v === "string" && /[A-Za-z]{3}.* \d{4}$|^\d{4}-\d\d-\d\d$/.test(v)) {
+      var t = Date.parse(v.replace(/(\d+)(st|nd|rd|th)/, "$1")); if (!isNaN(t)) { var d = new Date(t); return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()); }
+    }
+    return null;
+  }
+  function parseImdb(html, calendar) {
+    var m = /<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/.exec(html);
+    if (!m) return [];
+    var data = JSON.parse(m[1]), out = [], seen = {};
+    (function walk(o, ctx) {
+      if (Array.isArray(o)) { o.forEach(function (v) { walk(v, ctx); }); return; }
+      if (!o || typeof o !== "object") return;
+      if (calendar) ctx = isoDate(o.releaseDate) || isoDate(o.group) || isoDate(o.date) || ctx;
+      var id = o.id, tt = o.titleText;
+      if (typeof id === "string" && /^tt\d+$/.test(id) && tt && !seen[id]) {
+        seen[id] = 1;
+        var img = (o.primaryImage || o.imageModel || {}).url;
+        var g = o.titleGenres ? (o.titleGenres.genres || []) : (o.genres || []);
+        var genres = (g.genres || g).map ? (g.genres || g).map(function (x) { return typeof x === "string" ? x : (x.genre && x.genre.text) || x.text; }).filter(Boolean).slice(0, 3) : [];
+        out.push({ id: id, title: typeof tt === "string" ? tt : tt.text, year: o.releaseYear && o.releaseYear.year,
+          rating: o.ratingsSummary && o.ratingsSummary.aggregateRating, poster: imdbSize(img), plot: o.plot && o.plot.plotText && o.plot.plotText.plainText || "",
+          genres: genres, runtime: o.runtime && o.runtime.seconds, date: calendar ? ctx : undefined });
+      }
+      for (var k in o) walk(o[k], ctx);
+    })(data, null);
+    return out;
+  }
+  function refreshImdbHere() {
+    if (!NATIVE || IOS) return;
+    if (imdbLocal && Date.now() - imdbLocal.at < 4 * 3600000) return;
+    Promise.all([
+      nativeFetch("https://www.imdb.com/chart/moviemeter/").then(function (h) { return parseImdb(h, false).slice(0, 50); }, function () { return []; }),
+      nativeFetch("https://www.imdb.com/calendar/?region=US&type=MOVIE").then(function (h) {
+        var today = isoDate(new Date().toDateString());
+        return parseImdb(h, true).filter(function (x) { return x.date && x.date >= today; }).slice(0, 60);
+      }, function () { return []; })
+    ]).then(function (r) {
+      if (!r[0].length && !r[1].length) return;
+      imdbLocal = { at: Date.now(), imdb: r[0], movie_timers: r[1] };
+      save("imdbLocal", imdbLocal);
+      if (state.page === "home") renderHome(true);
+    });
+  }
+  function chartData(key) {
+    if (imdbLocal && imdbLocal[key] && imdbLocal[key].length) return imdbLocal[key];
+    return (charts && charts[key]) || [];
+  }
   function imdbUrl(m) { return "https://www.imdb.com/title/" + m.id + "/"; }
   function fmtRuntime(sec) { if (!sec) return ""; var m = Math.round(sec / 60); return (m >= 60 ? Math.floor(m / 60) + "h " : "") + (m % 60 ? (m % 60) + "m" : ""); }
   function openOut(url, ua) {
@@ -1624,7 +1677,7 @@
   }
   setInterval(tickTimers, 1000);
   function timerList(key) {
-    var list = ((charts && charts[key]) || []).filter(function (x) { var t = timerTarget(x); return !t || t > Date.now() - (x.kind === "episode" ? 6 * 3600000 : 3 * 86400000); });
+    var list = chartData(key).filter(function (x) { var t = timerTarget(x); return !t || t > Date.now() - (x.kind === "episode" ? 6 * 3600000 : 3 * 86400000); });
     return list.sort(function (a, b) { return (timerTarget(a) || 9e15) - (timerTarget(b) || 9e15); });
   }
   function whenLabel(x) {
@@ -1706,7 +1759,8 @@
     var gt = timerList("game_timers");
     if (gt.length) sc.appendChild(shelf("Game release countdown", gt.length, gt.map(function (x) { return timerTile(x, "game"); })));
     sc.appendChild(shelf("Movies & TV", MOVIES.length, MOVIES.map(linkTile)));
-    if (charts && charts.imdb && charts.imdb.length) sc.appendChild(shelf("Popular on IMDb", charts.imdb.length, charts.imdb.map(movieTile)));
+    var pop = chartData("imdb");
+    if (pop.length) sc.appendChild(shelf("Popular on IMDb", pop.length, pop.map(movieTile)));
     var mt = timerList("movie_timers");
     if (mt.length) sc.appendChild(shelf("Movie release countdown", mt.length, mt.map(function (x) { return timerTile(x, "movie"); })));
     sc.appendChild(shelf("Anime", ANIME.length, ANIME.map(linkTile)));
@@ -1714,7 +1768,7 @@
     if (at.length) sc.appendChild(shelf("Anime countdown \u00b7 next episodes & premieres", at.length, at.map(function (x) { return timerTile(x, "anime"); })));
     sc.appendChild(shelf("Music & social", SOCIAL.length, SOCIAL.map(linkTile)));
     if (charts && charts.hot100 && charts.hot100.entries && charts.hot100.entries.length)
-      sc.appendChild(shelf("Billboard Hot 100" + (charts.hot100.date ? " \u00b7 week of " + charts.hot100.date : ""), charts.hot100.entries.length, charts.hot100.entries.map(songTile)));
+      sc.appendChild(shelf("Billboard Hot 100" + (charts.hot100.date ? " \u00b7 week of " + new Date(charts.hot100.date + "T12:00:00").toLocaleDateString([], { month: "long", day: "numeric" }) : ""), charts.hot100.entries.length, charts.hot100.entries.map(songTile)));
     sc.appendChild(shelf("PC & cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
     // Every app in the catalog sits on Home: installed ones open, the rest install with one press.
     CATEGORIES.forEach(function (cat) {
@@ -2704,8 +2758,8 @@
     setTimeout(function () { $("#splash").classList.add("gone"); }, Math.max(0, 3100 - (Date.now() - window.__splashStart)));
   })();
   setTimeout(function () { refreshStore(); }, wait + 600); // warm the store quietly
-  setTimeout(refreshCharts, wait + 1500);
-  setInterval(refreshCharts, 3 * 3600 * 1000);
+  setTimeout(function () { refreshCharts(); refreshImdbHere(); }, wait + 1500);
+  setInterval(function () { refreshCharts(); refreshImdbHere(); }, 3 * 3600 * 1000);
   if (NATIVE && autoUpdate) {
     setTimeout(function () { checkSelfUpdate(false); }, wait + 8000);
     setInterval(function () { checkSelfUpdate(false); refreshStore(true); notifiedUpdates = false; }, 6 * 3600 * 1000);

@@ -63,6 +63,8 @@ public class MainActivity extends Activity {
 
     private static final String AUTHORITY = "com.reaperos.launcher.files";
     private static final String UA = "ReaperOS-Launcher/1.0 (Fire TV)";
+    /** The WebView's own browser identity, used for sites that only serve browsers (IMDb). */
+    private static String browserUa = "Mozilla/5.0 (Linux; Android 9; AFTKA) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
 
     private WebView web;
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -92,6 +94,7 @@ public class MainActivity extends Activity {
         s.setAllowFileAccessFromFileURLs(true);
         s.setAllowUniversalAccessFromFileURLs(true);
         s.setMediaPlaybackRequiresUserGesture(false);
+        try { browserUa = WebSettings.getDefaultUserAgent(this); } catch (Exception ignored) { }
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         web.addJavascriptInterface(new Bridge(), "Reaper");
@@ -287,8 +290,10 @@ public class MainActivity extends Activity {
             c.setInstanceFollowRedirects(false);
             c.setConnectTimeout(15000);
             c.setReadTimeout(30000);
-            c.setRequestProperty("User-Agent", UA);
-            c.setRequestProperty("Accept", "*/*");
+            boolean browserOnly = current.matches("https://([a-z0-9-]+\\.)*imdb\\.com/.*");
+            c.setRequestProperty("User-Agent", browserOnly ? browserUa : UA);
+            c.setRequestProperty("Accept", browserOnly ? "text/html,application/xhtml+xml,*/*;q=0.8" : "*/*");
+            if (browserOnly) c.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
             int code = c.getResponseCode();
             if (code >= 300 && code < 400) {
                 String loc = c.getHeaderField("Location");
