@@ -47,6 +47,8 @@
     transition: opacity .45s ease;
   }
   #splash.gone { opacity: 0; pointer-events: none; }
+  /* the reaper waits (a fraction of a second) until the sound can start on the same beat */
+  #splash.wait .reaper, #splash.wait .reaper * { animation-play-state: paused !important; }
   #splash .reaper { width: 40rem; height: 20rem; overflow: visible; }
   #splash .soul { animation: bob 1.1s ease-in-out infinite; }
   #splash .soul-top { transform-origin: 150px 45px; animation: splitTop .5s cubic-bezier(.2,.9,.3,1) .42s forwards; }
@@ -282,6 +284,23 @@
   .tile.hasban .name { opacity: 0; }
   .tile .get { position: absolute; top: .55rem; right: .6rem; font-size: .8rem; font-weight: 700; letter-spacing: .05rem;
     background: rgba(11,7,20,.75); color: var(--cyan); padding: .2rem .6rem; border-radius: 1rem; }
+  /* live chart tiles: IMDb posters, Billboard songs, YouTube videos */
+  .tile .poster { position: absolute; left: 0; top: 0; bottom: 0; height: 100%; width: 38%; object-fit: cover; }
+  .tile .ctext { position: absolute; left: 41%; right: .7rem; top: .7rem; bottom: .6rem; display: flex; flex-direction: column; }
+  .tile .ctext b { font-size: 1.05rem; line-height: 1.2; max-height: 3.8rem; overflow: hidden; }
+  .tile .ctext span { margin-top: auto; font-size: .9rem; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .ctext .star { color: #F5C518; }
+  .tile .rank { position: absolute; left: .8rem; top: .3rem; font-size: 2.6rem; font-weight: 800; color: rgba(255,255,255,.92); text-shadow: 0 .15rem .6rem rgba(0,0,0,.6); }
+  .tile .badge { position: absolute; top: .55rem; right: .6rem; font-size: .75rem; font-weight: 800; letter-spacing: .04rem;
+    padding: .15rem .5rem; border-radius: .4rem; }
+  .tile .badge.imdb, .tile .badge.new { left: .5rem; right: auto; top: auto; bottom: .5rem; }
+  .tile .badge.imdb { background: #F5C518; color: #000; }
+  .tile .badge.new { background: var(--cyan); color: #000; }
+  .tile .cd { position: absolute; left: .6rem; bottom: 2.3rem; font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
+    background: rgba(11,7,20,.82); color: var(--cyan); padding: .15rem .55rem; border-radius: .5rem; }
+  .tile .cd.live { background: var(--cyan); color: #000; }
+  .tile.timer .name { opacity: 1; }
+  .hero .cd { color: var(--cyan); font-weight: 800; font-variant-numeric: tabular-nums; }
   .tile .pin { position: absolute; top: .5rem; right: .6rem; font-size: .9rem; color: var(--cyan); }
   .tile.focused { transform: scale(1.09); z-index: 2; will-change: transform; }
   .tile.focused::after, .card.focused::after, .btn.focused::after {
@@ -398,7 +417,7 @@
 <body>
 
 <!-- Reaper load screen -->
-<div id="splash">
+<div id="splash" class="wait">
   <svg class="reaper" viewBox="0 0 200 100" aria-hidden="true">
     <defs>
       <radialGradient id="aura" cx="50%" cy="50%" r="50%">
@@ -461,6 +480,114 @@
   <div class="xp-corner xp-left">Copyright &copy; 2026 ReaperOS</div>
   <div class="xp-corner xp-right">Reaper<b>OS</b></div>
 </div>
+
+<script>
+/* Load screen: the sound and the animation start together.
+   Timeline (seconds from the start): slashes .12/.78, shing .42/1.0, crunches 1.4/1.7/2.0, chime 2.17. */
+(function () {
+  // Scythe slash: a filtered-noise whoosh into a metallic "shing", twice.
+  window.__reaperSplashSound = function (ctx, t0) {
+    var master = ctx.createGain(); master.gain.value = 0.95; master.connect(ctx.destination);
+
+    var noise = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.6), ctx.sampleRate);
+    var d = noise.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+
+    function whoosh(at, dur, from, to, vol) {
+      var src = ctx.createBufferSource(); src.buffer = noise;
+      var bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.4;
+      bp.frequency.setValueAtTime(from, at);
+      bp.frequency.exponentialRampToValueAtTime(to, at + dur);
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(vol, at + dur * 0.7);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      src.connect(bp); bp.connect(g); g.connect(master);
+      src.start(at); src.stop(at + dur + 0.02);
+    }
+    function shing(at, base, vol, len) {
+      // inharmonic partials give a blade-like ring
+      [1, 1.41, 1.78, 2.52, 3.17].forEach(function (r, k) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sine"; o.frequency.setValueAtTime(base * r, at);
+        o.frequency.exponentialRampToValueAtTime(base * r * 0.985, at + len);
+        var v = vol / (k + 1.3);
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(v, at + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + len * (1 - k * 0.12));
+        o.connect(g); g.connect(master); o.start(at); o.stop(at + len + 0.05);
+      });
+      // bright scrape at the moment of contact
+      var src = ctx.createBufferSource(); src.buffer = noise;
+      var hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 5000;
+      var g2 = ctx.createGain();
+      g2.gain.setValueAtTime(vol * 0.8, at); g2.gain.exponentialRampToValueAtTime(0.0001, at + 0.12);
+      src.connect(hp); hp.connect(g2); g2.connect(master); src.start(at); src.stop(at + 0.14);
+    }
+
+    whoosh(t0 + 0.12, 0.34, 350, 4200, 0.9);   // first slash
+    shing(t0 + 0.42, 1850, 0.32, 1.1);
+    whoosh(t0 + 0.78, 0.26, 500, 5200, 0.75);  // second slash
+    shing(t0 + 1.0, 2350, 0.26, 1.4);
+
+    // crunch: a short gritty noise burst with a low thump, like biting into something brittle
+    function crunch(at, vol) {
+      for (var k = 0; k < 3; k++) {
+        var src = ctx.createBufferSource(); src.buffer = noise;
+        var bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1400 + k * 900; bp.Q.value = 0.9;
+        var g = ctx.createGain(), t = at + k * 0.018;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol * (1 - k * 0.25), t + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+        src.connect(bp); bp.connect(g); g.connect(master); src.start(t, Math.random() * 0.4); src.stop(t + 0.09);
+      }
+      var o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = "sine"; o.frequency.setValueAtTime(140, at); o.frequency.exponentialRampToValueAtTime(55, at + 0.08);
+      og.gain.setValueAtTime(0.0001, at); og.gain.exponentialRampToValueAtTime(vol * 0.7, at + 0.005); og.gain.exponentialRampToValueAtTime(0.0001, at + 0.1);
+      o.connect(og); og.connect(master); o.start(at); o.stop(at + 0.12);
+    }
+    crunch(t0 + 1.4, 0.75);
+    crunch(t0 + 1.7, 0.7);
+    crunch(t0 + 2.0, 0.8);
+
+    // a bright little "delicious" chime as the eyes light up
+    [1568, 2093, 2637].forEach(function (f, k) {
+      var o = ctx.createOscillator(), g = ctx.createGain(), t = t0 + 2.17 + k * 0.07;
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.55);
+    });
+  };
+
+  var splash = document.getElementById("splash");
+  var go = function () {
+    if (window.__splashStart) return;
+    window.__splashStart = Date.now();
+    splash.classList.remove("wait");
+  };
+  var music = true;
+  try { var v = localStorage.getItem("reaper.music"); if (v != null) music = JSON.parse(v); } catch (e) {}
+  if (/[?&]resume=1/.test(location.search) || !music) { go(); return; }
+  var AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) { go(); return; }
+  var ctx, begun = false;
+  try { ctx = new AC(); } catch (e) { go(); return; }
+  setTimeout(go, 350); // audio blocked (e.g. Safari before a tap): show the animation anyway, silently
+  var begin = function () {
+    if (begun || window.__splashStart || ctx.state !== "running") return;
+    begun = true;
+    var lead = 0.08;
+    window.__reaperSplashSound(ctx, ctx.currentTime + lead);
+    // what we hear lags the clock by the output latency; start the picture on the same beat
+    var lag = ctx.outputLatency || ctx.baseLatency || 0;
+    setTimeout(go, Math.round((lead + lag) * 1000));
+    setTimeout(function () { try { ctx.close(); } catch (e) {} }, 3800);
+  };
+  if (ctx.state === "running") begin();
+  else if (ctx.resume) ctx.resume().then(begin, function () {});
+  ctx.onstatechange = begin;
+})();
+</script>
 
 <!-- Top bar -->
 <div id="top">
@@ -721,6 +848,8 @@
       desc: "Apple originals plus movies to rent or buy." },
     { id: "youtube", name: "YouTube", glyph: "Y", color: "#FF0000", match: /^youtube$/i, query: "YouTube", icons: ["https://www.google.com/s2/favicons?domain=youtube.com&sz=256"], kicker: "Movies & TV",
       desc: "Videos, creators and free movies with ads." },
+    { id: "imdb", name: "IMDb", glyph: "i", color: "#F5C518", match: /^imdb/i, query: "IMDb", pkg: "com.imdb.mobile", icons: ["https://www.google.com/s2/favicons?domain=imdb.com&sz=256"], kicker: "Ratings & trailers",
+      desc: "Ratings, trailers, cast and where to watch any movie or show." },
     { id: "tubi", name: "Tubi", glyph: "T", color: "#FA541C", match: /tubi/i, query: "Tubi", icons: ["https://www.google.com/s2/favicons?domain=tubitv.com&sz=256"], kicker: "Free movies & TV",
       desc: "Thousands of free movies and shows, ad-supported, including anime." },
     { id: "pluto", name: "Pluto TV", glyph: "P", color: "#2B2B2B", match: /pluto/i, query: "Pluto TV", icons: ["https://www.google.com/s2/favicons?domain=pluto.tv&sz=256"], kicker: "Free live TV",
@@ -740,6 +869,7 @@
 
   var EMBED = {
     youtube: { web: "https://www.youtube.com/tv", ua: UA_TV },
+    imdb: { web: "https://m.imdb.com", ua: "" },
     tubi: { web: "https://tubitv.com/home", ua: UA_DESKTOP },
     pluto: { web: "https://pluto.tv/live-tv", ua: UA_DESKTOP },
     plex: { web: "https://app.plex.tv/desktop", ua: UA_DESKTOP },
@@ -787,7 +917,7 @@
     }, 1600);
   }
   var IOS_SCHEMES = { netflix: "nflx://", youtube: "youtube://", prime: "aiv://", disney: "disneyplus://", hulu: "hulu://",
-    appletv: "videos://", plex: "plex://", crunchyroll: "crunchyroll://" };
+    appletv: "videos://", plex: "plex://", crunchyroll: "crunchyroll://", imdb: "imdb:///" };
   if (IOS) {
     MOVIES.concat(ANIME).forEach(function (m) { m.scheme = IOS_SCHEMES[m.id] || ""; });
     CLOUD = [
@@ -1372,6 +1502,177 @@
     if (remote[node.dataset.ikey]) applyRemote(node); else remoteIcon(node.dataset.ikey, urls);
   }
 
+  // ---------------------------------------------------------------- live charts
+  // IMDb's most popular movies, the Billboard Hot 100 and new videos from game-modding YouTubers.
+  // A GitHub job refreshes charts.json every 6 hours; the last copy is kept for instant, offline start.
+  var CHARTS_URL = "https://nookiekrizp-sketch.github.io/ReaperOS/charts.json";
+  var charts = load("charts", null);
+  function refreshCharts() {
+    nativeFetch(CHARTS_URL + "?t=" + Math.floor(Date.now() / 600000)).then(function (txt) {
+      var d = JSON.parse(txt);
+      if (!d || !d.updated || (charts && charts.updated === d.updated)) return;
+      charts = d; save("charts", d);
+      if (state.page === "home") renderHome(true);
+    }, function () {});
+  }
+  function imdbUrl(m) { return "https://www.imdb.com/title/" + m.id + "/"; }
+  function fmtRuntime(sec) { if (!sec) return ""; var m = Math.round(sec / 60); return (m >= 60 ? Math.floor(m / 60) + "h " : "") + (m % 60 ? (m % 60) + "m" : ""); }
+  function openOut(url, ua) {
+    // Fire TV and PCs: inside ReaperOS. iPhone/iPad and browsers: a new tab, or the app if it's installed.
+    if (NATIVE && !IOS && Reaper.openWeb) Reaper.openWeb(url, ua || "");
+    else window.open(url, "_blank");
+  }
+  function openMovie(m) {
+    var imdb = MOVIES.filter(function (x) { return x.id === "imdb"; })[0];
+    if (NATIVE && !IOS && !DESK && imdb && cloudApp(imdb)) { Reaper.openUrl(imdbUrl(m)); return; }   // the IMDb app opens the title
+    toast("Opening " + m.title + " on IMDb\u2026");
+    openOut(NATIVE && !DESK ? "https://m.imdb.com/title/" + m.id + "/" : imdbUrl(m));
+  }
+  function playSong(e) {
+    var q = e.title + " " + e.artist.replace(/ (Featuring|X|&|With) .*/i, "");
+    if (IOS) { window.location.href = "https://music.apple.com/us/search?term=" + encodeURIComponent(q); return; }
+    var sp = SOCIAL.filter(function (x) { return x.id === "spotify"; })[0];
+    if (NATIVE && sp && cloudApp(sp)) { Reaper.openUrl("spotify:search:" + encodeURIComponent(q)); return; }
+    toast("Playing " + e.title + " on YouTube Music\u2026");
+    openOut("https://music.youtube.com/search?q=" + encodeURIComponent(q), UA_DESKTOP);
+  }
+  function playVideo(v) {
+    if (NATIVE && !IOS) openOut("https://www.youtube.com/tv#/watch?v=" + v.id, UA_TV);
+    else window.open("https://www.youtube.com/watch?v=" + v.id, "_blank");
+  }
+  function imgTag(cls, src) { return src ? '<img class="' + cls + '" loading="lazy" decoding="async" src="' + esc(src) + '" onerror="this.remove()">' : ""; }
+  function movieTile(m, i) {
+    var t = el("div", "tile f");
+    t._item = { kind: "chart", type: "movie", m: m, n: i + 1 };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,#3A2E05,#120A22 85%)"></div>' + imgTag("poster", m.poster) +
+      '<div class="ctext"><b>' + esc(m.title) + "</b><span>" + (m.rating ? '<i class="star">\u2605</i> ' + m.rating + " \u00b7 " : "") + (m.year || "") + "</span></div>" +
+      '<div class="badge imdb">#' + (i + 1) + "</div>";
+    t._act = function () { openMovie(m); };
+    return t;
+  }
+  function songTile(e) {
+    var t = el("div", "tile f");
+    t._item = { kind: "chart", type: "song", e: e };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,#1F3A8A,#120A22 85%)"></div>' + imgTag("poster", e.image) +
+      '<div class="rank">' + e.rank + "</div>" +
+      '<div class="ctext"><b>' + esc(e.title) + "</b><span>" + esc(e.artist) + "</span></div>" +
+      (e.isNew || !e.last ? '<div class="badge new">NEW</div>' : "");
+    t._act = function () { playSong(e); };
+    return t;
+  }
+  function videoTile(v) {
+    var t = el("div", "tile f hasban");
+    t._item = { kind: "chart", type: "video", v: v };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,#7A1010,#120A22 85%)"></div>' +
+      imgTag("ban", "https://i.ytimg.com/vi/" + v.id + "/mqdefault.jpg") + '<div class="name">' + esc(v.title) + "</div>";
+    t._act = function () { playVideo(v); };
+    return t;
+  }
+  function modderVideos() {
+    var list = [];
+    ((charts && charts.modders) || []).forEach(function (c) {
+      (c.videos || []).forEach(function (v) { list.push({ id: v.id, title: v.title, published: v.published, channel: c.name, about: c.about }); });
+    });
+    return list.sort(function (a, b) { return (b.published || "").localeCompare(a.published || ""); });
+  }
+  function chartHero(it) {
+    if (/Timer$/.test(it.type)) return timerHero(it);
+    var r = { color: "#3B2470", art: "" };
+    if (it.type === "movie") {
+      var m = it.m;
+      r.kicker = "Popular on IMDb \u00b7 #" + it.n; r.title = m.title + (m.year ? " (" + m.year + ")" : "");
+      r.desc = [m.rating ? "\u2605 " + m.rating + "/10" : "", (m.genres || []).join(", "), fmtRuntime(m.runtime)].filter(Boolean).join(" \u00b7 ") +
+        (m.plot ? ". " + m.plot : ""); r.color = "#8A6A00"; r.act = "Open on IMDb";
+      if (m.poster) r.art = '<img src="' + esc(m.poster) + '" style="object-fit:cover;width:11rem;height:16rem;border-radius:1rem">';
+    } else if (it.type === "song") {
+      var e = it.e;
+      r.kicker = "Billboard Hot 100 \u00b7 #" + e.rank; r.title = e.title;
+      r.desc = e.artist + ". " + (e.isNew || !e.last ? "New this week" : "Last week #" + e.last) + " \u00b7 Peak #" + e.peak + " \u00b7 " + e.weeks + (e.weeks === 1 ? " week" : " weeks") + " on the chart.";
+      r.color = "#1F3A8A"; r.act = IOS ? "Play in Apple Music" : "Play";
+      r.art = e.image ? '<img src="' + esc(e.image) + '" style="object-fit:cover">' :
+        '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:6rem;font-weight:800;background:rgba(0,0,0,.28)">' + e.rank + "</div>";
+    } else {
+      var v = it.v;
+      r.kicker = "Modder YouTubers \u00b7 " + v.channel; r.title = v.title;
+      r.desc = v.about + (v.published ? ". Posted " + new Date(v.published).toLocaleDateString() + "." : "."); r.color = "#B01818"; r.act = "Watch";
+      r.art = '<img class="wide" src="https://i.ytimg.com/vi/' + v.id + '/hqdefault.jpg" style="object-fit:cover;aspect-ratio:16/9">';
+    }
+    return r;
+  }
+
+  // ---------------------------------------------------------------- release timers
+  // Live countdowns: anime episodes (exact air times from AniList), games (Steam) and movies (IMDb, US).
+  function timerTarget(x) {
+    if (x.at) return x.at * 1000;
+    if (x.date) { var d = x.date.split("-"); return new Date(+d[0], +d[1] - 1, +d[2]).getTime(); }  // local midnight
+    return 0;
+  }
+  function two(n) { return (n < 10 ? "0" : "") + n; }
+  function cdText(target, kind) {
+    if (!target) return "";
+    var ms = target - Date.now();
+    if (ms <= 0) return ms > -86400000 ? (kind === "episode" ? "Out now" : "Out today") : "Out now";
+    var sec = Math.floor(ms / 1000), d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+    return (d ? d + "d " : "") + two(h) + ":" + two(m) + ":" + two(sec % 60);
+  }
+  function tickTimers() {
+    $$(".cd[data-at]").forEach(function (c) {
+      var t = +c.dataset.at, txt = cdText(t, c.dataset.kind);
+      if (c.textContent !== txt) c.textContent = txt;
+      c.classList.toggle("live", t - Date.now() <= 0);
+    });
+  }
+  setInterval(tickTimers, 1000);
+  function timerList(key) {
+    var list = ((charts && charts[key]) || []).filter(function (x) { var t = timerTarget(x); return !t || t > Date.now() - (x.kind === "episode" ? 6 * 3600000 : 3 * 86400000); });
+    return list.sort(function (a, b) { return (timerTarget(a) || 9e15) - (timerTarget(b) || 9e15); });
+  }
+  function whenLabel(x) {
+    var t = timerTarget(x); if (!t) return x.when || "Date to be announced";
+    var d = new Date(t);
+    return x.at ? d.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+                : d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  }
+  function timerTile(x, type) {
+    var t = el("div", "tile f timer" + (type === "game" ? " hasban" : ""));
+    var target = timerTarget(x);
+    t._item = { kind: "chart", type: type + "Timer", x: x };
+    var art = type === "game" ? imgTag("ban", x.image) : imgTag("poster", x.image || x.poster);
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + (type === "anime" ? "#7A3B0E" : type === "game" ? "#17324D" : "#3A2E05") + ',#120A22 85%)"></div>' + art +
+      (type === "game" ? "" : '<div class="ctext"><b>' + esc(x.title) + "</b><span>" + esc(x.kind === "episode" ? "Episode " + x.episode : x.kind === "premiere" ? "Series premiere" : (x.genres || []).join(", ")) + "</span></div>") +
+      (target ? '<div class="cd" data-at="' + target + '" data-kind="' + (x.kind || "") + '">' + cdText(target, x.kind) + "</div>" : '<div class="cd">' + esc(x.when || "TBA") + "</div>") +
+      (type === "game" ? '<div class="name">' + esc(x.title) + "</div>" : "");
+    if (type !== "game") t.querySelector(".cd").style.bottom = ".6rem";
+    if (type !== "game") t.querySelector(".cd").style.left = "41%";
+    if (type !== "game") t.querySelector(".ctext span").style.marginBottom = "2rem";
+    t._act = function () {
+      if (type === "movie") { openMovie(x); return; }
+      if (type === "game") {
+        if (DESK) { Reaper.openUrl("steam://store/" + x.id); return; }
+        openOut(x.url, UA_DESKTOP); return;
+      }
+      var cr = ANIME.filter(function (a) { return a.id === "crunchyroll"; })[0];
+      if (NATIVE && !IOS && !DESK && cr && cloudApp(cr)) { launchApp(cloudApp(cr)); return; }
+      openOut("https://www.crunchyroll.com/search?q=" + encodeURIComponent(x.title), UA_DESKTOP);
+    };
+    return t;
+  }
+  function timerHero(it) {
+    var x = it.x, type = it.type.replace("Timer", ""), target = timerTarget(x);
+    var r = { title: x.title, art: "" };
+    r.kicker = (type === "anime" ? "Anime countdown \u00b7 " + (x.kind === "episode" ? "Episode " + x.episode + (x.episodes ? " of " + x.episodes : "") : "Series premiere")
+      : type === "game" ? "Game release countdown \u00b7 Steam" : "Movie release countdown \u00b7 US theaters");
+    var lead = (x.at ? (x.kind === "episode" ? "Airs " : "Premieres ") : "Releases ") + whenLabel(x);
+    r.desc = lead + (x.desc ? ". " + x.desc : (x.genres && x.genres.length ? ". " + x.genres.join(", ") + "." : "."));
+    r.descHtml = esc(lead) + (target ? ' \u00b7 <span class="cd" data-at="' + target + '" data-kind="' + (x.kind || "") + '">' + cdText(target, x.kind) + "</span>" : "") +
+      esc(x.desc ? ". " + x.desc : (x.genres && x.genres.length ? ". " + x.genres.join(", ") + "." : "."));
+    r.color = type === "anime" ? "#C2571A" : type === "game" ? "#2A6FA8" : "#8A6A00";
+    r.act = type === "anime" ? "Find on Crunchyroll" : type === "game" ? "Open on Steam" : "Open on IMDb";
+    var img = x.image || x.poster;
+    if (img) r.art = type === "game" ? '<img class="wide" src="' + esc(img) + '">' : '<img src="' + esc(img) + '" style="object-fit:cover;width:11rem;height:16rem;border-radius:1rem">';
+    return r;
+  }
+
   // ---------------------------------------------------------------- home
   function shelf(title, count, tiles, emptyText) {
     var sec = el("section", "shelf");
@@ -1400,9 +1701,20 @@
     if (steamGamesList.length) sc.appendChild(shelf("Steam library", steamGamesList.length, steamGamesList.map(steamTile)));
     if (!IOS) sc.appendChild(shelf("Your apps", apps.length, apps.map(appTile), "No apps found."));
     sc.appendChild(shelf("Games \u00b7 play here", ROMS.length, ROMS.map(romTile)));
+    var mv = modderVideos();
+    if (mv.length) sc.appendChild(shelf("Modder YouTubers \u00b7 new videos", mv.length, mv.map(videoTile)));
+    var gt = timerList("game_timers");
+    if (gt.length) sc.appendChild(shelf("Game release countdown", gt.length, gt.map(function (x) { return timerTile(x, "game"); })));
     sc.appendChild(shelf("Movies & TV", MOVIES.length, MOVIES.map(linkTile)));
+    if (charts && charts.imdb && charts.imdb.length) sc.appendChild(shelf("Popular on IMDb", charts.imdb.length, charts.imdb.map(movieTile)));
+    var mt = timerList("movie_timers");
+    if (mt.length) sc.appendChild(shelf("Movie release countdown", mt.length, mt.map(function (x) { return timerTile(x, "movie"); })));
     sc.appendChild(shelf("Anime", ANIME.length, ANIME.map(linkTile)));
+    var at = timerList("anime_timers");
+    if (at.length) sc.appendChild(shelf("Anime countdown \u00b7 next episodes & premieres", at.length, at.map(function (x) { return timerTile(x, "anime"); })));
     sc.appendChild(shelf("Music & social", SOCIAL.length, SOCIAL.map(linkTile)));
+    if (charts && charts.hot100 && charts.hot100.entries && charts.hot100.entries.length)
+      sc.appendChild(shelf("Billboard Hot 100" + (charts.hot100.date ? " \u00b7 week of " + charts.hot100.date : ""), charts.hot100.entries.length, charts.hot100.entries.map(songTile)));
     sc.appendChild(shelf("PC & cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
     // Every app in the catalog sits on Home: installed ones open, the rest install with one press.
     CATEGORIES.forEach(function (cat) {
@@ -1418,7 +1730,7 @@
 
   function updateHero(t) {
     var hero = $("#page-home .hero"); if (!hero || !t || !t._item) return;
-    var it = t._item, kicker, title, desc, color, art = "", act = "Launch";
+    var it = t._item, kicker, title, desc, color, art = "", act = "Launch", descHtml = "";
     if (it.kind === "app") {
       var a = it.app, ic = icons[a.pkg];
       kicker = it.steam ? "Steam game" : DESK ? "Installed app" : a.tv ? "Installed app" : "Installed app · phone layout";
@@ -1428,6 +1740,8 @@
       if (ic) art = '<img class="' + (ic.banner ? "wide" : "") + '" src="' + ic.src + '">';
     } else if (it.kind === "media") {
       return;
+    } else if (it.kind === "chart") {
+      var ch = chartHero(it); kicker = ch.kicker; title = ch.title; desc = ch.desc; color = ch.color; art = ch.art; act = ch.act; descHtml = ch.descHtml;
     } else if (it.kind === "rom") {
       var rr = it.rom; kicker = rr.sys + " \u00b7 built-in player"; title = rr.name; desc = rr.desc; color = rr.color; act = "Play";
       art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:3.6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(rr.sys === "NES" ? "NES" : "GB") + "</div>";
@@ -1451,6 +1765,7 @@
     hero.querySelector(".kicker").textContent = kicker;
     hero.querySelector("h2").textContent = title;
     hero.querySelector("p").textContent = desc;
+    if (descHtml) hero.querySelector("p").innerHTML = descHtml;
     hero.querySelector(".hint span").textContent = act;
   }
 
@@ -2354,93 +2669,14 @@
   }
 
 
-  // ---------------------------------------------------------------- load-screen music
-  // A scythe-slash sound synthesized live (no audio files needed).
-  // If the project includes assets/splash.mp3, that plays instead.
+  // ---------------------------------------------------------------- load-screen sound
+  // Synthesized live and started together with the animation (see the script after the splash).
   var musicOn = load("music", true);
-  function playJingle() {
-    if (!musicOn) return;
-    var custom = new Audio("splash.mp3");
-    custom.volume = 0.8;
-    custom.onerror = function () { synthJingle(); };
-    var p = custom.play();
-    if (p && p.catch) p.catch(function () { synthJingle(); });
-  }
-  // Scythe slash: a filtered-noise whoosh into a metallic "shing", twice.
+  // Settings preview: play the load-screen sound on its own.
   function synthJingle() {
-    var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    var AC = window.AudioContext || window.webkitAudioContext; if (!AC || !window.__reaperSplashSound) return;
     var ctx = new AC(); if (ctx.resume) ctx.resume();
-    var master = ctx.createGain(); master.gain.value = 0.95; master.connect(ctx.destination);
-    var t0 = ctx.currentTime + 0.05;
-
-    var noise = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.6), ctx.sampleRate);
-    var d = noise.getChannelData(0);
-    for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-
-    function whoosh(at, dur, from, to, vol) {
-      var src = ctx.createBufferSource(); src.buffer = noise;
-      var bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.4;
-      bp.frequency.setValueAtTime(from, at);
-      bp.frequency.exponentialRampToValueAtTime(to, at + dur);
-      var g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, at);
-      g.gain.exponentialRampToValueAtTime(vol, at + dur * 0.7);
-      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-      src.connect(bp); bp.connect(g); g.connect(master);
-      src.start(at); src.stop(at + dur + 0.02);
-    }
-    function shing(at, base, vol, len) {
-      // inharmonic partials give a blade-like ring
-      [1, 1.41, 1.78, 2.52, 3.17].forEach(function (r, k) {
-        var o = ctx.createOscillator(), g = ctx.createGain();
-        o.type = "sine"; o.frequency.setValueAtTime(base * r, at);
-        o.frequency.exponentialRampToValueAtTime(base * r * 0.985, at + len);
-        var v = vol / (k + 1.3);
-        g.gain.setValueAtTime(0.0001, at);
-        g.gain.exponentialRampToValueAtTime(v, at + 0.006);
-        g.gain.exponentialRampToValueAtTime(0.0001, at + len * (1 - k * 0.12));
-        o.connect(g); g.connect(master); o.start(at); o.stop(at + len + 0.05);
-      });
-      // bright scrape at the moment of contact
-      var src = ctx.createBufferSource(); src.buffer = noise;
-      var hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 5000;
-      var g2 = ctx.createGain();
-      g2.gain.setValueAtTime(vol * 0.8, at); g2.gain.exponentialRampToValueAtTime(0.0001, at + 0.12);
-      src.connect(hp); hp.connect(g2); g2.connect(master); src.start(at); src.stop(at + 0.14);
-    }
-
-    whoosh(t0 + 0.12, 0.34, 350, 4200, 0.9);   // first slash
-    shing(t0 + 0.42, 1850, 0.32, 1.1);
-    whoosh(t0 + 0.78, 0.26, 500, 5200, 0.75);  // second slash
-    shing(t0 + 1.0, 2350, 0.26, 1.4);
-
-    // crunch: a short gritty noise burst with a low thump, like biting into something brittle
-    function crunch(at, vol) {
-      for (var k = 0; k < 3; k++) {
-        var src = ctx.createBufferSource(); src.buffer = noise;
-        var bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1400 + k * 900; bp.Q.value = 0.9;
-        var g = ctx.createGain(), t = at + k * 0.018;
-        g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(vol * (1 - k * 0.25), t + 0.004);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-        src.connect(bp); bp.connect(g); g.connect(master); src.start(t, Math.random() * 0.4); src.stop(t + 0.09);
-      }
-      var o = ctx.createOscillator(), og = ctx.createGain();
-      o.type = "sine"; o.frequency.setValueAtTime(140, at); o.frequency.exponentialRampToValueAtTime(55, at + 0.08);
-      og.gain.setValueAtTime(0.0001, at); og.gain.exponentialRampToValueAtTime(vol * 0.7, at + 0.005); og.gain.exponentialRampToValueAtTime(0.0001, at + 0.1);
-      o.connect(og); og.connect(master); o.start(at); o.stop(at + 0.12);
-    }
-    crunch(t0 + 1.4, 0.75);
-    crunch(t0 + 1.7, 0.7);
-    crunch(t0 + 2.0, 0.8);
-
-    // a bright little "delicious" chime as the eyes light up
-    [1568, 2093, 2637].forEach(function (f, k) {
-      var o = ctx.createOscillator(), g = ctx.createGain(), t = t0 + 2.17 + k * 0.07;
-      o.type = "sine"; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-      o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.55);
-    });
+    window.__reaperSplashSound(ctx, ctx.currentTime + 0.05);
     setTimeout(function () { try { ctx.close(); } catch (e) {} }, 3600);
   }
 
@@ -2453,7 +2689,6 @@
   var started = Date.now();
   var RESUMING = /[?&]resume=1/.test(location.search);
   if (RESUMING) { $("#splash").classList.add("gone"); try { history.replaceState(null, "", location.pathname); } catch (e) {} }
-  else playJingle();
   refreshApps();
   $("#page-home").classList.add("on");
   $$(".tab")[0].classList.add("active");
@@ -2463,8 +2698,14 @@
   if (RESUMING) {
     try { var lf = JSON.parse(sessionStorage.getItem("reaper.lastFocus") || "null"); if (lf) restoreFocus(lf); } catch (e) {}
   }   // let the reaper have its moment
-  setTimeout(function () { $("#splash").classList.add("gone"); }, wait);
+  if (RESUMING) $("#splash").classList.add("gone");
+  else (function hideSplash() {
+    if (!window.__splashStart) { setTimeout(hideSplash, 50); return; }
+    setTimeout(function () { $("#splash").classList.add("gone"); }, Math.max(0, 3100 - (Date.now() - window.__splashStart)));
+  })();
   setTimeout(function () { refreshStore(); }, wait + 600); // warm the store quietly
+  setTimeout(refreshCharts, wait + 1500);
+  setInterval(refreshCharts, 3 * 3600 * 1000);
   if (NATIVE && autoUpdate) {
     setTimeout(function () { checkSelfUpdate(false); }, wait + 8000);
     setInterval(function () { checkSelfUpdate(false); refreshStore(true); notifiedUpdates = false; }, 6 * 3600 * 1000);
