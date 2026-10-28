@@ -707,6 +707,8 @@
       desc: "Movies, shows and live TV in one library, with add-ons. Official Android TV build." },
     { id: "kodi", cat: "media", featured: true, name: "Kodi", glyph: "K", color: "#17B2E7", pkg: "org.xbmc.kodi",
       source: FD("org.xbmc.kodi"), desc: "The classic home-theater media center for your own files, drives and network shares." },
+    { id: "antennapod", cat: "media", name: "AntennaPod", glyph: "A", color: "#2D6FC4", pkg: "de.danoeh.antennapod",
+      source: FD("de.danoeh.antennapod"), desc: "Open-source podcast player: subscribe to any show, download episodes, no account or ads." },
     { id: "jellyfin", cat: "media", name: "Jellyfin", glyph: "J", color: "#00A4DC", pkg: "org.jellyfin.androidtv",
       source: FD("org.jellyfin.androidtv"), desc: "Stream movies and shows from your own Jellyfin media server." },
     { id: "vlc", cat: "media", name: "VLC", glyph: "V", color: "#FF8800", pkg: "org.videolan.vlc",
@@ -897,6 +899,32 @@
       desc: "Chat with your friends and servers." }
   ];
 
+  // Podcasts: every tile also plays in ReaperOS (web player) when the app isn't installed.
+  function fav(d) { return ["https://www.google.com/s2/favicons?domain=" + d + "&sz=256"]; }
+  var PODCASTS = [
+    { id: "applepodcasts", name: "Apple Podcasts", glyph: "P", color: "#9933CC", match: /apple podcasts|^podcasts$/i, query: "Apple Podcasts", scheme: "podcasts://",
+      web: "https://podcasts.apple.com/us/browse", ua: UA_DESKTOP, icons: fav("podcasts.apple.com"), kicker: "Podcasts",
+      desc: "Millions of free shows, top charts and new episodes, no account needed to listen." },
+    { id: "spotifypods", name: "Spotify Podcasts", glyph: "S", color: "#1DB954", match: /spotify/i, query: "Spotify", scheme: "spotify:genre:podcasts-web",
+      web: "https://open.spotify.com/genre/podcasts-web", ua: UA_DESKTOP, icons: fav("spotify.com"), kicker: "Podcasts",
+      desc: "Spotify's podcasts, including video podcasts and exclusives." },
+    { id: "ytmpods", name: "YouTube Music Podcasts", glyph: "Y", color: "#FF0033", match: /youtube music/i, query: "YouTube Music", scheme: "youtubemusic://",
+      web: "https://music.youtube.com/podcasts", ua: UA_DESKTOP, icons: fav("music.youtube.com"), kicker: "Podcasts",
+      desc: "Audio and video podcasts from YouTube's creators." },
+    { id: "pocketcasts", name: "Pocket Casts", glyph: "P", color: "#F43E37", match: /pocket ?casts/i, query: "Pocket Casts", pkg: "au.com.shiftyjelly.pocketcasts", preferPlay: true, scheme: "pktc://",
+      web: "https://play.pocketcasts.com", ua: UA_DESKTOP, icons: fav("pocketcasts.com"), kicker: "Podcast player",
+      desc: "A favorite podcast player: subscriptions, playback speed, silence trimming and sync across devices." },
+    { id: "iheart", name: "iHeartRadio", glyph: "i", color: "#C6002B", match: /iheart/i, query: "iHeartRadio", scheme: "iheartradio://",
+      web: "https://www.iheart.com/podcast/", ua: UA_DESKTOP, icons: fav("iheart.com"), kicker: "Podcasts & radio",
+      desc: "Free podcasts plus live radio stations from across the US." },
+    { id: "tunein", name: "TuneIn", glyph: "T", color: "#14D8CC", match: /tunein/i, query: "TuneIn Radio", scheme: "tunein://",
+      web: "https://tunein.com/podcasts/", ua: UA_DESKTOP, icons: fav("tunein.com"), kicker: "Podcasts & radio",
+      desc: "Podcasts, news, sports talk and radio stations from around the world." },
+    { id: "amazonmusic", name: "Amazon Music Podcasts", glyph: "A", color: "#25D1DA", match: /amazon music/i, query: "Amazon Music",
+      web: "https://music.amazon.com/podcasts", ua: UA_DESKTOP, icons: fav("music.amazon.com"), kicker: "Podcasts",
+      desc: "Podcasts in Amazon Music, built into Fire TV and included with your Amazon account." }
+  ];
+
   // ---------------------------------------------------------------- iOS catalog
   // iOS can't install apps for us, so tiles open the app (by URL scheme when one is known)
   // and fall back to its App Store page.
@@ -1034,6 +1062,8 @@
       F("com.github.iwalton3.jellyfin-media-player", "media", "Jellyfin Media Player", "J", "#00A4DC", "Watch your own Jellyfin server."),
       F("org.videolan.VLC", "media", "VLC", "V", "#FF8800", "Plays nearly any video or audio file."),
       F("com.spotify.Client", "media", "Spotify", "S", "#1DB954", "Music and podcasts."),
+      F("org.kde.kasts", "media", "Kasts", "K", "#1D99F3", "KDE's podcast player, made for big screens and touch."),
+      F("org.gnome.Podcasts", "media", "Podcasts", "P", "#8E44AD", "A simple podcast player for subscribing and listening."),
 
       F("net.supertuxkart.SuperTuxKart", "freegames", "SuperTuxKart", "S", "#2E86DE", "3D kart racing with online play.", { featured: true }),
       F("org.luanti.luanti", "freegames", "Luanti", "L", "#4CAF50", "Open-source block-building sandbox with thousands of games."),
@@ -1767,6 +1797,7 @@
     var at = timerList("anime_timers");
     if (at.length) sc.appendChild(shelf("Anime countdown \u00b7 next episodes & premieres", at.length, at.map(function (x) { return timerTile(x, "anime"); })));
     sc.appendChild(shelf("Music & social", SOCIAL.length, SOCIAL.map(linkTile)));
+    sc.appendChild(shelf("Podcasts", PODCASTS.length, PODCASTS.map(linkTile)));
     if (charts && charts.hot100 && charts.hot100.entries && charts.hot100.entries.length)
       sc.appendChild(shelf("Billboard Hot 100" + (charts.hot100.date ? " \u00b7 week of " + new Date(charts.hot100.date + "T12:00:00").toLocaleDateString([], { month: "long", day: "numeric" }) : ""), charts.hot100.entries.length, charts.hot100.entries.map(songTile)));
     sc.appendChild(shelf("PC & cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
@@ -1803,7 +1834,7 @@
       var c = it.cloud, ca = cloudApp(c); kicker = c.kicker; title = c.name; color = c.color;
       desc = ca || IOS ? c.desc : canEmbed(c) ? c.desc + " Plays right here in ReaperOS; install the app anytime for the full experience." : "Not installed yet. Press OK to get the app.";
       if (c.batocera) { desc = c.desc; }
-      act = c.batocera ? "Restart into Batocera" : ca || IOS || canEmbed(c) ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : SOCIAL.indexOf(c) >= 0 ? "Open" : "Play") : "Get app";
+      act = c.batocera ? "Restart into Batocera" : ca || IOS || canEmbed(c) ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : PODCASTS.indexOf(c) >= 0 ? "Listen" : SOCIAL.indexOf(c) >= 0 ? "Open" : "Play") : "Get app";
       art = artFor(t, c.glyph);
     } else {
       var s = it.store, inst = installedVersion(s);
