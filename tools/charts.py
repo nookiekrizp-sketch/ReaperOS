@@ -174,29 +174,93 @@ def is_short(vid):
         return False
 
 
-def channel(handle, want=3, keep=None):
-    html = get("https://www.youtube.com/@" + handle)
+KNOWN_IDS = {}      # handle -> channel id, filled from the last published charts.json
+
+
+def get_retry(url, tries=3):
+    last = None
+    for i in range(tries):
+        try:
+            return get(url)
+        except urllib.error.HTTPError as e:
+            last = e
+            if e.code not in (404, 429, 500, 502, 503):
+                raise
+        except Exception as e:
+            last = e
+        time.sleep(2 + 3 * i)
+    raise last
+
+
+def channel_id(handle):
+    if handle in KNOWN_IDS:
+        return KNOWN_IDS[handle]
+    html = get_retry("https://www.youtube.com/@" + handle)
     m = (re.search(r'"externalId":"(UC[\w-]{22})"', html)
          or re.search(r'<link rel="canonical" href="https://www\.youtube\.com/channel/(UC[\w-]{22})"', html)
          or re.search(r'"channelId":"(UC[\w-]{22})"', html))
     if not m:
-        raise ValueError("no channel id")
-    cid = m.group(1)
-    feed = get("https://www.youtube.com/feeds/videos.xml?channel_id=" + cid)
-    ns = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015",
-          "media": "http://search.yahoo.com/mrss/"}
+        raise ValueError("no channel id on page")
+    KNOWN_IDS[handle] = m.group(1)
+    return m.group(1)
+
+
+def feed_videos(cid):
+    feed = get_retry("https://www.youtube.com/feeds/videos.xml?channel_id=" + cid)
+    ns = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
     root = ET.fromstring(feed)
+    return [(en.findtext("yt:videoId", "", ns), en.findtext("a:title", "", ns), en.findtext("a:published", "", ns), None)
+            for en in root.findall("a:entry", ns)]
+
+
+def ago_to_iso(txt):
+    m = re.search(r"(\d+)\s+(second|minute|hour|day|week|month|year)", txt or "")
+    if not m:
+        return datetime.datetime.now(datetime.timezone.utc).isoformat()
+    n, unit = int(m.group(1)), m.group(2)
+    secs = n * {"second": 1, "minute": 60, "hour": 3600, "day": 86400, "week": 604800, "month": 2592000, "year": 31536000}[unit]
+    return (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=secs)).isoformat()
+
+
+def page_videos(cid):
+    """Fallback: the channel's Videos tab (no Shorts there)."""
+    html = get_retry("https://www.youtube.com/channel/%s/videos" % cid)
+    m = re.search(r"var ytInitialData = (\{.*?\});</script>", html, re.S)
+    if not m:
+        raise ValueError("no video list on page")
+    out = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            r = o.get("videoRenderer")
+            if isinstance(r, dict) and r.get("videoId"):
+                title = "".join(x.get("text", "") for x in (r.get("title") or {}).get("runs", []))
+                out.append((r["videoId"], title, ago_to_iso((r.get("publishedTimeText") or {}).get("simpleText")), False))
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+    walk(json.loads(m.group(1)))
+    return out
+
+
+def channel(handle, want=3, keep=None):
+    cid = channel_id(handle)
+    try:
+        entries = feed_videos(cid)
+    except Exception as e:
+        log("  feed failed for", handle, e, "- trying the Videos page")
+        entries = page_videos(cid)
     vids = []
-    for en in root.findall("a:entry", ns):
-        vid = en.findtext("yt:videoId", "", ns)
-        title = en.findtext("a:title", "", ns)
+    for vid, title, published, short in entries:
         if not vid or "#shorts" in title.lower():
             continue
         if keep and not keep(title):
             continue
-        if is_short(vid):
+        if short is None and is_short(vid):
             continue
-        vids.append({"id": vid, "title": title, "published": en.findtext("a:published", "", ns)})
+        vids.append({"id": vid, "title": title, "published": published})
         if len(vids) >= want:
             break
     return cid, vids
@@ -210,7 +274,7 @@ def modders():
             out.append({"handle": handle, "name": name, "about": about, "channelId": cid, "videos": vids})
             log("youtube ok", handle, len(vids))
         except Exception as e:
-            log("youtube skip", handle, e)
+            log("youtube skip", handle, e, getattr(e, "url", "") or getattr(e, "filename", "") or "")
         time.sleep(0.5)
     return out
 
@@ -249,7 +313,7 @@ def trailers():
                 out.append(v)
             log("trailers ok", handle, len(vids))
         except Exception as e:
-            log("trailers skip", handle, e)
+            log("trailers skip", handle, e, getattr(e, "url", "") or getattr(e, "filename", "") or "")
         time.sleep(0.5)
     out.sort(key=lambda v: v["published"], reverse=True)
     return out[:50]
@@ -403,6 +467,10 @@ def main():
             prev = json.load(open(sys.argv[2]))
         except Exception:
             prev = {}
+    for c in prev.get("modders", []):
+        if c.get("handle") and c.get("channelId"):
+            KNOWN_IDS[c["handle"]] = c["channelId"]
+    KNOWN_IDS.update(prev.get("channelIds", {}))
     out = {"updated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")}
     for key, fn in (("imdb", imdb_popular), ("hot100", hot100), ("modders", modders), ("trailers", trailers),
                      ("anime_timers", anime_timers), ("game_timers", game_timers), ("movie_timers", movie_timers)):
@@ -417,6 +485,7 @@ def main():
             log(key, "FAILED:", repr(e), "(keeping previous data)" if key in prev else "")
             if key in prev:
                 out[key] = prev[key]
+    out["channelIds"] = KNOWN_IDS
     json.dump(out, open(dest, "w"), ensure_ascii=False, separators=(",", ":"))
 
 
