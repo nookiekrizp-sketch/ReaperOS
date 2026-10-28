@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld("Reaper", {
   hasMediaPermission: () => true,
   listMedia: sync("listMedia"),
   getPlayerOption: sync("getPlayerOption"),
+  freeSpaceMb: sync("freeSpaceMb"),
   // answered later through window.reaper* callbacks
   requestIcon: async("requestIcon"),
   fetch: async("fetch"),

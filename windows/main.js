@@ -467,6 +467,9 @@ const syncHandlers = {
   },
   launch: (pkg) => launchApp(String(pkg || "")),
   playInRetroArch: (rom, core) => playInRetroArch(rom, core),
+  freeSpaceMb: () => {
+    try { const st = fs.statfsSync(os.homedir()); return Math.floor((st.bavail * st.bsize) / 1048576); } catch (e) { return -1; }
+  },
   getLoginItem: () => (isLinux ? false : app.getLoginItemSettings().openAtLogin),
   // Bundled games for the built-in player
   listMedia: () => JSON.stringify(listMedia()),

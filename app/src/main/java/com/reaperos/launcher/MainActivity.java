@@ -757,6 +757,17 @@ public class MainActivity extends Activity {
             });
         }
 
+        /** Free space for new apps, in MB (Fire TVs have little storage). */
+        @JavascriptInterface
+        public long freeSpaceMb() {
+            try {
+                android.os.StatFs st = new android.os.StatFs(getFilesDir().getAbsolutePath());
+                return st.getAvailableBytes() / (1024 * 1024);
+            } catch (Exception ex) {
+                return -1;
+            }
+        }
+
         @JavascriptInterface
         public boolean canInstall() {
             return canInstallPackages();

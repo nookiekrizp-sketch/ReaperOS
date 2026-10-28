@@ -306,6 +306,9 @@
   #setup h2 { font-size: 2.6rem; font-weight: 800; }
   #setup p { font-size: 1.2rem; color: var(--dim); margin: .6rem 0 1.8rem; line-height: 1.4; }
   #setup p b { color: var(--cyan); }
+  #setupList { max-height: 46vh; overflow-y: auto; }
+  #setupCount { font-size: 1.15rem; color: var(--dim); margin-bottom: .8rem; }
+  #setupCount b { color: var(--cyan); }
   #setup li { list-style: none; display: flex; align-items: center; padding: .7rem 0; border-top: .1rem solid var(--line); font-size: 1.25rem; }
   #setup li .nm { flex: 1; font-weight: 600; }
   #setup li .st { color: var(--dim); font-size: 1.1rem; }
@@ -432,8 +435,9 @@
 
 <div id="setup">
   <div class="box">
-    <h2>Setting up your apps</h2>
+    <h2>Installing your apps</h2>
     <p>ReaperOS is installing your apps. Fire OS asks you to confirm each one, so press <b>Install</b> whenever it appears.</p>
+    <div id="setupCount"></div>
     <ul id="setupList"></ul>
     <div class="keys"><span><b>OK</b>Hide and keep installing</span><span><b>BACK</b>Skip the rest</span></div>
   </div>
@@ -534,7 +538,7 @@
       source: FD("com.swordfish.lemuroid"), desc: "The simplest retro emulator: point it at your games folder and play." },
     { id: "ppsspp", cat: "emus", name: "PPSSPP", glyph: "P", color: "#2A6FB0", pkg: "org.ppsspp.ppsspp",
       source: FD("org.ppsspp.ppsspp"), desc: "PSP emulator that runs well even on modest hardware." },
-    { id: "dolphin", cat: "emus", name: "Dolphin", glyph: "D", color: "#2E7DFF", pkg: "org.dolphinemu.dolphinemu",
+    { id: "dolphin", cat: "emus", name: "Dolphin", glyph: "D", color: "#2E7DFF", pkg: "org.dolphinemu.dolphinemu", needs64: true,
       source: FD("org.dolphinemu.dolphinemu"), desc: "GameCube and Wii. Needs a 64-bit Fire TV, and the newest sticks for full speed." },
     { id: "flycast", cat: "emus", name: "Flycast", glyph: "F", color: "#E0592A", pkg: "com.flycast.emulator",
       source: { type: "github", repo: "flyinghead/flycast" }, desc: "Sega Dreamcast, NAOMI and Atomiswave arcade." },
@@ -593,7 +597,7 @@
       source: FD("com.drodin.tuxrider"), desc: "Slide a penguin downhill, collecting fish. Classic Tux Racer fun." },
     { id: "unciv", cat: "freegames", name: "Unciv", glyph: "U", color: "#8D6E63", pkg: "com.unciv.app",
       source: FD("com.unciv.app"), desc: "Build an empire turn by turn, a free Civilization V-style strategy game." },
-    { id: "freedoom", cat: "freegames", name: "Freedoom", glyph: "F", color: "#B71C1C", pkg: "net.nullsum.freedoom",
+    { id: "freedoom", cat: "freegames", name: "Freedoom", glyph: "F", color: "#B71C1C", pkg: "net.nullsum.freedoom", needs64: true,
       source: FD("net.nullsum.freedoom"), desc: "Classic-style first-person shooter with free Doom-engine campaigns. 64-bit Fire TVs." },
     { id: "puzzles", cat: "freegames", name: "Simon Tatham's Puzzles", glyph: "?", color: "#546E7A", pkg: "name.boyle.chris.sgtpuzzles",
       source: FD("name.boyle.chris.sgtpuzzles"), desc: "40 clever logic puzzles: Sudoku-likes, mines, bridges and more." },
@@ -1333,8 +1337,11 @@
     sc.appendChild(shelf("Anime", ANIME.length, ANIME.map(linkTile)));
     sc.appendChild(shelf("Music & social", SOCIAL.length, SOCIAL.map(linkTile)));
     sc.appendChild(shelf("PC & cloud gaming", CLOUD.length, CLOUD.map(linkTile)));
-    var hb = STORE.filter(function (s) { return s.featured || installedVersion(s); });
-    sc.appendChild(shelf(IOS ? "Games & emulators" : "Homebrew", hb.length, hb.map(storeTile)));
+    // Every app in the catalog sits on Home: installed ones open, the rest install with one press.
+    CATEGORIES.forEach(function (cat) {
+      var list = STORE.filter(function (x) { return x.cat === cat.id && canRunHere(x); });
+      if (list.length) sc.appendChild(shelf(cat.title, list.length, list.map(storeTile)));
+    });
 
     if (state.page === "home") {
       if (keep && restoreFocus(keep)) return;
@@ -1494,6 +1501,8 @@
       st.loading = true;
       resolveRelease(s).then(function (r) {
         st.remote = r; st.error = "";
+        // An app turned out not to run on this device: take it off the Home screen.
+        if (r && r.blocked && state.page === "home") { clearTimeout(refreshStore._home); refreshStore._home = setTimeout(function () { renderHome(true); }, 400); }
         releaseCache[s.id] = { at: Date.now(), r: r }; save("releases", releaseCache);
       })
         .catch(function (e) { st.error = "Couldn't reach " + s.from + " (" + e.message + ")"; })
@@ -1577,8 +1586,14 @@
     setup.innerHTML = "<h3><span>" + (DESK ? "Installs & updates" : "Before your first install") + "</span></h3>";
     var vp = el("div", "viewport"), tr2 = el("div", "track"); tr2.dataset.row = "1";
     var b1 = button("Allow app installs", "Lets ReaperOS hand APKs to the Fire OS installer", function () { NATIVE ? Reaper.openSettings("unknown") : toast("Opens the Fire TV permission screen"); });
+    var b4 = button("Install all apps", DESK ? "Installs the whole catalog in the background" : "Installs every app one after another; press Install on each prompt", function () {
+      if (!NATIVE) { toast("Installing works on your Fire TV or PC."); return; }
+      if (DESK) installInBackground(STORE, "apps"); else runFirstSetup("all");
+    });
+    tr2.appendChild(b4);
     var b0 = button("Install starter pack", "Installs the featured apps one after another", function () {
-      if (NATIVE) runFirstSetup(); else startStarterPack();
+      if (!NATIVE) { startStarterPack(); return; }
+      if (DESK) installInBackground(STORE.filter(function (x) { return x.featured; }), "starter apps"); else runFirstSetup("featured");
     });
     tr2.appendChild(b0);
     var b3 = button("Update all apps", "Installs every available update, one after another", function () { updateAll(); });
@@ -1592,6 +1607,19 @@
     sc.appendChild(setup);
     refreshStore();
   }
+  // Apps this device can't run (64-bit only on a 32-bit Fire TV, too-new Android, etc.) stay hidden.
+  function canRunHere(s) {
+    if (s.needs64 && NATIVE && !DESK && !is64) return false;
+    if (s.maxSdk && device.sdk && device.sdk > s.maxSdk && !installedVersion(s)) return false;
+    var st = storeState[s.id];
+    if (st && st.remote && st.remote.blocked && !st.installed) return false;
+    return true;
+  }
+  function freeMb() {
+    try { return NATIVE && Reaper.freeSpaceMb ? Reaper.freeSpaceMb() : -1; } catch (e) { return -1; }
+  }
+  var LOW_SPACE_MB = 700;
+
   // ---------------------------------------------------------------- first-run setup
   var setupItems = [], setupOn = false, setupSkipped = {};
   function setupStatus(s) {
@@ -1612,27 +1640,36 @@
       var x = setupStatus(s);
       return '<li class="' + x[1] + '"><span class="nm">' + esc(s.name) + '</span><span class="st">' + esc(x[0]) + "</span></li>";
     }).join("");
+    var doneN = setupItems.filter(function (s) { return setupStatus(s)[1] === "done"; }).length;
+    $("#setupCount").innerHTML = "<b>" + doneN + "</b> of " + setupItems.length + " apps installed";
+    var now = $("#setupList li.now"); if (now && now.scrollIntoView) now.scrollIntoView({ block: "nearest" });
     var finished = setupItems.every(function (s) { var c = setupStatus(s)[1]; return c === "done" || c === "bad" || setupSkipped[s.id]; });
     if (finished && setupOn) {
       save("setupDone", true);
-      setTimeout(function () { hideSetup(); toast("All set. Your apps are on the Home screen."); }, 1800);
+      setTimeout(function () {
+        hideSetup();
+        toast(stoppedForSpace
+          ? "Stopped early: only " + stoppedForSpace + " MB of storage left. The rest stay on Home; press one to install it after freeing space."
+          : "All set. Your apps are on the Home screen.");
+      }, 1800);
     }
   }
   function showSetup() { setupOn = true; $("#setup").classList.add("on"); renderSetup(); }
   function hideSetup() { setupOn = false; $("#setup").classList.remove("on"); }
-  function runFirstSetup() {
+  function runFirstSetup(scope) {
     if (!NATIVE) return;
-    setupItems = STORE.filter(function (s) { return s.featured && !(s.needs64 && !is64); });
+    scope = scope || "all";
+    setupItems = STORE.filter(function (s) { return (scope === "all" || s.featured) && canRunHere(s); });
     if (!setupItems.length) return;
+    var space = freeMb();
+    if (space >= 0 && space < LOW_SPACE_MB + 300) {
+      toast("Only " + space + " MB free. ReaperOS will install apps until storage gets low.");
+    }
+    refreshStore();
     showSetup();
-    var tries = 0;
-    (function waitReady() {
-      renderSetup();
-      var ready = setupItems.every(function (s) { var st = storeState[s.id]; return st.installed || st.remote || st.error; });
-      if (!ready && tries++ < 40) { setTimeout(waitReady, 500); return; }
-      installQueue = setupItems.filter(function (s) { return !storeState[s.id].installed && cardState(s).action === "install"; });
-      nextInQueue();
-    })();
+    // Apps whose download details are still loading wait in the queue until they're ready.
+    installQueue = setupItems.filter(function (s) { return !storeState[s.id].installed; });
+    nextInQueue();
   }
 
   // Installs featured apps one at a time; Fire OS asks to confirm each.
@@ -1646,13 +1683,44 @@
     toast("Installing " + installQueue.length + " apps. Confirm each one when Fire OS asks.");
     nextInQueue();
   }
+  var queueWaits = {}, stoppedForSpace = 0;
   function nextInQueue() {
     var busy = STORE.some(function (s) { return storeState[s.id].busy; });
     if (busy || !installQueue.length) return;
+    var space = freeMb();
+    if (space >= 0 && space < LOW_SPACE_MB) {
+      installQueue.forEach(function (x) { setupSkipped[x.id] = true; });
+      installQueue = [];
+      stoppedForSpace = space;
+      toast("Storage is almost full (" + space + " MB left), so ReaperOS stopped installing. Uninstall something to make room.");
+      if (setupOn) renderSetup();
+      return;
+    }
     var s = installQueue.shift();
-    storeState[s.id].installed = installedVersion(s);
-    if (storeState[s.id].installed) return nextInQueue();
+    var st = storeState[s.id];
+    st.installed = installedVersion(s);
+    if (st.installed) return nextInQueue();
+    var cs = cardState(s);
+    if (cs.action !== "install") {
+      // Still fetching this app's download details: try again shortly (up to about a minute).
+      if ((st.loading || (!st.remote && !st.error)) && (queueWaits[s.id] = (queueWaits[s.id] || 0) + 1) < 60) {
+        installQueue.unshift(s);
+        setTimeout(nextInQueue, 1000);
+        return;
+      }
+      setupSkipped[s.id] = true;
+      if (setupOn) renderSetup();
+      return nextInQueue();
+    }
     cardAction(s);
+  }
+
+  // PCs install without prompts, so ReaperOS can fill the launcher in the background.
+  function installInBackground(list, label) {
+    installQueue = list.filter(function (x) { return canRunHere(x) && !installedVersion(x); });
+    if (!installQueue.length) { toast("Everything's already installed."); return; }
+    toast("Installing " + installQueue.length + " " + label + " in the background. Keep using ReaperOS meanwhile.");
+    nextInQueue();
   }
 
   function focusCard(id) {
@@ -2306,9 +2374,16 @@
     setTimeout(function () { checkSelfUpdate(false); }, wait + 8000);
     setInterval(function () { checkSelfUpdate(false); refreshStore(true); notifiedUpdates = false; }, 6 * 3600 * 1000);
   }
-  if (DESK) save("setupDone", true);
+  if (DESK) {
+    save("setupDone", true);
+    if (NATIVE && !load("pcPreloaded", false)) {
+      save("pcPreloaded", true);
+      // Give the installed-apps scan a moment so nothing is installed twice.
+      setTimeout(function () { refreshStore(); installInBackground(STORE.filter(function (x) { return x.featured; }), "starter apps"); }, 20000);
+    }
+  }
   if (!load("setupDone", false)) {
-    if (NATIVE) setTimeout(runFirstSetup, wait + 500);
+    if (NATIVE) setTimeout(function () { runFirstSetup("all"); }, wait + 500);
     else if (!IOS) setTimeout(function () { toast("On your Fire TV, ReaperOS installs your apps automatically on first launch."); }, wait + 900);
   }
 })();
