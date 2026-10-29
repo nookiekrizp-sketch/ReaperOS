@@ -17,7 +17,7 @@ chmod 0440 /etc/sudoers.d/reaperos-session
 visudo -cf /etc/sudoers.d/reaperos-session
 
 # Libraries the app needs, and mpv for ReaperOS Player (most are already in Bazzite)
-dnf5 install -y --skip-unavailable efibootmgr mpv mangohud gamemode nss gtk3 alsa-lib mesa-libgbm libXScrnSaver cups-libs at-spi2-atk
+dnf5 install -y --skip-unavailable efibootmgr mpv nss gtk3 alsa-lib mesa-libgbm libXScrnSaver cups-libs at-spi2-atk
 
 # Sign in to the ReaperOS session automatically at boot
 systemctl enable reaperos-autologin.service

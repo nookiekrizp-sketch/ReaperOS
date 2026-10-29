@@ -54,7 +54,11 @@ jobs:
 
       - name: Build the OS image
         run: |
-          podman build --pull=newer -f os/Containerfile -t reaperos:latest os
+          set -o pipefail
+          if ! podman build --pull=newer -f os/Containerfile -t reaperos:latest os 2>&1 | tee build.log; then
+            echo "::error title=OS image build failed::$(grep -v '^\s*$' build.log | tail -25 | cut -c1-200 | sed ':a;N;$!ba;s/\n/%0A/g')"
+            exit 1
+          fi
 
       - name: Publish to GitHub Container Registry
         if: github.event_name != 'pull_request'
