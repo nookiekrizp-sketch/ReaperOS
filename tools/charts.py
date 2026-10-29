@@ -377,6 +377,37 @@ def uhd():
     return out
 
 
+# Square Enix: every game they publish on Steam, with art, price and reviews (official Steam store data).
+def square_enix():
+    data = json.loads(get("https://store.steampowered.com/search/results/?publisher=Square%20Enix&category1=998&json=1&count=100&cc=us&l=english",
+                          headers=dict(HEADERS, Accept="application/json")))
+    ids = []
+    for it in data.get("items", []):
+        m = re.search(r"/apps/(\d+)/", it.get("logo", ""))
+        if m and m.group(1) not in ids:
+            ids.append(m.group(1))
+    out = []
+    for appid in ids[:70]:
+        try:
+            d = json.loads(get("https://store.steampowered.com/api/appdetails?appids=%s&cc=us&l=english" % appid,
+                               headers=dict(HEADERS, Accept="application/json")))[appid]
+            if not d.get("success") or d["data"].get("type") != "game":
+                continue
+            g = d["data"]
+            price = "Free" if g.get("is_free") else ((g.get("price_overview") or {}).get("final_formatted") or "")
+            sale = (g.get("price_overview") or {}).get("discount_percent") or 0
+            out.append({"id": appid, "title": g.get("name", ""), "image": g.get("header_image", ""),
+                        "desc": g.get("short_description", ""), "price": price, "sale": sale,
+                        "date": (g.get("release_date") or {}).get("date", ""), "soon": bool((g.get("release_date") or {}).get("coming_soon")),
+                        "score": (g.get("metacritic") or {}).get("score"), "reviews": (g.get("recommendations") or {}).get("total", 0),
+                        "linux": bool((g.get("platforms") or {}).get("linux")), "genres": [x.get("description") for x in (g.get("genres") or [])][:3]})
+        except Exception as e:
+            log("square enix skip", appid, e)
+        time.sleep(1.2)
+    out.sort(key=lambda g: (g["soon"], -(g["reviews"] or 0)))
+    return out
+
+
 # ------------------------------------------------------------------ release timers
 def post_json(url, body):
     req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={
@@ -530,7 +561,7 @@ def main():
             KNOWN_IDS[c["handle"]] = c["channelId"]
     KNOWN_IDS.update(prev.get("channelIds", {}))
     out = {"updated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")}
-    for key, fn in (("imdb", imdb_popular), ("hot100", hot100), ("modders", modders), ("trailers", trailers), ("uhd", uhd),
+    for key, fn in (("imdb", imdb_popular), ("hot100", hot100), ("modders", modders), ("trailers", trailers), ("uhd", uhd), ("squareenix", square_enix),
                      ("anime_timers", anime_timers), ("game_timers", game_timers), ("movie_timers", movie_timers)):
         try:
             val = fn()

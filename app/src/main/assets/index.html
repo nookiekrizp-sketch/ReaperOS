@@ -1818,6 +1818,37 @@
     t.appendChild(el("div", "get", "\u25B6 Trailer"));
     return t;
   }
+  // ---------------------------------------------------------------- Square Enix
+  // Their whole Steam catalog (refreshed every 6 hours): owned games launch, the rest open in Steam.
+  function ownedSteamIds() { var o = {}; steamLibrary().forEach(function (g) { o[String(g.id)] = g.name; }); return o; }
+  function seTile(g, owned) {
+    var t = el("div", "tile f hasban");
+    t._item = { kind: "se", g: g, owned: owned };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,#1A1A1A,#120A22 85%)"></div>' + imgTag("ban", g.image) +
+      (owned ? '<div class="badge new" style="left:auto;right:.5rem;top:.5rem;bottom:auto">OWNED</div>'
+        : g.price ? '<div class="get">' + (g.sale ? "-" + g.sale + "% " : "") + esc(g.price) + "</div>" : g.soon ? '<div class="get">Coming soon</div>' : "") +
+      '<div class="name">' + esc(g.title) + "</div>";
+    t._act = function () { openSE(g, owned); };
+    return t;
+  }
+  function openSE(g, owned) {
+    if (owned && DESK) { launchApp({ pkg: "steam:" + g.id, label: g.title }); return; }
+    if (DESK && steamLibrary().length) { musicPause(true); Reaper.openUrl("steam://store/" + g.id); return; }
+    if (IOS || !NATIVE) { window.open("https://store.steampowered.com/app/" + g.id + "/", "_blank"); return; }
+    openOut("https://store.steampowered.com/app/" + g.id + "/", UA_DESKTOP);
+  }
+  function seExtraTiles() {
+    var tiles = [];
+    tiles.push(linkTile({ id: "ffxivtrial", name: "FINAL FANTASY XIV Free Trial", glyph: "XIV", color: "#2B4C8C", match: /final fantasy xiv/i, kicker: "Square Enix · free",
+      desc: "Play the award-winning Final Fantasy XIV free, including A Realm Reborn and the Heavensward and Stormblood expansions, with no time limit.",
+      web: "https://freetrial.finalfantasyxiv.com/", ua: UA_DESKTOP, site: "https://freetrial.finalfantasyxiv.com/", icons: fav("finalfantasyxiv.com") }));
+    if (IOS) tiles.push(linkTile({ id: "seios", name: "Square Enix on the App Store", glyph: "SE", color: "#B0122B", kicker: "Square Enix · iPhone & iPad", query: "Square Enix",
+      desc: "Final Fantasy, Dragon Quest, Chrono Trigger and more, made for iPhone and iPad.", icons: fav("square-enix-games.com") }));
+    else if (NATIVE && !DESK) tiles.push(linkTile({ id: "seandroid", name: "Square Enix Android games", glyph: "SE", color: "#B0122B", match: /a^/, kicker: "Square Enix · Fire TV",
+      query: "Square Enix", preferPlay: false, desc: "Square Enix games for Android from the Appstore. Many are built for touch screens, so a controller helps.", icons: fav("square-enix-games.com") }));
+    return tiles;
+  }
+
   // ---------------------------------------------------------------- 4K Ultra HD
   function screen4k() {
     var w = device.maxWidth || 0;
@@ -2565,6 +2596,9 @@
     else if (locName()) nt.push(linkTile(headlinesLink()));
     sc.appendChild(shelf("Local news" + (locName() ? " \u00b7 " + locName() : ""), null, nt));
     sc.appendChild(shelf("Games \u00b7 play here", ROMS.length, ROMS.map(romTile)));
+    var seList = (charts && charts.squareenix) || [], own = DESK ? ownedSteamIds() : {};
+    var seOwned = seList.filter(function (g) { return own[g.id]; }), seRest = seList.filter(function (g) { return !own[g.id]; });
+    sc.appendChild(shelf("Square Enix", null, seOwned.map(function (g) { return seTile(g, true); }).concat(seExtraTiles(), seRest.map(function (g) { return seTile(g, false); }))));
     var mv = modderVideos();
     if (mv.length) sc.appendChild(shelf("Modder YouTubers \u00b7 new videos", mv.length, mv.map(videoTile)));
     var gt = timerList("game_timers");
@@ -2611,6 +2645,12 @@
       if (ic) art = '<img class="' + (ic.banner ? "wide" : "") + '" src="' + ic.src + '">';
     } else if (it.kind === "media") {
       return;
+    } else if (it.kind === "se") {
+      var sg = it.g; kicker = "Square Enix \u00b7 " + (it.owned ? "in your Steam library" : "Steam"); title = sg.title; color = "#B0122B";
+      desc = [sg.genres && sg.genres.join(", "), sg.date, sg.score ? "Metacritic " + sg.score : "", sg.price ? (sg.sale ? sg.price + " (" + sg.sale + "% off)" : sg.price) : ""].filter(Boolean).join(" \u00b7 ") + ". " + (sg.desc || "") +
+        (DESK ? "" : NATIVE && !IOS ? " Play it on your PC, or stream it here from your PC with Steam Link or Moonlight." : "");
+      act = it.owned && DESK ? "Play" : DESK ? "View in Steam" : "Details";
+      art = sg.image ? '<img class="wide" src="' + esc(sg.image) + '">' : "";
     } else if (it.kind === "wx") {
       kicker = "Weather \u00b7 " + (wx && wx.place || ""); title = it.d.title; desc = it.d.desc; act = it.type === "radar" ? "Open radar" : "Full forecast";
       color = it.type === "alert" ? "#C0182F" : it.d.night ? "#2A2F7A" : "#2F7BD8";

@@ -1,0 +1,32 @@
+name: Fetch interface fonts
+
+# One-time helper: downloads the open-licensed (SIL OFL) graffiti fonts from Google Fonts' GitHub
+# repository into the app's assets, so ReaperOS ships them and works offline.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fonts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Download fonts
+        run: |
+          mkdir -p app/src/main/assets/fonts
+          cd app/src/main/assets/fonts
+          base=https://raw.githubusercontent.com/google/fonts/main/ofl
+          curl -fsSL -o SedgwickAveDisplay-Regular.ttf "$base/sedgwickavedisplay/SedgwickAveDisplay-Regular.ttf"
+          curl -fsSL -o RubikWetPaint-Regular.ttf "$base/rubikwetpaint/RubikWetPaint-Regular.ttf"
+          curl -fsSL -o OFL-SedgwickAveDisplay.txt "$base/sedgwickavedisplay/OFL.txt"
+          curl -fsSL -o OFL-RubikWetPaint.txt "$base/rubikwetpaint/OFL.txt"
+          ls -la
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/assets/fonts
+          git diff --cached --quiet || git commit -m "Add graffiti fonts (SIL Open Font License)"
+          git push
