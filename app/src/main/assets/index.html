@@ -2992,14 +2992,48 @@
       favs = []; save("favs", favs); toast("Favorites cleared"); refreshApps();
     }));
     vp.appendChild(tr); sec.appendChild(vp); sc.appendChild(sec);
+    if (DESK && Reaper.getPerf) sc.appendChild(performanceShelf());
 
     var about = el("div", "about");
     about.innerHTML = "<b>ReaperOS</b> " + esc(device.version || "preview") +
       "<br>Device: <b>" + esc(device.model || "Browser preview") + "</b>" +
       (device.sdk ? " · Android API " + device.sdk : "") +
       "<br>Processor support: <b>" + esc((device.abis || []).join(", ") || "unknown") + "</b>" +
-      (NATIVE ? (is64 ? " (64-bit apps OK)" : " (32-bit only, so 64-bit-only apps won't run)") : "");
+      (NATIVE && !DESK ? (is64 ? " (64-bit apps OK)" : " (32-bit only, so 64-bit-only apps won't run)") : "");
+    if (DESK && Reaper.getSysInfo) {
+      try {
+        var hw = JSON.parse(Reaper.getSysInfo());
+        about.innerHTML += "<br>CPU: <b>" + esc(hw.cpu) + "</b> (" + hw.cores + " threads) \u00b7 Graphics: <b>" + esc(hw.gpu || "unknown") + "</b> \u00b7 Memory: <b>" + hw.ramGb + " GB</b>";
+      } catch (e) {}
+    }
     sc.appendChild(about);
+  }
+
+  // ---------------------------------------------------------------- performance (PC)
+  function performanceShelf() {
+    var perf = {}; try { perf = JSON.parse(Reaper.getPerf()) || {}; } catch (e) {}
+    var sec = el("section", "shelf"), vp = el("div", "viewport"), tr = el("div", "track"); tr.dataset.row = "1";
+    sec.innerHTML = "<h3><span>Performance</span><small></small></h3>";
+    function toggle(key, label, sub) {
+      var b = button(label + ": " + (perf[key] ? "On" : "Off"), sub, function () {
+        perf[key] = !perf[key]; Reaper.setPerf(key, perf[key]);
+        b.querySelector("b").textContent = label + ": " + (perf[key] ? "On" : "Off");
+        if (OS_SESSION && ["overlay", "fsr", "vrr", "hdr"].indexOf(key) >= 0) toast(label + " " + (perf[key] ? "on" : "off") + ". Restart the session to apply.");
+      });
+      tr.appendChild(b);
+    }
+    toggle("boost", "Performance mode", WIN ? "Ultimate Performance power plan while ReaperOS is open; your usual plan comes back when it's off"
+      : "Runs the CPU and GPU at full speed instead of saving power");
+    toggle("priority", "Games first", "ReaperOS drops to low priority whenever a game or app is in front, so all the power goes to the game");
+    if (OS_SESSION) {
+      toggle("overlay", "FPS overlay", "Frame rate, frame time, CPU and GPU load and temperatures on top of games (MangoHud)");
+      toggle("fsr", "FSR upscaling", "Games set below your screen's resolution get sharpened AMD FSR upscaling: more FPS, still crisp");
+      toggle("vrr", "Variable refresh (VRR)", "Smooth, tear-free motion on FreeSync and G-Sync compatible screens");
+      toggle("hdr", "HDR", "HDR output on HDR TVs and monitors, for games that support it");
+      tr.appendChild(button("Restart session to apply", "Restarts ReaperOS with the overlay, FSR, VRR and HDR settings (takes a few seconds)", function () { Reaper.restartSession(); }));
+    }
+    vp.appendChild(tr); sec.appendChild(vp);
+    return sec;
   }
 
   // ---------------------------------------------------------------- focus engine

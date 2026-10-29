@@ -496,7 +496,90 @@ function setDesktopWallpaper() {
   });
 }
 
+// ------------------------------------------------------------------ performance
+// Performance mode (power plan / power profile), games-first priority, and on the ReaperOS OS
+// the gamescope options (FPS overlay, FSR, VRR, HDR) that take effect when the session restarts.
+const PERF_FILE = () => path.join(app.getPath("userData"), "performance.json");
+const SESSION_CONF = path.join(os.homedir(), ".config", "reaperos", "session.conf");
+let perf = { boost: false, priority: true, overlay: false, fsr: false, vrr: true, hdr: false, savedScheme: "" };
+try { Object.assign(perf, JSON.parse(fs.readFileSync(PERF_FILE(), "utf8"))); } catch (e) {}
+function savePerf() { try { fs.writeFileSync(PERF_FILE(), JSON.stringify(perf, null, 2)); } catch (e) {} }
+
+function powercfg(args) {
+  const r = spawnSync("powercfg", args, { encoding: "utf8", windowsHide: true });
+  return r.status === 0 ? (r.stdout || "") : null;
+}
+const GUID = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+function winBoost(on) {
+  if (on) {
+    const active = (powercfg(["/getactivescheme"]) || "").match(GUID);
+    if (active && !perf.savedScheme) perf.savedScheme = active[1];
+    let target = null;
+    const list = powercfg(["/list"]) || "";
+    const ult = list.split(/\r?\n/).find((l) => /ultimate performance/i.test(l));
+    if (ult && GUID.test(ult)) target = ult.match(GUID)[1];
+    if (!target) {                                    // add Windows' hidden Ultimate Performance plan
+      const dup = powercfg(["-duplicatescheme", "e9a42b02-d5df-448d-aa00-03f14749eb61"]);
+      if (dup && GUID.test(dup)) target = dup.match(GUID)[1];
+    }
+    if (!(target && powercfg(["/setactive", target]) !== null)) {
+      if (powercfg(["/setactive", "SCHEME_MIN"]) === null) return "Couldn't change the power plan.";
+      return "Performance mode on (High performance power plan).";
+    }
+    return "Performance mode on (Ultimate Performance power plan).";
+  }
+  if (perf.savedScheme) { powercfg(["/setactive", perf.savedScheme]); perf.savedScheme = ""; }
+  return "Performance mode off. Your usual power plan is back.";
+}
+function linuxBoost(on) {
+  const profile = on ? "performance" : "balanced";
+  let ok = spawnSync("powerprofilesctl", ["set", profile], { encoding: "utf8" }).status === 0;
+  // Bazzite's tuned-ppd speaks the same D-Bus API (new and old names)
+  for (const [dest, obj] of [["org.freedesktop.UPower.PowerProfiles", "/org/freedesktop/UPower/PowerProfiles"], ["net.hadess.PowerProfiles", "/net/hadess/PowerProfiles"]]) {
+    if (ok) break;
+    ok = spawnSync("gdbus", ["call", "--system", "--dest", dest, "--object-path", obj, "--method", "org.freedesktop.DBus.Properties.Set",
+      dest, "ActiveProfile", "<'" + profile + "'>"], { encoding: "utf8" }).status === 0;
+  }
+  if (!ok) return "Couldn't change the power profile on this system.";
+  return on ? "Performance mode on: CPU and GPU at full speed." : "Performance mode off (balanced).";
+}
+function applyBoost(on) { return isWin ? winBoost(on) : isLinux ? linuxBoost(on) : ""; }
+
+function writeSessionConf() {
+  if (!isLinux) return;
+  try {
+    fs.mkdirSync(path.dirname(SESSION_CONF), { recursive: true });
+    fs.writeFileSync(SESSION_CONF, ["# ReaperOS session options (written by ReaperOS Settings)",
+      "OVERLAY=" + (perf.overlay ? 1 : 0), "FSR=" + (perf.fsr ? 1 : 0), "VRR=" + (perf.vrr ? 1 : 0), "HDR=" + (perf.hdr ? 1 : 0), ""].join("\n"));
+  } catch (e) {}
+}
+
+// Games first: when something else is in front, ReaperOS's own processes drop to low priority.
+function setOwnPriority(low) {
+  if (!perf.priority && low) return;
+  const level = low ? os.constants.priority.PRIORITY_LOW : os.constants.priority.PRIORITY_NORMAL;
+  try { app.getAppMetrics().forEach((m) => { try { os.setPriority(m.pid, level); } catch (e) {} }); } catch (e) {}
+}
+
+let sysInfoCache = null;
+function sysInfo() {
+  if (sysInfoCache) return sysInfoCache;
+  const cpu = (os.cpus()[0] || {}).model || "";
+  let gpu = "";
+  try {
+    if (isWin) gpu = (powershell("(Get-CimInstance Win32_VideoController | Where-Object { $_.Name -notmatch 'Basic|Remote|Virtual' } | Select-Object -ExpandProperty Name) -join ' + '") || "").trim();
+    else {
+      const r = spawnSync("sh", ["-c", "lspci 2>/dev/null | grep -Ei 'vga|3d controller' | sed 's/^.*: //' | head -2"], { encoding: "utf8" });
+      gpu = (r.stdout || "").trim().split("\n").join(" + ");
+    }
+  } catch (e) {}
+  sysInfoCache = { cpu: cpu.replace(/\s+/g, " ").trim(), cores: os.cpus().length, gpu: gpu, ramGb: Math.round(os.totalmem() / 1073741824) };
+  return sysInfoCache;
+}
+
 const syncHandlers = {
+  getPerf: () => JSON.stringify(Object.assign({}, perf, { savedScheme: undefined })),
+  getSysInfo: () => JSON.stringify(sysInfo()),
   deviceInfo: () => JSON.stringify({
     platform: isLinux ? "linux" : "windows",
     session: isLinux ? L.inSession() : false,
@@ -611,6 +694,14 @@ const asyncHandlers = {
   playMedia: (file, title) => playMedia(String(file), title ? String(title) : ""),
   setPlayerOption: (key, on) => { playerOptions[String(key)] = !!on; },
   setDesktopWallpaper: () => setDesktopWallpaper(),
+  setPerf: (key, value) => {
+    if (!(key in perf) || key === "savedScheme") return;
+    perf[key] = !!value;
+    if (key === "boost") toast(applyBoost(perf.boost));
+    if (["overlay", "fsr", "vrr", "hdr"].includes(key)) writeSessionConf();
+    savePerf();
+  },
+  restartSession: () => { if (isLinux && L.inSession()) app.quit(); },
   quit: () => app.quit()
 };
 
@@ -624,6 +715,11 @@ ipcMain.on("reaper-async", (e, name, args) => {
 });
 
 // ------------------------------------------------------------------ window
+
+// A smoother interface: draw it on the GPU.
+app.commandLine.appendSwitch("enable-gpu-rasterization");
+app.commandLine.appendSwitch("enable-zero-copy");
+app.commandLine.appendSwitch("ignore-gpu-blocklist");
 
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
@@ -646,7 +742,12 @@ app.whenReady().then(() => {
     if (input.type === "keyDown" && input.key === "F11") { win.setFullScreen(!win.isFullScreen()); e.preventDefault(); }
   });
   // Coming back to ReaperOS after playing refreshes the library, like the Fire TV version.
-  win.on("focus", () => js("window.reaperResume && reaperResume()"));
+  win.on("focus", () => { setOwnPriority(false); js("window.reaperResume && reaperResume()"); });
+  win.on("blur", () => setTimeout(() => { if (win && !win.isDestroyed() && !win.isFocused()) setOwnPriority(true); }, 1500));
+  if (perf.boost) applyBoost(true);
+  else if (perf.savedScheme && isWin) { applyBoost(false); savePerf(); }   // put back a plan left on after a crash
+  writeSessionConf();
+  setTimeout(() => { try { sysInfo(); } catch (e) {} }, 4000);   // look up the hardware once, in the background
 
   win.loadFile(path.join(__dirname, "ui", "index.html"));
 
@@ -655,3 +756,4 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => app.quit());
+app.on("will-quit", () => { if (isWin && perf.boost && perf.savedScheme) { powercfg(["/setactive", perf.savedScheme]); perf.savedScheme = ""; savePerf(); } });

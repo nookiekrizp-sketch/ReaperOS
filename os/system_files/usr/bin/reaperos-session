@@ -10,8 +10,17 @@ state="${XDG_STATE_HOME:-$HOME/.local/state}/reaperos"
 mkdir -p "$state"
 start=$(date +%s)
 
+# Options from ReaperOS Settings -> Performance (written to ~/.config/reaperos/session.conf).
+conf="${XDG_CONFIG_HOME:-$HOME/.config}/reaperos/session.conf"
+opt() { grep -qx "$1=1" "$conf" 2>/dev/null; }
+args=(-f)
+opt OVERLAY && args+=(--mangoapp)            # FPS, frame time, CPU/GPU load and temperatures
+opt FSR && args+=(-F fsr)                    # AMD FSR upscaling for games running below screen resolution
+opt VRR && args+=(--adaptive-sync)           # variable refresh rate on FreeSync / G-Sync compatible screens
+opt HDR && args+=(--hdr-enabled)             # HDR output on HDR screens
+
 if command -v gamescope >/dev/null 2>&1; then
-  gamescope -f -- /usr/bin/reaperos
+  gamescope "${args[@]}" -- /usr/bin/reaperos
 else
   /usr/bin/reaperos
 fi

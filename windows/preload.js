@@ -7,6 +7,8 @@ const async = (name) => (...args) => { ipcRenderer.send("reaper-async", name, ar
 contextBridge.exposeInMainWorld("Reaper", {
   // answered immediately
   deviceInfo: sync("deviceInfo"),
+  getPerf: sync("getPerf"),
+  getSysInfo: sync("getSysInfo"),
   getApps: sync("getApps"),
   getSteamGames: sync("getSteamGames"),
   installedVersion: sync("installedVersion"),
@@ -41,5 +43,7 @@ contextBridge.exposeInMainWorld("Reaper", {
   batoceraStatus: async("batoceraStatus"),
   batoceraBoot: async("batoceraBoot"),
   setDesktopWallpaper: async("setDesktopWallpaper"),
+  setPerf: async("setPerf"),
+  restartSession: async("restartSession"),
   quit: async("quit")
 });
