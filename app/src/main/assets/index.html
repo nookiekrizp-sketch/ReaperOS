@@ -449,6 +449,35 @@
   #toast.on { opacity: 1; transform: translate(-50%, 0); }
 
 
+
+  /* ------------------------------------------------ graffiti text (Settings: Graffiti text) */
+  @font-face { font-family: "ReaperTag"; src: url("fonts/SedgwickAveDisplay-Regular.ttf") format("truetype"); font-display: swap; }
+  @font-face { font-family: "ReaperDrip"; src: url("fonts/RubikWetPaint-Regular.ttf") format("truetype"); font-display: swap; }
+  body:not(.no-graffiti) .brand span, body:not(.no-graffiti) #splash h1 {
+    font-family: "ReaperDrip", "ReaperTag", "Segoe Print", cursive; font-weight: 400; font-style: normal; text-transform: none;
+    background: linear-gradient(180deg, #F4F0FF 8%, #C7B4F0 50%, #7B4BD6 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 .14rem 0 #05020A) drop-shadow(0 0 .55rem rgba(123,75,214,.65));
+  }
+  body:not(.no-graffiti) .brand span b, body:not(.no-graffiti) #splash h1 b {
+    font-weight: 400; font-style: normal; vertical-align: baseline; font-size: 1em; margin-left: 0;
+    background: linear-gradient(180deg, #D9FDFF 5%, #22E3FF 55%, #0B8CA6 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  body:not(.no-graffiti) .brand span { font-size: 2.2rem; letter-spacing: .12rem; transform: rotate(-2deg); display: inline-block; }
+  body:not(.no-graffiti) #splash h1 { font-size: 5rem; letter-spacing: .25rem; padding-left: 0; margin-top: 1.6rem; transform: rotate(-3deg); }
+  body:not(.no-graffiti) #splash .tag { font-family: "ReaperTag", "Segoe Print", cursive; text-transform: none; letter-spacing: .1rem; font-size: 1.6rem; color: #B9A6E0; }
+  body:not(.no-graffiti) .hero h2, body:not(.no-graffiti) .pagehead h2, body:not(.no-graffiti) #setup h2, body:not(.no-graffiti) #zippad h2 {
+    font-family: "ReaperTag", "Segoe Print", cursive; font-weight: 400; letter-spacing: .05rem;
+    text-shadow: 0 0 .12rem #000, .2rem .2rem 0 rgba(123,75,214,.8), 0 0 1.4rem rgba(34,227,255,.3);
+  }
+  body:not(.no-graffiti) .hero h2 { font-size: 4rem; line-height: 1.12; }
+  body:not(.no-graffiti) .pagehead h2 { font-size: 4.2rem; }
+  body:not(.no-graffiti) .shelf h3 span {
+    font-family: "ReaperTag", "Segoe Print", cursive; font-weight: 400; font-size: 1.75rem; letter-spacing: .06rem; text-transform: none;
+    color: #EDE8FA; text-shadow: .12rem .12rem 0 rgba(123,75,214,.85), 0 0 .8rem rgba(34,227,255,.2);
+  }
+  body:not(.no-graffiti) .shelf h3 { align-items: baseline; }
+  body.theme-steam:not(.no-graffiti) .shelf h3 span { text-shadow: .12rem .12rem 0 rgba(65,122,155,.9); }
+
   /* ------------------------------------------------ Big Picture theme */
   body.theme-steam {
     --bg: #0e141b; --bg2: #171d25; --panel: #1b2838; --panel2: #2a475e; --line: #2f3d4d;
@@ -684,6 +713,7 @@
   };
   var music = true;
   try { var v = localStorage.getItem("reaper.music"); if (v != null) music = JSON.parse(v); } catch (e) {}
+  try { if (localStorage.getItem("reaper.graffiti") === "false") document.body.classList.add("no-graffiti"); } catch (e) {}
   if (/[?&]resume=1/.test(location.search) || !music) { go(); return; }
   var AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) { go(); return; }
@@ -3365,6 +3395,12 @@
       toast(theme === "steam" ? "Big Picture theme on" : "ReaperOS theme on");
     });
     tr.appendChild(th);
+    var graf = !document.body.classList.contains("no-graffiti");
+    var gb = button("Graffiti text: " + (graf ? "On" : "Off"), "Spray-paint style for the logo, titles and row names", function () {
+      graf = !graf; save("graffiti", graf); document.body.classList.toggle("no-graffiti", !graf);
+      gb.querySelector("b").textContent = "Graffiti text: " + (graf ? "On" : "Off");
+    });
+    tr.appendChild(gb);
     var upb = button("Check for ReaperOS updates", "", function () {
       if (!NATIVE) { toast("Updates install on your Fire TV."); return; }
       if (WIN && selfUpdate.ready) Reaper.installUpdate();
