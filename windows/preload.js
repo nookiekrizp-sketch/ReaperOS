@@ -40,5 +40,6 @@ contextBridge.exposeInMainWorld("Reaper", {
   desktopMode: async("desktopMode"),
   batoceraStatus: async("batoceraStatus"),
   batoceraBoot: async("batoceraBoot"),
+  setDesktopWallpaper: async("setDesktopWallpaper"),
   quit: async("quit")
 });

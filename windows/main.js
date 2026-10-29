@@ -449,6 +449,53 @@ function openWebWindow(url, ua) {
 
 // ------------------------------------------------------------------ bridge
 
+// ------------------------------------------------------------------ live desktop wallpaper (Lively Wallpaper)
+// Copies the reaper night scene into a Lively wallpaper project and applies it with
+// "Lively.exe setwp --file <folder>". Installs Lively (free, open source) with winget if needed.
+function findLively() {
+  const local = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
+  const spots = [
+    path.join(local, "Programs", "Lively Wallpaper", "Lively.exe"),
+    path.join(process.env.ProgramFiles || "C:\\Program Files", "Lively Wallpaper", "Lively.exe"),
+    path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Lively Wallpaper", "Lively.exe"),
+    path.join(local, "Microsoft", "WindowsApps", "Lively.exe")         // Microsoft Store version's app alias
+  ];
+  return spots.find((p) => { try { return fs.existsSync(p); } catch (e) { return false; } }) || null;
+}
+function wallpaperProject() {
+  const dir = path.join(app.getPath("userData"), "LiveWallpaper", "ReaperOS Night");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "index.html"), fs.readFileSync(path.join(__dirname, "ui", "wallpaper.html")));
+  fs.writeFileSync(path.join(dir, "livewall.js"), fs.readFileSync(path.join(__dirname, "ui", "livewall.js")));
+  fs.writeFileSync(path.join(dir, "LivelyInfo.json"), JSON.stringify({
+    AppVersion: "1.0.0.0", Title: "ReaperOS Night", Desc: "The reaper harvests RAM-stick souls under a full moon.",
+    Author: "ReaperOS", License: "", Contact: "", Type: 1, FileName: "index.html", Arguments: null, IsAbsolutePath: false
+  }, null, 2));
+  return dir;
+}
+function applyLively(exe, dir) {
+  const run = () => { try { spawn(exe, ["setwp", "--file", dir], { detached: true, stdio: "ignore", windowsHide: true }).unref(); } catch (e) {} };
+  run();
+  setTimeout(run, 7000);   // if Lively was just starting up, send it again once it's ready
+  toast("Live wallpaper is on your desktop. Lively pauses it automatically while you play.");
+}
+function setDesktopWallpaper() {
+  if (!isWin) { toast("Desktop live wallpaper is for Windows."); return; }
+  let dir;
+  try { dir = wallpaperProject(); } catch (e) { toast("Couldn't prepare the wallpaper: " + e.message); return; }
+  const exe = findLively();
+  if (exe) { applyLively(exe, dir); return; }
+  toast("Installing Lively Wallpaper (free)\u2026");
+  const p = spawn("winget", ["install", "--id", "rocksdanister.LivelyWallpaper", "-e", "--silent",
+    "--accept-package-agreements", "--accept-source-agreements"], { windowsHide: true });
+  p.on("error", () => { shell.openPath(dir); toast("Install Lively Wallpaper from the Microsoft Store, then drag the ReaperOS Night folder into it."); });
+  p.on("close", () => {
+    const now = findLively();
+    if (now) applyLively(now, dir);
+    else { shell.openPath(path.dirname(dir)); toast("Lively is installed. Open it and drag the ReaperOS Night folder in to use the wallpaper."); }
+  });
+}
+
 const syncHandlers = {
   deviceInfo: () => JSON.stringify({
     platform: isLinux ? "linux" : "windows",
@@ -561,6 +608,7 @@ const asyncHandlers = {
   requestMediaPermission: () => js("window.reaperMediaPermission && reaperMediaPermission(true)"),
   playMedia: (file, title) => playMedia(String(file), title ? String(title) : ""),
   setPlayerOption: (key, on) => { playerOptions[String(key)] = !!on; },
+  setDesktopWallpaper: () => setDesktopWallpaper(),
   quit: () => app.quit()
 };
 

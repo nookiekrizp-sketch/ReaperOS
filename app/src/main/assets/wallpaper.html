@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReaperOS Night</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0B0714; }
+  canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+<canvas id="wall"></canvas>
+<script src="livewall.js"></script>
+<script>
+  // As a desktop wallpaper the page never has focus, so it keeps animating
+  // (Lively pauses it on its own while a game or full-screen app is open).
+  ReaperWall(document.getElementById("wall"), { dim: 0, pauseOnBlur: false, fps: 30 });
+</script>
+</body>
+</html>
