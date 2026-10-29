@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>ReaperOS video</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+  #p { width: 100%; height: 100%; border: 0; }
+</style>
+</head>
+<body>
+<div id="p"></div>
+<script>
+/* ReaperOS's in-app YouTube player. ReaperOS shows this page full screen inside the app and
+   drives it with the remote through postMessage (play/pause, seek). It lives on GitHub Pages
+   because YouTube only plays embeds from real web addresses. */
+(function () {
+  var q = new URLSearchParams(location.search), id = q.get("v") || "", start = parseInt(q.get("t") || "0", 10) || 0;
+  var player = null;
+  function post(m) { m.reaperYT = 1; try { parent.postMessage(m, "*"); } catch (e) {} }
+  if (!/^[\w-]{11}$/.test(id)) { post({ ev: "error", code: "bad-id" }); return; }
+
+  window.onYouTubeIframeAPIReady = function () {
+    player = new YT.Player("p", {
+      videoId: id,
+      playerVars: { autoplay: 1, controls: 0, rel: 0, playsinline: 1, fs: 0, iv_load_policy: 3, start: start, origin: location.origin },
+      events: {
+        onReady: function (e) { e.target.playVideo(); post({ ev: "ready", dur: e.target.getDuration() }); },
+        onError: function (e) { post({ ev: "error", code: e.data }); },
+        onStateChange: function (e) { post({ ev: "state", s: e.data }); }
+      }
+    });
+  };
+  var tag = document.createElement("script");
+  tag.src = "https://www.youtube.com/iframe_api";
+  tag.onerror = function () { post({ ev: "error", code: "api" }); };
+  document.head.appendChild(tag);
+
+  window.addEventListener("message", function (e) {
+    var d = e.data || {};
+    if (!player || !d.reaperCmd || !player.getPlayerState) return;
+    if (d.reaperCmd === "toggle") { if (player.getPlayerState() === 1) player.pauseVideo(); else player.playVideo(); }
+    else if (d.reaperCmd === "seek") player.seekTo(Math.max(0, player.getCurrentTime() + (+d.s || 0)), true);
+    else if (d.reaperCmd === "stop") player.stopVideo();
+  });
+  setInterval(function () {
+    if (player && player.getCurrentTime) post({ ev: "time", t: player.getCurrentTime(), dur: player.getDuration(), s: player.getPlayerState() });
+  }, 1000);
+})();
+</script>
+</body>
+</html>

@@ -198,6 +198,42 @@
   /* ------------------------------------------------ media */
   .tile .dur { position: absolute; top: .55rem; left: .7rem; font-size: .8rem; font-weight: 700; color: var(--dim);
     background: rgba(11,7,20,.7); padding: .15rem .5rem; border-radius: 1rem; }
+  /* in-app video player */
+  #vov { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 70; background: #000; display: none; }
+  #vov.on { display: block; }
+  #vov iframe { pointer-events: none; }
+  #vov video, #vov iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; background: #000; display: none; }
+  #vov .vtop, #vov .vbar { position: absolute; left: 0; right: 0; padding: 1.6rem 3rem; transition: opacity .4s ease; z-index: 2; }
+  #vov .vtop { top: 0; display: flex; align-items: center; background: linear-gradient(rgba(0,0,0,.75), rgba(0,0,0,0)); font-size: 1.5rem; padding-top: calc(1.6rem + env(safe-area-inset-top)); }
+  #vov .vtop b { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #vov .vtop button { border: 0; border-radius: 2rem; background: rgba(255,255,255,.16); color: #fff; font-size: 1.3rem; padding: .4rem 1rem; cursor: pointer; }
+  body:not(.platform-touch) #vov .vtop button { display: none; }
+  #vov .vbar { bottom: 0; background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.8)); padding-bottom: calc(1.6rem + env(safe-area-inset-bottom)); }
+  #vov .prog { height: .45rem; border-radius: 1rem; background: rgba(255,255,255,.2); overflow: hidden; }
+  #vov .prog i { display: block; height: 100%; width: 0; background: var(--cyan); }
+  #vov .row { display: flex; justify-content: space-between; margin-top: .7rem; font-size: 1.05rem; color: #ddd; }
+  #vov .keys { color: #aaa; }
+  #vov.idle .vtop, #vov.idle .vbar { opacity: 0; }
+  #vov .vbig { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font-size: 5rem; color: #fff; opacity: 0; transition: opacity .3s ease;
+    text-shadow: 0 0 2rem rgba(0,0,0,.8); pointer-events: none; z-index: 2; }
+  #vov .vbig.show { opacity: .9; }
+  /* now-playing bar */
+  #mbar { position: fixed; right: 2.4rem; bottom: 2.6rem; z-index: 40; display: none; align-items: center; width: 27rem; padding: .7rem .9rem;
+    border-radius: 1.2rem; background: rgba(22,14,40,.94); box-shadow: 0 .6rem 2rem rgba(0,0,0,.5); border: .1rem solid rgba(255,255,255,.08); }
+  #mbar.on { display: flex; }
+  #mbar .art { flex: 0 0 auto; width: 3.6rem; height: 3.6rem; border-radius: .7rem; overflow: hidden; background: linear-gradient(135deg, #5B2C83, #1F6E5A);
+    display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-right: .9rem; }
+  #mbar .art img { width: 100%; height: 100%; object-fit: cover; }
+  #mbar .txt { flex: 1; min-width: 0; }
+  #mbar b, #mbar span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #mbar b { font-size: 1.05rem; } #mbar span { font-size: .85rem; color: var(--dim); margin-top: .1rem; }
+  #mbar .prog { height: .3rem; border-radius: 1rem; background: rgba(255,255,255,.15); margin-top: .45rem; overflow: hidden; }
+  #mbar .prog i { display: block; height: 100%; width: 0; background: var(--cyan); }
+  #mbar .st { flex: 0 0 auto; margin-left: .8rem; font-size: 1.3rem; color: var(--cyan); min-width: 1.6rem; text-align: center; }
+  #mbar .st.live { font-size: .75rem; font-weight: 800; letter-spacing: .08rem; background: #E0233A; color: #fff; border-radius: .4rem; padding: .15rem .4rem; }
+  body.platform-touch #mbar { right: .8rem; left: .8rem; width: auto; bottom: calc(.8rem + env(safe-area-inset-bottom)); }
+  .tile .stn { position: absolute; left: .9rem; top: .9rem; width: 3.6rem; height: 3.6rem; border-radius: .7rem; object-fit: cover; background: rgba(0,0,0,.3); }
+  .tile .nowp { position: absolute; top: .55rem; right: .6rem; font-size: .8rem; font-weight: 800; color: #000; background: var(--cyan); padding: .1rem .5rem; border-radius: .4rem; }
   #vplayer { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 60; background: #000; display: none; }
   #vplayer.on { display: block; }
   #vplayer video { width: 100%; height: 100%; }
@@ -687,6 +723,7 @@
   </div>
   <div class="tab f" data-tab="home">Home</div>
   <div class="tab f" data-tab="media">Media</div>
+  <div class="tab f" data-tab="music">Music</div>
   <div class="tab f" data-tab="store">Homebrew Store</div>
   <div class="tab f" data-tab="settings">Settings</div>
   <div class="spacer"></div>
@@ -697,8 +734,17 @@
 
 <div class="page" id="page-home"><div class="scroller"></div></div>
 <div class="page" id="page-media"><div class="scroller"></div></div>
+<div class="page" id="page-music"><div class="scroller"></div></div>
 <div class="page" id="page-store"><div class="scroller"></div></div>
-<div id="vplayer"><video id="vplayerVideo" controls playsinline></video><button id="vplayerClose">&#10005; Close</button></div>
+<audio id="mAudio" preload="none"></audio>
+<div id="mbar"><div class="art" id="mbArt"></div><div class="txt"><b id="mbTitle"></b><span id="mbSub"></span><div class="prog"><i id="mbProg"></i></div></div><div class="st" id="mbState"></div></div>
+<div id="vov">
+  <video id="vovVideo" playsinline></video>
+  <iframe id="vovFrame" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" title="Video"></iframe>
+  <div class="vtop"><b id="vovTitle"></b><button id="vovClose">&#10005;</button></div>
+  <div class="vbar"><div class="prog"><i id="vovProg"></i></div><div class="row"><span id="vovTime"></span><span class="keys" id="vovKeys"></span></div></div>
+  <div class="vbig" id="vovBig"></div>
+</div>
 <div id="zippad">
   <div class="box">
     <h2>Weather &amp; local news location</h2>
@@ -973,6 +1019,7 @@
   MOVIES.concat(ANIME).forEach(function (m) { if (EMBED[m.id]) { m.web = EMBED[m.id].web; m.ua = EMBED[m.id].ua; } });
   function canEmbed(c) { return !!c.web && NATIVE && !IOS; }
   function openEmbedded(c) {
+    musicPause(true);
     toast("Opening " + c.name + " in ReaperOS\u2026");
     Reaper.openWeb(c.web, c.ua || "");
   }
@@ -1505,6 +1552,7 @@
   }
   function launchApp(a) {
     if (!NATIVE) { toast("Opening " + a.label + " (works on your Fire TV)"); return; }
+    musicPause(true);
     if (!Reaper.launch(a.pkg)) toast("Couldn't open " + a.label + ".");
   }
   function toggleFav(a) {
@@ -1693,6 +1741,7 @@
   function imdbUrl(m) { return "https://www.imdb.com/title/" + m.id + "/"; }
   function fmtRuntime(sec) { if (!sec) return ""; var m = Math.round(sec / 60); return (m >= 60 ? Math.floor(m / 60) + "h " : "") + (m % 60 ? (m % 60) + "m" : ""); }
   function openOut(url, ua) {
+    musicPause(true);
     // Fire TV and PCs: inside ReaperOS. iPhone/iPad and browsers: a new tab, or the app if it's installed.
     if (NATIVE && !IOS && Reaper.openWeb) Reaper.openWeb(url, ua || "");
     else window.open(url, "_blank");
@@ -1711,10 +1760,11 @@
     toast("Playing " + e.title + " on YouTube Music\u2026");
     openOut("https://music.youtube.com/search?q=" + encodeURIComponent(q), UA_DESKTOP);
   }
-  function playVideo(v) {
+  function playVideoOut(v) {
     if (NATIVE && !IOS) openOut("https://www.youtube.com/tv#/watch?v=" + v.id, UA_TV);
     else window.open("https://www.youtube.com/watch?v=" + v.id, "_blank");
   }
+  function playVideo(v) { openVideo({ yt: v.id, title: v.title, fallback: function () { playVideoOut(v); } }); }
   function imgTag(cls, src) { return src ? '<img class="' + cls + '" loading="lazy" decoding="async" src="' + esc(src) + '" onerror="this.remove()">' : ""; }
   function movieTile(m, i) {
     var t = el("div", "tile f");
@@ -1786,7 +1836,8 @@
     for (var i = 0; i < SMARTTUBE_PKGS.length; i++) { try { if (Reaper.installedVersion(SMARTTUBE_PKGS[i])) return SMARTTUBE_PKGS[i]; } catch (e) {} }
     return "";
   }
-  function play4k(v) {
+  function play4k(v) { openVideo({ yt: v.id, title: v.title, fallback: function () { play4kOut(v); } }); }
+  function play4kOut(v) {
     var url = "https://www.youtube.com/watch?v=" + v.id;
     if (IOS || !NATIVE) { window.open(url, "_blank"); return; }
     if (DESK) { toast("Playing in 4K\u2026 pick 2160p in the quality menu if it starts lower."); openOut(url, UA_DESKTOP); return; }
@@ -1802,6 +1853,7 @@
       imgTag("ban", "https://i.ytimg.com/vi/" + v.id + "/mqdefault.jpg") + '<div class="badge4k">4K</div>' +
       (v.length ? '<div class="dur" style="left:auto;right:.7rem;background:rgba(11,7,20,.75);padding:.1rem .45rem;border-radius:.4rem">' + esc(v.length) + "</div>" : "") + '<div class="name">' + esc(v.title) + "</div>";
     t._act = function () { play4k(v); };
+    if (NATIVE && !DESK && !IOS) { t._menu = function () { play4kOut(v); }; t._menuLabel = "Open in SmartTube (full 4K)"; }
     return t;
   }
   var UHD_SERVICES = ["netflix", "prime", "disney", "appletv", "hbomax", "paramount"];
@@ -2152,6 +2204,332 @@
     refreshWeather(force); refreshNews(true);
     if (state.page === "settings") renderSettings(); else if (state.page === "home") renderHome(true);
   }
+
+  // ---------------------------------------------------------------- in-app video player
+  // YouTube plays through ReaperOS's player page on GitHub Pages (YouTube needs a real web address);
+  // video files play in the built-in <video>. Anything that can't play here falls back to the old way.
+  var PAGES = "https://nookiekrizp-sketch.github.io/ReaperOS/";
+  var vov = { on: false };
+  var vovIdle = 0, vovBigT = 0;
+  function fmtT(sec) { sec = Math.max(0, Math.floor(sec || 0)); var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), x = sec % 60;
+    return (h ? h + ":" + (m < 10 ? "0" : "") : "") + m + ":" + (x < 10 ? "0" : "") + x; }
+  function openVideo(o) {
+    musicPause(true);
+    vov = { on: true, o: o, t: 0, dur: 0, ready: false, playing: true };
+    var box = $("#vov"), fr = $("#vovFrame"), v = $("#vovVideo");
+    $("#vovTitle").textContent = o.title || "";
+    $("#vovKeys").textContent = TOUCH ? "Tap the video to pause" : (DESK ? "ENTER Play/Pause · ◀ ▶ Skip 10s · ESC Close" : "OK Play/Pause · ◀ ▶ Skip 10s · ⏪ ⏩ Skip 30s · BACK Close");
+    $("#vovProg").style.width = "0"; $("#vovTime").textContent = "Loading…";
+    if (o.yt) {
+      v.style.display = "none"; fr.style.display = "block";
+      fr.src = PAGES + "yt.html?v=" + encodeURIComponent(o.yt) + (o.start ? "&t=" + o.start : "");
+      clearTimeout(vov.timer);
+      vov.timer = setTimeout(function () { if (vov.on && !vov.ready) failVideo(); }, 20000);
+    } else {
+      fr.style.display = "none"; v.style.display = "block";
+      v.onerror = function () { failVideo(); };
+      v.ontimeupdate = function () { vov.t = v.currentTime; vov.dur = v.duration || 0; paintVov(); };
+      v.onplay = function () { vov.playing = true; }; v.onpause = function () { vov.playing = false; };
+      v.src = o.src; var pr = v.play(); if (pr && pr.catch) pr.catch(function () {});
+    }
+    box.classList.add("on"); wakeVov();
+    if (wallScene) wallScene.pause(true);
+  }
+  function failVideo() {
+    var o = vov.o; closeVideo();
+    if (o && o.fallback) { toast("That one can't play inside ReaperOS, so it's opening another way."); o.fallback(); }
+    else toast("That video can't play here.");
+  }
+  function closeVideo() {
+    if (!vov.on) return;
+    clearTimeout(vov.timer);
+    var fr = $("#vovFrame"), v = $("#vovVideo");
+    fr.removeAttribute("src"); fr.src = "about:blank";
+    v.onerror = null; v.pause(); v.removeAttribute("src"); try { v.load(); } catch (e) {}
+    $("#vov").classList.remove("on"); vov = { on: false };
+    if (wallScene) wallScene.pause(false);
+  }
+  function paintVov() {
+    $("#vovProg").style.width = vov.dur ? Math.min(100, vov.t / vov.dur * 100) + "%" : "0";
+    $("#vovTime").textContent = vov.dur ? fmtT(vov.t) + " / " + fmtT(vov.dur) : (vov.ready ? fmtT(vov.t) : "Loading…");
+  }
+  function wakeVov() {
+    $("#vov").classList.remove("idle"); clearTimeout(vovIdle);
+    vovIdle = setTimeout(function () { if (vov.playing !== false) $("#vov").classList.add("idle"); }, 3500);
+  }
+  function bigIcon(txt) { var b = $("#vovBig"); b.textContent = txt; b.classList.add("show"); clearTimeout(vovBigT); vovBigT = setTimeout(function () { b.classList.remove("show"); }, 700); }
+  function vovCmd(cmd, sec) {
+    if (vov.o && vov.o.yt) { try { $("#vovFrame").contentWindow.postMessage({ reaperCmd: cmd, s: sec }, "*"); } catch (e) {} }
+    else {
+      var v = $("#vovVideo");
+      if (cmd === "toggle") { if (v.paused) v.play(); else v.pause(); }
+      if (cmd === "seek") v.currentTime = Math.max(0, Math.min((v.duration || 1e9) - 1, v.currentTime + sec));
+    }
+    if (cmd === "toggle") { vov.playing = !vov.playing; bigIcon(vov.playing ? "▶" : "❚❚"); }
+    if (cmd === "seek") { vov.t = Math.max(0, vov.t + sec); paintVov(); bigIcon(sec > 0 ? "⏩ " + sec + "s" : "⏪ " + (-sec) + "s"); }
+    wakeVov();
+  }
+  function vovKey(key, repeat) {
+    if (key === "Back") { if (!repeat) closeVideo(); return; }
+    if ((key === "Enter" || key === "PlayPause") && !repeat) { vovCmd("toggle"); return; }
+    if (key === "ArrowLeft") { vovCmd("seek", -10); return; }
+    if (key === "ArrowRight") { vovCmd("seek", 10); return; }
+    if (key === "PageLeft" || key === "Prev") { vovCmd("seek", -30); return; }
+    if (key === "PageRight" || key === "Next") { vovCmd("seek", 30); return; }
+    wakeVov();
+  }
+  window.addEventListener("message", function (e) {
+    var d = e.data; if (!d || !d.reaperYT || !vov.on || !vov.o || !vov.o.yt) return;
+    if (d.ev === "ready") { vov.ready = true; vov.dur = d.dur || 0; paintVov(); }
+    if (d.ev === "error") failVideo();
+    if (d.ev === "time") { vov.ready = true; vov.t = d.t; vov.dur = d.dur; if (d.s === 1) vov.playing = true; if (d.s === 2) vov.playing = false; paintVov(); }
+    if (d.ev === "state" && d.s === 0) closeVideo();            // finished
+  });
+  $("#vovClose").addEventListener("click", closeVideo);
+  $("#vov").addEventListener("click", function (e) { if (e.target.id !== "vovClose") vovCmd("toggle"); });
+  $("#vov").addEventListener("mousemove", wakeVov);
+  function fileUrl(pth) {
+    if (/^(https?|file|content|blob):/.test(pth)) return pth;
+    var u = pth.replace(/\\/g, "/");
+    return "file://" + (u.charAt(0) === "/" ? "" : "/") + u.split("/").map(function (seg, i) { return i === 0 && /^[A-Za-z]:$/.test(seg) ? seg : encodeURIComponent(seg); }).join("/");
+  }
+
+  // ---------------------------------------------------------------- music player
+  // Your music files, live radio (Radio Browser) and podcast episodes (Apple Podcasts directory),
+  // with a now-playing bar that keeps playing while you browse. Media keys and the remote's
+  // play/pause button work everywhere.
+  var mAudio = $("#mAudio"), mq = { list: [], i: -1, shuffle: false };
+  function nowTrack() { return mq.list[mq.i] || null; }
+  function playQueue(list, i) {
+    if (vov.on) closeVideo();
+    mq.list = list; mq.i = i; loadTrack();
+  }
+  function loadTrack() {
+    var t = nowTrack(); if (!t) return;
+    mAudio.src = t.src; var pr = mAudio.play(); if (pr && pr.catch) pr.catch(function () {});
+    if (t.kind === "radio" && t.uuid) radioApi("/json/url/" + t.uuid).catch(function () {});   // counts the listen, as Radio Browser asks
+    paintBar(); setMediaSession();
+    if (state.page === "music") renderMusic(true);
+  }
+  function musicPause(silent) { if (!mAudio.paused) mAudio.pause(); paintBar(); }
+  function musicToggle() {
+    var t = nowTrack(); if (!t) { toast("Pick something to play on the Music tab."); return; }
+    if (mAudio.paused) { var pr = mAudio.play(); if (pr && pr.catch) pr.catch(function () {}); } else mAudio.pause();
+  }
+  function musicNext(dir) {
+    if (!mq.list.length) return;
+    if (mq.shuffle && mq.list.length > 1 && dir > 0) { var n; do { n = Math.floor(Math.random() * mq.list.length); } while (n === mq.i); mq.i = n; }
+    else mq.i = (mq.i + (dir || 1) + mq.list.length) % mq.list.length;
+    loadTrack();
+  }
+  function musicStop() { mAudio.pause(); mAudio.removeAttribute("src"); try { mAudio.load(); } catch (e) {} mq = { list: [], i: -1, shuffle: mq.shuffle }; paintBar(); if (state.page === "music") renderMusic(true); }
+  mAudio.addEventListener("ended", function () { var t = nowTrack(); if (t && t.kind !== "radio") { if (mq.i < mq.list.length - 1 || mq.shuffle) musicNext(1); else paintBar(); } });
+  mAudio.addEventListener("play", paintBar); mAudio.addEventListener("pause", paintBar);
+  mAudio.addEventListener("timeupdate", function () {
+    var t = nowTrack(); var pr = $("#mbProg");
+    pr.style.width = t && t.kind !== "radio" && mAudio.duration ? (mAudio.currentTime / mAudio.duration * 100) + "%" : (t && t.kind === "radio" ? "100%" : "0");
+  });
+  mAudio.addEventListener("error", function () {
+    var t = nowTrack(); if (!t || !mAudio.getAttribute("src")) return;
+    if (t.path && NATIVE && !IOS && Reaper.playMedia) { toast("Opening " + t.title + " in the ReaperOS Player…"); Reaper.playMedia(t.path, t.title); musicStop(); return; }
+    toast(t.kind === "radio" ? t.title + " isn't streaming right now. Try another station." : "Couldn't play " + t.title + ".");
+    paintBar();
+  });
+  function paintBar() {
+    var t = nowTrack(), bar = $("#mbar");
+    bar.classList.toggle("on", !!t);
+    if (!t) return;
+    $("#mbTitle").textContent = t.title; $("#mbSub").textContent = t.sub || "";
+    $("#mbArt").innerHTML = t.art ? '<img src="' + esc(t.art) + '" onerror="this.remove()">' : (t.kind === "radio" ? "\u{1F4FB}" : t.kind === "podcast" ? "\u{1F399}️" : "♫");
+    var st = $("#mbState");
+    st.className = "st" + (t.kind === "radio" && !mAudio.paused ? " live" : "");
+    st.textContent = mAudio.paused ? "❚❚" : t.kind === "radio" ? "LIVE" : "▶";
+    if ("mediaSession" in navigator) try { navigator.mediaSession.playbackState = mAudio.paused ? "paused" : "playing"; } catch (e) {}
+  }
+  function setMediaSession() {
+    var t = nowTrack(); if (!t || !("mediaSession" in navigator)) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: t.sub || "", album: "ReaperOS", artwork: t.art ? [{ src: t.art, sizes: "512x512" }] : [] });
+      navigator.mediaSession.setActionHandler("play", function () { mAudio.play(); });
+      navigator.mediaSession.setActionHandler("pause", function () { mAudio.pause(); });
+      navigator.mediaSession.setActionHandler("nexttrack", function () { musicNext(1); });
+      navigator.mediaSession.setActionHandler("previoustrack", function () { musicNext(-1); });
+    } catch (e) {}
+  }
+
+  // Radio Browser: a free, community-run directory of 50,000+ live stations.
+  var RADIO_HOSTS = ["https://de1.api.radio-browser.info", "https://nl1.api.radio-browser.info", "https://at1.api.radio-browser.info"];
+  function radioApi(pathq) {
+    var i = 0;
+    return (function next() {
+      if (i >= RADIO_HOSTS.length) return Promise.reject(new Error("radio directory unavailable"));
+      return getJson(RADIO_HOSTS[i++] + pathq).catch(next);
+    })();
+  }
+  var STATE_NAMES = {}; Object.keys(US_STATES).forEach(function (n) { STATE_NAMES[US_STATES[n]] = n; });
+  function stationTrack(st) {
+    return { kind: "radio", title: st.name.trim(), sub: [st.state, (st.tags || "").split(",").slice(0, 2).join(", ")].filter(Boolean).join(" · ") || "Live radio",
+      src: st.url_resolved || st.url, art: st.favicon || "", uuid: st.stationuuid, codec: st.codec, bitrate: st.bitrate };
+  }
+  function cleanStations(list) {
+    var seen = {};
+    return (list || []).filter(function (st) {
+      var u = st.url_resolved || st.url || "";
+      if (!u || (IOS && u.indexOf("https:") !== 0) || /\.m3u8|\.pls$|\.asx$/i.test(u) && !IOS) return false;
+      var k = (st.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (!k || seen[k]) return false; seen[k] = 1; return true;
+    }).map(stationTrack);
+  }
+  var radioCache = {};
+  function loadRadio(key, pathq) {
+    if (radioCache[key]) return Promise.resolve(radioCache[key]);
+    return radioApi(pathq).then(function (list) { radioCache[key] = cleanStations(list).slice(0, 40); return radioCache[key]; });
+  }
+  function nearRadioPath() {
+    if (loc && loc.country === "US" && loc.region) {
+      return "/json/stations/search?countrycode=US&state=" + encodeURIComponent(STATE_NAMES[loc.region] || loc.region) + "&order=clickcount&reverse=true&limit=60&hidebroken=true";
+    }
+    return "/json/stations/search?countrycode=" + encodeURIComponent((loc && loc.country) || "US") + "&order=clickcount&reverse=true&limit=60&hidebroken=true";
+  }
+  var GENRES = [
+    ["hiphop", "Hip-hop", "#7A2BBF"], ["rnb", "R&B", "#B0306A"], ["pop", "Pop", "#E0457B"], ["rock", "Rock", "#B8371F"],
+    ["country", "Country", "#B07A1F"], ["electronic", "Electronic", "#1F7AB8"], ["jazz", "Jazz", "#2A6F5B"], ["classical", "Classical", "#6B5B2A"],
+    ["lofi", "Lo-fi", "#4B5BB0"], ["latin", "Latin", "#C2571A"], ["reggae", "Reggae", "#2F8A3A"], ["news", "News & talk", "#3A4A66"], ["sports", "Sports", "#1E6E8C"]
+  ];
+
+  // Podcasts: Apple's top charts and episode lists (free, no account). Episodes stream right here.
+  var podTop = null, podEpisodes = {};
+  function loadTopPodcasts() {
+    if (podTop) return Promise.resolve(podTop);
+    var cc = ((loc && loc.country) || "us").toLowerCase();
+    return getJson("https://rss.applemarketingtools.com/api/v2/" + cc + "/podcasts/top/30/podcasts.json").then(function (d) {
+      podTop = ((d.feed && d.feed.results) || []).map(function (r) { return { id: r.id, name: r.name, by: r.artistName, art: (r.artworkUrl100 || "").replace("100x100", "400x400") }; });
+      return podTop;
+    });
+  }
+  function loadEpisodes(pod) {
+    if (podEpisodes[pod.id]) return Promise.resolve(podEpisodes[pod.id]);
+    return getJson("https://itunes.apple.com/lookup?id=" + pod.id + "&media=podcast&entity=podcastEpisode&limit=25").then(function (d) {
+      podEpisodes[pod.id] = (d.results || []).filter(function (r) { return r.episodeUrl; }).map(function (r) {
+        return { kind: "podcast", title: r.trackName, sub: pod.name + (r.releaseDate ? " · " + new Date(r.releaseDate).toLocaleDateString([], { month: "short", day: "numeric" }) : ""),
+          src: r.episodeUrl, art: r.artworkUrl600 || pod.art, ms: r.trackTimeMillis || 0 };
+      });
+      return podEpisodes[pod.id];
+    });
+  }
+
+  // Music tab
+  var musicView = { genre: null, pod: null, focus: null };
+  function trackTile(t, list, i, color) {
+    var tile = el("div", "tile f"), playing = nowTrack() && nowTrack().src === t.src;
+    tile._item = { kind: "track", t: t };
+    tile.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + (color || (t.kind === "radio" ? "#1F4E8C" : t.kind === "podcast" ? "#6B2A8C" : "#1F6E5A")) + ',#120A22 90%)"></div>' +
+      (t.art ? '<img class="stn" loading="lazy" src="' + esc(t.art) + '" onerror="this.remove()">' : '<div class="ic glyph" style="background:rgba(0,0,0,.3)">' + (t.kind === "radio" ? "\u{1F4FB}" : t.kind === "podcast" ? "\u{1F399}️" : "♫") + "</div>") +
+      (playing ? '<div class="nowp">' + (t.kind === "radio" ? "LIVE" : "PLAYING") + "</div>" : "") +
+      (t.ms ? '<div class="dur">' + fmtT(t.ms / 1000) + "</div>" : "") + '<div class="name">' + esc(t.title) + "</div>";
+    tile._act = function () { if (playing && !mAudio.paused) { mAudio.pause(); return; } playQueue(list, i); };
+    return tile;
+  }
+  function genreTile(g) {
+    var t = el("div", "tile f");
+    t._item = { kind: "genre", g: g };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,' + g[2] + ',#120A22 90%)"></div><div class="ic glyph" style="background:rgba(0,0,0,.25)">\u{1F4FB}</div><div class="name">' + esc(g[1]) + " radio</div>";
+    t._act = function () { musicView.genre = g; musicView.focus = "genreRow"; renderMusic(false); };
+    return t;
+  }
+  function podTile(pod) {
+    var t = el("div", "tile f");
+    t._item = { kind: "pod", pod: pod };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,#6B2A8C,#120A22 90%)"></div>' +
+      (pod.art ? '<img class="ban" loading="lazy" src="' + esc(pod.art) + '" onerror="this.remove()" style="object-fit:cover">' : "") + '<div class="name">' + esc(pod.name) + "</div>";
+    t.classList.toggle("hasban", !!pod.art);
+    t._act = function () { musicView.pod = pod; musicView.focus = "podRow"; renderMusic(false); };
+    return t;
+  }
+  function pendingShelf(title, promise, mapFn, id) {
+    var sec = shelf(title, null, [], "Loading…"); sec.dataset.mid = id || "";
+    promise.then(function (list) {
+      if (!sec.isConnected) return;
+      var fresh = shelf(title, list.length, list.map(mapFn), "Nothing here right now."); fresh.dataset.mid = id || "";
+      sec.parentNode.replaceChild(fresh, sec);
+      if (musicView.focus && musicView.focus === id && state.page === "music") { focusMid(id); musicView.focus = null; }
+    }, function () {
+      if (!sec.isConnected) return;
+      var e = sec.querySelector(".empty"); if (e) e.textContent = "Couldn't load this right now.";
+      if (musicView.focus === id) { musicView.focus = null; if (state.page === "music") setFocus(1, 0); }
+    });
+    return sec;
+  }
+  function focusMid(id) {
+    var rows = getRows();
+    for (var r = 0; r < rows.length; r++) { var s2 = rows[r].closest && rows[r].closest(".shelf"); if (s2 && s2.dataset.mid === id) { setFocus(r, 0); return; } }
+  }
+  function renderMusic(keepFocus) {
+    var keep = keepFocus ? focusKey() : null;
+    var sc = $("#page-music .scroller"); sc.innerHTML = "";
+    var t = nowTrack();
+    sc.appendChild(el("div", "pagehead", "<h2>Music</h2><p>" + (t ? "Now playing: <b>" + esc(t.title) + "</b>" + (t.sub ? " · " + esc(t.sub) : "") :
+      "Your music, live radio and podcasts, playing right here. Keeps going while you browse ReaperOS.") + "</p>"));
+    var sec = el("section", "shelf"), vp = el("div", "viewport"), tr = el("div", "track"); tr.dataset.row = "1";
+    if (t) {
+      tr.appendChild(button(mAudio.paused ? "▶ Play" : "❚❚ Pause", "Or press the remote's play/pause button anywhere", function () { musicToggle(); setTimeout(function () { renderMusic(true); }, 150); }));
+      if (t.kind !== "radio") {
+        tr.appendChild(button("⏮ Previous", "", function () { musicNext(-1); }));
+        tr.appendChild(button("⏭ Next", "", function () { musicNext(1); }));
+        var sh = button("Shuffle: " + (mq.shuffle ? "On" : "Off"), "", function () { mq.shuffle = !mq.shuffle; sh.querySelector("b").textContent = "Shuffle: " + (mq.shuffle ? "On" : "Off"); });
+        tr.appendChild(sh);
+      } else if (mq.list.length > 1) {
+        tr.appendChild(button("⏭ Next station", "", function () { musicNext(1); }));
+      }
+      tr.appendChild(button("⏹ Stop", "Turn the music off", function () { musicStop(); }));
+    } else {
+      tr.appendChild(button("Radio near you", "Live stations from " + (locName() || "your area"), function () { focusMid("near"); }));
+      if (NATIVE && !IOS) tr.appendChild(button("Your music", "Songs on this " + (DESK ? "PC" : "Fire TV") + " and USB drives", function () { focusMid("mine"); }));
+      tr.appendChild(button("Podcasts", "Top shows, playing right here", function () { focusMid("pods"); }));
+    }
+    vp.appendChild(tr); sec.appendChild(vp); sc.appendChild(sec);
+
+    // your own music
+    if (NATIVE && !IOS) {
+      if (Reaper.hasMediaPermission && !Reaper.hasMediaPermission()) {
+        var ps = shelf("Your music", null, [button("Show my music", "Allow ReaperOS to read the music on this device and USB drives", function () { Reaper.requestMediaPermission(); })]);
+        ps.dataset.mid = "mine"; sc.appendChild(ps);
+      } else {
+        var files = []; try { files = (JSON.parse(Reaper.listMedia()) || []).filter(function (x) { return x.kind === "audio"; }); } catch (e) {}
+        var mine = files.slice(0, 300).map(function (f) {
+          return { kind: "file", title: f.name.replace(/\.[^.]+$/, ""), sub: f.folder || "", src: fileUrl(f.path), path: f.path, ms: f.duration || 0 };
+        });
+        var ms = shelf("Your music", mine.length, mine.map(function (m, i) { return trackTile(m, mine, i); }),
+          DESK ? "No music found yet. ReaperOS looks in your Music, Downloads and Desktop folders." : "No music found yet. Copy songs to the Music or Downloads folder, or plug in a USB drive.");
+        ms.dataset.mid = "mine"; sc.appendChild(ms);
+      }
+    }
+    // radio
+    sc.appendChild(pendingShelf("Radio near you" + (locName() ? " · " + locName() : ""), findLocation(false).catch(function () {}).then(function () { return loadRadio("near:" + locName(), nearRadioPath()); }),
+      null, "near"));
+    sc.appendChild(shelf("Radio by genre", GENRES.length, GENRES.map(genreTile)));
+    if (musicView.genre) {
+      var g = musicView.genre;
+      sc.appendChild(pendingShelf(g[1] + " radio · most listened", loadRadio("tag:" + g[0], "/json/stations/bytag/" + encodeURIComponent(g[0]) + "?order=clickcount&reverse=true&limit=60&hidebroken=true"), null, "genreRow"));
+    }
+    // podcasts
+    var popSec = pendingShelf("Top podcasts", loadTopPodcasts(), podTile, "pods");
+    sc.appendChild(popSec);
+    if (musicView.pod) sc.appendChild(pendingShelf("Latest from " + musicView.pod.name, loadEpisodes(musicView.pod), null, "podRow"));
+    sc.appendChild(shelf("Music apps", null, SOCIAL.filter(function (x) { return x.id !== "discord"; }).map(linkTile)));
+
+    if (state.page === "music") {
+      if (keep && restoreFocus(keep)) return;
+      if (!musicView.focus) setFocus(1, 0);
+    }
+  }
+  // pendingShelf with track lists: map each loaded list into tiles that queue the whole list
+  var _pending = pendingShelf;
+  pendingShelf = function (title, promise, mapFn, id) {
+    if (mapFn) return _pending(title, promise, mapFn, id);
+    var holder = {};
+    return _pending(title, promise.then(function (list) { holder.list = list; return list; }), function (t, i) { return trackTile(t, holder.list, i); }, id);
+  };
 
   // ---------------------------------------------------------------- home
   function shelf(title, count, tiles, emptyText) {
@@ -2834,17 +3212,21 @@
     return t;
   }
   function playMediaItem(it) {
-    if (NATIVE && !IOS && Reaper.playMedia) { Reaper.playMedia(it.path, it.name); return; }
+    if (it.kind === "audio" && it.path) {
+      var all = []; try { all = (JSON.parse(Reaper.listMedia()) || []).filter(function (x) { return x.kind === "audio"; }); } catch (e) { all = [it]; }
+      var list = all.map(function (f) { return { kind: "file", title: f.name.replace(/\.[^.]+$/, ""), sub: f.folder || "", src: fileUrl(f.path), path: f.path }; });
+      var idx = Math.max(0, all.map(function (f) { return f.path; }).indexOf(it.path));
+      playQueue(list, idx); toast("Playing " + list[idx].title); return;
+    }
+    if (DESK && it.path) {          // PCs: play inside ReaperOS; formats the built-in player can't handle go to mpv
+      openVideo({ src: fileUrl(it.path), title: it.name, fallback: function () { Reaper.playMedia(it.path, it.name); } }); return;
+    }
+    if (NATIVE && !IOS && Reaper.playMedia) { musicPause(true); Reaper.playMedia(it.path, it.name); return; }
     if (it.url) openWebVideo(it.url, it.name);
   }
   function openWebVideo(url, name) {
-    var box = $("#vplayer"), v = $("#vplayerVideo");
-    v.src = url; box.classList.add("on");
-    var p = v.play(); if (p && p.catch) p.catch(function () {});
-    v.onerror = function () { toast("This browser can't play that format. Try VLC from the App Store for MKV and other formats."); };
+    openVideo({ src: url, title: name, fallback: function () { toast("This browser can't play that format. Try VLC from the App Store for MKV and other formats."); } });
   }
-  function closeWebVideo() { var v = $("#vplayerVideo"); v.pause(); v.removeAttribute("src"); v.load(); $("#vplayer").classList.remove("on"); }
-  $("#vplayerClose").addEventListener("click", closeWebVideo);
   $("#mediaPick").addEventListener("change", function (e) {
     var f = e.target.files && e.target.files[0]; if (!f) return;
     openWebVideo(URL.createObjectURL(f), f.name);
@@ -3131,6 +3513,7 @@
     if (page === "home") renderHome(false);
     if (page === "store") renderStore();
     if (page === "media") renderMedia();
+    if (page === "music") renderMusic(false);
     if (page === "settings") renderSettings();
     var sc = $(".scroller", pageEl()); sc.style.transform = ""; sc._y = 0;
     setFocus(getRows().length > 1 ? 1 : 0, 0, true);
@@ -3156,6 +3539,9 @@
       if (repeat && now - lastMove < 90) return true;   // smooth held-button scrolling
       lastMove = now;
     }
+    if (vov.on) { vovKey(key, repeat); return true; }
+    if (key === "PlayPause") { if (!repeat) musicToggle(); return true; }
+    if ((key === "Next" || key === "Prev") && nowTrack()) { if (!repeat) musicNext(key === "Next" ? 1 : -1); return true; }
     if (zipOn) { if (!repeat || /^Arrow/.test(key)) zipKey(key); return true; }
     if (setupOn) {
       if (key === "Enter" && !repeat) { hideSetup(); toast("Still installing in the background."); }
@@ -3187,7 +3573,8 @@
   if (!NATIVE || DESK) {
     document.addEventListener("keydown", function (e) {
       var map = { ArrowUp: "ArrowUp", ArrowDown: "ArrowDown", ArrowLeft: "ArrowLeft", ArrowRight: "ArrowRight",
-        Enter: "Enter", " ": "Enter", Escape: "Back", Backspace: "Back", m: "Menu", M: "Menu" };
+        Enter: "Enter", " ": "Enter", Escape: "Back", Backspace: "Back", m: "Menu", M: "Menu",
+        MediaPlayPause: "PlayPause", MediaTrackNext: "Next", MediaTrackPrevious: "Prev", k: "PlayPause", K: "PlayPause" };
       var k = map[e.key];
       if (zipOn && /^[0-9]$/.test(e.key)) k = e.key;
       if (zipOn && e.key === "Backspace") k = "Delete";

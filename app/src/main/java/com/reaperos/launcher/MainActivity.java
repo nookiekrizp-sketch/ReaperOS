@@ -174,7 +174,11 @@ public class MainActivity extends Activity {
             case KeyEvent.KEYCODE_BUTTON_X: return "X";
             case KeyEvent.KEYCODE_BUTTON_START: return "Start";
             case KeyEvent.KEYCODE_BUTTON_SELECT: return "Select";
-            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: return "PlayPause";
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE: return "PlayPause";
+            case KeyEvent.KEYCODE_MEDIA_NEXT: return "Next";
+            case KeyEvent.KEYCODE_MEDIA_PREVIOUS: return "Prev";
             default: return null;
         }
     }
