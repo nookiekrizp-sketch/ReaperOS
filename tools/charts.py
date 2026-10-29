@@ -7,7 +7,7 @@ fails keeps the previously published data, so a site change never empties a row.
 
 usage: charts.py OUT.json [PREVIOUS.json]
 """
-import json, re, sys, time, datetime, urllib.request, urllib.error
+import json, re, sys, time, datetime, urllib.request, urllib.error, urllib.parse
 import xml.etree.ElementTree as ET
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -320,6 +320,63 @@ def trailers():
     return out[:50]
 
 
+# 4K Ultra HD: YouTube's own 4K search filter, across a few kinds of showcase footage.
+UHD_QUERIES = [
+    ("4K HDR nature", "Nature"), ("4K drone footage", "Drone"), ("8K HDR", "8K"),
+    ("Blender Studio open movie 4K", "Free 4K film"), ("4K HDR city walk", "City walks"), ("4K HDR space earth", "Space"),
+]
+
+
+def yt_search(query, sp="EgJwAQ%3D%3D"):          # sp = the "4K" feature filter
+    html = get_retry("https://www.youtube.com/results?search_query=" + urllib.parse.quote_plus(query) + "&sp=" + sp)
+    m = re.search(r"var ytInitialData = (\{.*?\});</script>", html, re.S)
+    if not m:
+        raise ValueError("no results on page")
+    out = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            r = o.get("videoRenderer")
+            if isinstance(r, dict) and r.get("videoId"):
+                txt = lambda k: (r.get(k) or {}).get("simpleText") or "".join(x.get("text", "") for x in (r.get(k) or {}).get("runs", []))
+                out.append({"id": r["videoId"], "title": txt("title"), "channel": txt("ownerText"), "length": txt("lengthText"),
+                            "published": ago_to_iso(txt("publishedTimeText")), "views": txt("viewCountText")})
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+    walk(json.loads(m.group(1)))
+    return out
+
+
+def uhd():
+    per, seen = [], set()
+    for q, label in UHD_QUERIES:
+        try:
+            got = []
+            for v in yt_search(q):
+                mins = sum(int(x) * 60 ** i for i, x in enumerate(reversed(v["length"].split(":")))) / 60 if re.fullmatch(r"[\d:]+", v["length"] or "") else 0
+                if mins < 1 or v["id"] in seen:          # skip live streams, Shorts and repeats
+                    continue
+                if "blender" not in q.lower() and not re.search(r"\b(4K|8K|UHD|HDR|2160p?)\b", v["title"], re.I):
+                    continue
+                seen.add(v["id"]); v["topic"] = label; got.append(v)
+                if len(got) >= 8:
+                    break
+            per.append(got)
+            log("uhd ok", q, len(got))
+        except Exception as e:
+            log("uhd skip", q, e)
+        time.sleep(1)
+    out = []                                            # interleave the topics
+    for i in range(8):
+        for g in per:
+            if i < len(g):
+                out.append(g[i])
+    return out
+
+
 # ------------------------------------------------------------------ release timers
 def post_json(url, body):
     req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={
@@ -473,7 +530,7 @@ def main():
             KNOWN_IDS[c["handle"]] = c["channelId"]
     KNOWN_IDS.update(prev.get("channelIds", {}))
     out = {"updated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")}
-    for key, fn in (("imdb", imdb_popular), ("hot100", hot100), ("modders", modders), ("trailers", trailers),
+    for key, fn in (("imdb", imdb_popular), ("hot100", hot100), ("modders", modders), ("trailers", trailers), ("uhd", uhd),
                      ("anime_timers", anime_timers), ("game_timers", game_timers), ("movie_timers", movie_timers)):
         try:
             val = fn()

@@ -329,6 +329,8 @@
   .tile .cd.live { background: var(--cyan); color: #000; }
   .tile.timer .name { opacity: 1; }
   .hero .cd { color: var(--cyan); font-weight: 800; font-variant-numeric: tabular-nums; }
+  .tile .badge4k { position: absolute; top: .55rem; left: .6rem; font-size: .8rem; font-weight: 900; letter-spacing: .08rem;
+    padding: .12rem .5rem; border-radius: .35rem; background: linear-gradient(135deg, #F5D76E, #C9A227); color: #1A1200; }
   .tile .pin { position: absolute; top: .5rem; right: .6rem; font-size: .9rem; color: var(--cyan); }
   .tile.focused { transform: scale(1.09); z-index: 2; will-change: transform; }
   .tile.focused::after, .card.focused::after, .btn.focused::after {
@@ -1766,7 +1768,59 @@
     t.appendChild(el("div", "get", "\u25B6 Trailer"));
     return t;
   }
+  // ---------------------------------------------------------------- 4K Ultra HD
+  function screen4k() {
+    var w = device.maxWidth || 0;
+    if (!w && !NATIVE) w = Math.round((window.screen.width || 0) * (window.devicePixelRatio || 1));
+    return { w: w, h: device.maxHeight || Math.round((window.screen.height || 0) * (window.devicePixelRatio || 1)), ok: w >= 3800 };
+  }
+  function uhdNote() {
+    var sc = screen4k();
+    if (sc.ok) return DESK ? "Your screen is 4K." : NATIVE ? "Your Fire TV and TV can show 4K." : "This screen is 4K.";
+    if (!sc.w) return "";
+    return "This screen shows " + sc.w + "\u00d7" + sc.h + ", so 4K plays at that size" + (NATIVE && !DESK ? ". Real 4K needs a Fire TV Stick 4K, 4K Max or Cube on a 4K TV." : ".");
+  }
+  var SMARTTUBE_PKGS = ["app.smarttube.fdroid", "com.teamsmart.videomanager.tv", "com.liskovsoft.smarttubetv.beta", "com.liskovsoft.smarttubetv"];
+  function smartTubePkg() {
+    if (!NATIVE || DESK || IOS) return "";
+    for (var i = 0; i < SMARTTUBE_PKGS.length; i++) { try { if (Reaper.installedVersion(SMARTTUBE_PKGS[i])) return SMARTTUBE_PKGS[i]; } catch (e) {} }
+    return "";
+  }
+  function play4k(v) {
+    var url = "https://www.youtube.com/watch?v=" + v.id;
+    if (IOS || !NATIVE) { window.open(url, "_blank"); return; }
+    if (DESK) { toast("Playing in 4K\u2026 pick 2160p in the quality menu if it starts lower."); openOut(url, UA_DESKTOP); return; }
+    var st = smartTubePkg();
+    if (st && Reaper.openUrlWith) { Reaper.openUrlWith(url, st); return; }
+    toast("Install SmartTube from the Homebrew Store for full 4K. Playing here for now.");
+    openOut("https://www.youtube.com/tv#/watch?v=" + v.id, UA_TV);
+  }
+  function uhdTile(v) {
+    var t = el("div", "tile f hasban");
+    t._item = { kind: "chart", type: "uhd", v: v };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,#0E5A6E,#120A22 85%)"></div>' +
+      imgTag("ban", "https://i.ytimg.com/vi/" + v.id + "/mqdefault.jpg") + '<div class="badge4k">4K</div>' +
+      (v.length ? '<div class="dur" style="left:auto;right:.7rem;background:rgba(11,7,20,.75);padding:.1rem .45rem;border-radius:.4rem">' + esc(v.length) + "</div>" : "") + '<div class="name">' + esc(v.title) + "</div>";
+    t._act = function () { play4k(v); };
+    return t;
+  }
+  var UHD_SERVICES = ["netflix", "prime", "disney", "appletv", "hbomax", "paramount"];
+  function uhdServiceTile(c) {
+    var t = linkTile(c);
+    t.appendChild(el("div", "badge4k", "4K"));
+    t._item = { kind: "cloud", cloud: c, app: t._item.app, uhd: true };
+    return t;
+  }
   function chartHero(it) {
+    if (it.type === "uhd") {
+      var u = it.v, r4 = { color: "#0E7A92" };
+      r4.kicker = "4K Ultra HD \u00b7 " + (u.topic || "Video"); r4.title = u.title;
+      r4.desc = [u.channel, u.length, u.views].filter(Boolean).join(" \u00b7 ") + ". " +
+        (DESK ? "Opens in a 4K-capable player window." : NATIVE && !IOS ? (smartTubePkg() ? "Plays in SmartTube, which handles 4K and HDR." : "For full 4K, install SmartTube from the Homebrew Store.") : "Opens in YouTube.") + " " + uhdNote();
+      r4.act = "Play in 4K";
+      r4.art = '<img class="wide" src="https://i.ytimg.com/vi/' + u.id + '/hqdefault.jpg" style="object-fit:cover;aspect-ratio:16/9">';
+      return r4;
+    }
     if (/Timer$/.test(it.type)) return timerHero(it);
     var r = { color: "#3B2470", art: "" };
     if (it.type === "movie") {
@@ -2140,6 +2194,9 @@
     sc.appendChild(shelf("Movies & TV", MOVIES.length, MOVIES.map(linkTile)));
     var trl = trailerList();
     if (trl.length) sc.appendChild(shelf("Movie trailers \u00b7 newest first", trl.length, trl.map(videoTile)));
+    var uhdV = (charts && charts.uhd) || [];
+    var uhdTiles = MOVIES.filter(function (m) { return UHD_SERVICES.indexOf(m.id) >= 0; }).map(uhdServiceTile).concat(uhdV.map(uhdTile));
+    sc.appendChild(shelf("4K Ultra HD", null, uhdTiles));
     var pop = chartData("imdb");
     if (pop.length) sc.appendChild(shelf("Popular on IMDb", pop.length, pop.map(movieTile)));
     var mt = timerList("movie_timers");
@@ -2195,6 +2252,7 @@
       var c = it.cloud, ca = cloudApp(c); kicker = c.kicker; title = c.name; color = c.color;
       desc = ca || IOS ? c.desc : canEmbed(c) ? c.desc + " Plays right here in ReaperOS; install the app anytime for the full experience." : "Not installed yet. Press OK to get the app.";
       if (c.batocera) { desc = c.desc; }
+      if (it.uhd) { kicker = "4K Ultra HD \u00b7 " + c.name; desc = c.desc + " Has movies and shows in 4K (some need a 4K plan). " + uhdNote(); }
       act = c.batocera ? "Restart into Batocera" : ca || IOS || canEmbed(c) ? (MOVIES.indexOf(c) >= 0 || ANIME.indexOf(c) >= 0 ? "Watch" : PODCASTS.indexOf(c) >= 0 ? "Listen" : NEWS_APPS.indexOf(c) >= 0 || c.id === "localheadlines" ? "Watch the news" : SOCIAL.indexOf(c) >= 0 ? "Open" : "Play") : "Get app";
       art = artFor(t, c.glyph);
     } else {
@@ -2826,6 +2884,8 @@
         : "No videos found yet. Copy videos to the Downloads or Movies folder, plug in a USB drive, or send them from your iPhone with LocalSend."));
       return;
     }
+    var uhdLocal = videos.filter(function (v) { return v.width >= 3800 || v.height >= 2100; });
+    if (uhdLocal.length) sc.appendChild(shelf("4K videos", uhdLocal.length, uhdLocal.slice(0, 60).map(mediaTile)));
     if (videos.length) sc.appendChild(shelf("Recent videos", Math.min(videos.length, 30), videos.slice(0, 30).map(mediaTile)));
     var folders = {};
     videos.forEach(function (v) { (folders[v.folder || "Other"] = folders[v.folder || "Other"] || []).push(v); });

@@ -1,6 +1,6 @@
 // ReaperOS for Windows: hosts the shared ReaperOS interface full-screen and answers its
 // "Reaper" bridge calls with Windows equivalents (Start menu apps, Steam, winget, RetroArch).
-const { app, BrowserWindow, ipcMain, shell, nativeImage, session } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, nativeImage, session, screen } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -503,6 +503,8 @@ const syncHandlers = {
     version: app.getVersion(),
     model: (isLinux ? "ReaperOS PC (" : "Windows PC (") + os.hostname() + ")",
     abis: [process.arch === "arm64" ? "arm64" : "x86_64"],
+    maxWidth: (() => { try { const d = screen.getPrimaryDisplay(); return Math.round(d.size.width * d.scaleFactor); } catch (e) { return 0; } })(),
+    maxHeight: (() => { try { const d = screen.getPrimaryDisplay(); return Math.round(d.size.height * d.scaleFactor); } catch (e) { return 0; } })(),
     sdk: 0
   }),
   getApps: () => JSON.stringify(appsCache || loadApps()),

@@ -789,10 +789,39 @@ public class MainActivity extends Activity {
                 o.put("sdk", Build.VERSION.SDK_INT);
                 PackageInfo p = getPackageManager().getPackageInfo(getPackageName(), 0);
                 o.put("version", p.versionName);
+                // Highest output resolution this Fire TV + TV combination supports (4K check).
+                int maxW = 0, maxH = 0;
+                try {
+                    android.view.Display d = getWindowManager().getDefaultDisplay();
+                    if (Build.VERSION.SDK_INT >= 23) {
+                        for (android.view.Display.Mode m : d.getSupportedModes()) {
+                            if (m.getPhysicalWidth() * m.getPhysicalHeight() > maxW * maxH) { maxW = m.getPhysicalWidth(); maxH = m.getPhysicalHeight(); }
+                        }
+                    } else {
+                        android.graphics.Point pt = new android.graphics.Point(); d.getRealSize(pt); maxW = pt.x; maxH = pt.y;
+                    }
+                } catch (Exception ignored) { }
+                o.put("maxWidth", maxW);
+                o.put("maxHeight", maxH);
                 return o.toString();
             } catch (Exception ex) {
                 return "{}";
             }
+        }
+
+        /** Opens a link in a specific app (for example a YouTube video in SmartTube for 4K), or any app that takes it. */
+        @JavascriptInterface
+        public void openUrlWith(final String url, final String pkg) {
+            ui.post(() -> {
+                try {
+                    Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    if (pkg != null && !pkg.isEmpty()) i.setPackage(pkg);
+                    startActivity(i);
+                } catch (ActivityNotFoundException ex) {
+                    openExternal(url);
+                }
+            });
         }
 
         /** Background GET, so the interface can read F-Droid / GitHub without CORS limits. */

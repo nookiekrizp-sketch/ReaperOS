@@ -45,7 +45,7 @@ jobs:
           python3 -c "import json;json.load(open('_site/charts.json'))" 2>/dev/null || cp prev-charts.json _site/charts.json
           cat charts.log
           SUMMARY=$(python3 -c "import json;d=json.load(open('_site/charts.json'));print(', '.join('%s=%s'%(k,len(v['entries']) if isinstance(v,dict) and 'entries' in v else len(v) if isinstance(v,(list,dict)) else v) for k,v in d.items()))" 2>&1)
-          echo "::notice title=charts::$SUMMARY%0A$(grep -v 'youtube ok\|trailers ok\|imdb page' charts.log | head -45 | cut -c1-200 | sed ':a;N;$!ba;s/\n/%0A/g')"
+          echo "::notice title=charts::$SUMMARY%0A$(grep -v 'youtube ok\|trailers ok\|uhd ok\|imdb page' charts.log | head -45 | cut -c1-200 | sed ':a;N;$!ba;s/\n/%0A/g')"
           exit 0
 
       - uses: actions/configure-pages@v5
