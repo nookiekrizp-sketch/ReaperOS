@@ -1236,7 +1236,7 @@
     var AS = function (q) { return { type: "appstore", query: q }; };
     STORE = [
       { id: "retroarch", cat: "emus", featured: true, name: "RetroArch", glyph: "R", color: "#3A3A3A", source: AS("RetroArch"), desc: "All-in-one retro emulator, free on the App Store." },
-      { id: "delta", cat: "emus", featured: true, name: "Delta", glyph: "D", color: "#8E44AD", source: AS("Delta Game Emulator"), scheme: "delta://", desc: "Nintendo classics through DS with a beautiful library and controller support." },
+      { id: "delta", cat: "emus", featured: true, name: "Delta", glyph: "D", color: "#8E44AD", source: AS("Delta Game Emulator"), scheme: "delta://", desc: "The App Store's Nintendo emulator: NES, SNES, N64, Game Boy, GBA and DS, with save states, controller support and AirPlay. Free. Add your own game files in Delta from the Files app." },
       { id: "ppsspp", cat: "emus", name: "PPSSPP", glyph: "P", color: "#2A6FB0", source: AS("PPSSPP"), desc: "PlayStation Portable." },
       { id: "provenance", cat: "emus", name: "Provenance", glyph: "P", color: "#34495E", source: AS("Provenance Emulator"), desc: "Multi-system emulator for Atari, Sega, Nintendo, Sony and more." },
       { id: "gamma", cat: "emus", name: "Gamma", glyph: "G", color: "#16A085", source: AS("Gamma PS1 Emulator"), desc: "PlayStation 1." },
@@ -2727,7 +2727,8 @@
     if (news && news.items && news.items.length) nt = nt.concat(news.items.map(newsTile));
     else if (locName()) nt.push(linkTile(headlinesLink()));
     sc.appendChild(shelf("Local news" + (locName() ? " \u00b7 " + locName() : ""), null, nt));
-    sc.appendChild(shelf("Games \u00b7 play here", ROMS.length, ROMS.map(romTile)));
+    var deltaApp = IOS ? STORE.filter(function (x) { return x.id === "delta"; })[0] : null;
+    sc.appendChild(shelf("Games \u00b7 play here", ROMS.length + (deltaApp ? 1 : 0), (deltaApp ? [storeTile(deltaApp)] : []).concat(ROMS.map(romTile))));
     var seList = (charts && charts.squareenix) || [], own = DESK ? ownedSteamIds() : {};
     var seOwned = seList.filter(function (g) { return own[g.id]; }), seRest = seList.filter(function (g) { return !own[g.id]; });
     sc.appendChild(shelf("Square Enix", null, seOwned.map(function (g) { return seTile(g, true); }).concat(seExtraTiles(), seRest.map(function (g) { return seTile(g, false); }))));
