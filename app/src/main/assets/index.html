@@ -1741,6 +1741,18 @@
     return steamCache;
   }
 
+  // Grill Reaper: ReaperOS's own burger-stacking game. BurgerTime itself is sold by Hamster (Arcade Archives).
+  function grillTile() {
+    var t = el("div", "tile f");
+    t._item = { kind: "rom", rom: { sys: "ReaperOS", name: "Grill Reaper", color: "#C2571A",
+      desc: "ReaperOS's own arcade game: walk over the food to knock it down the floors and stack every burger on its plate. Stun the sauce bottles and onion rings with your scythe, or drop a bun on them." } };
+    t.innerHTML = '<div class="bgc" style="background:linear-gradient(135deg,#C2571A,#120A22 90%)"></div><div class="ic glyph" style="background:rgba(0,0,0,.28)">\u{1F354}</div><div class="name">Grill Reaper</div>';
+    t._act = function () { try { sessionStorage.setItem("reaper.lastFocus", JSON.stringify(focusKey())); } catch (e) {} musicPause(true); location.href = "grillreaper.html"; };
+    return t;
+  }
+  var BURGERTIME = { id: "burgertime", name: "BurgerTime (official)", glyph: "B", color: "#E60012", match: /a^/, kicker: "Nintendo Switch \u00b7 Arcade Archives",
+    desc: "The original 1982 arcade BurgerTime, sold by Hamster for Nintendo Switch. Opens its Nintendo eShop page.",
+    web: "https://www.nintendo.com/us/store/products/arcade-archives-burger-time-switch/", ua: UA_DESKTOP, icons: fav("nintendo.com") };
   function romTile(r) {
     var t = el("div", "tile f");
     t._item = { kind: "rom", rom: r };
@@ -2732,7 +2744,8 @@
     else if (locName()) nt.push(linkTile(headlinesLink()));
     sc.appendChild(shelf("Local news" + (locName() ? " \u00b7 " + locName() : ""), null, nt));
     var deltaApp = IOS ? STORE.filter(function (x) { return x.id === "delta"; })[0] : null;
-    sc.appendChild(shelf("Games \u00b7 play here", ROMS.length + (deltaApp ? 1 : 0), (deltaApp ? [storeTile(deltaApp)] : []).concat(ROMS.map(romTile))));
+    var gameTiles = [grillTile()].concat(deltaApp ? [storeTile(deltaApp)] : [], ROMS.map(romTile), [linkTile(BURGERTIME)]);
+    sc.appendChild(shelf("Games \u00b7 play here", gameTiles.length, gameTiles));
     var seList = (charts && charts.squareenix) || [], own = DESK ? ownedSteamIds() : {};
     var seOwned = seList.filter(function (g) { return own[g.id]; }), seRest = seList.filter(function (g) { return !own[g.id]; });
     sc.appendChild(shelf("Square Enix", null, seOwned.map(function (g) { return seTile(g, true); }).concat(seExtraTiles(), seRest.map(function (g) { return seTile(g, false); }))));
@@ -2802,7 +2815,7 @@
       if (t._menuLabel && !TOUCH && ch.descHtml) ch.descHtml += " Press " + (DESK ? "M" : "Menu") + " to watch the trailer."; kicker = ch.kicker; title = ch.title; desc = ch.desc; color = ch.color; art = ch.art; act = ch.act; descHtml = ch.descHtml;
     } else if (it.kind === "rom") {
       var rr = it.rom; kicker = rr.sys + " \u00b7 built-in player"; title = rr.name; desc = rr.desc; color = rr.color; act = "Play";
-      art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:3.6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(rr.sys === "NES" ? "NES" : "GB") + "</div>";
+      art = '<div class="ic glyph" style="width:13rem;height:13rem;border-radius:2.4rem;display:flex;align-items:center;justify-content:center;font-size:3.6rem;font-weight:800;background:rgba(0,0,0,.28)">' + esc(rr.sys === "NES" ? "NES" : rr.sys === "ReaperOS" ? "\u{1F354}" : "GB") + "</div>";
     } else if (it.kind === "cloud") {
       var c = it.cloud, ca = cloudApp(c); kicker = c.kicker; title = c.name; color = c.color;
       desc = ca || IOS ? c.desc : canEmbed(c) ? c.desc + " Plays right here in ReaperOS; install the app anytime for the full experience." : "Not installed yet. Press OK to get the app.";
